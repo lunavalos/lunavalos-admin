@@ -61,6 +61,6 @@ Route::middleware('auth')->group(function () {
 
 require __DIR__ . '/auth.php';
 
-// Public Contract Routes
+// Public Contract Routes - Test Webhook Deploy
 Route::get('contratodeservicio/{token}', [\App\Http\Controllers\ContractController::class, 'show'])->name('contracts.show');
 Route::post('contratodeservicio/{token}/sign', [\App\Http\Controllers\ContractController::class, 'sign'])->name('contracts.sign');
