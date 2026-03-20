@@ -382,3 +382,22 @@ onMounted(() => {
         <Toast />
     </div>
 </template>
+
+<style scoped>
+@media (max-width: 767px) {
+    aside {
+        width: 5rem !important;
+        display: flex !important;
+    }
+    aside span {
+        display: none !important;
+    }
+    aside a {
+        justify-content: center !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 0.75rem !important;
+        padding-bottom: 0.75rem !important;
+    }
+}
+</style>
