@@ -17,8 +17,10 @@ defineProps({
 const user = usePage().props.auth.user;
 
 const form = useForm({
+    _method: 'patch',
     name: user.name,
     email: user.email,
+    photo: null,
 });
 </script>
 
@@ -35,9 +37,29 @@ const form = useForm({
         </header>
 
         <form
-            @submit.prevent="form.patch(route('profile.update'))"
+            @submit.prevent="form.post(route('profile.update'), { preserveScroll: true })"
             class="mt-6 space-y-6"
         >
+            <div>
+                <InputLabel for="photo" value="Foto de Perfil" />
+                
+                <div class="mt-2 flex items-center gap-4">
+                    <img v-if="user.profile_photo_url" :src="user.profile_photo_url" alt="Profile Photo" class="h-12 w-12 rounded-full object-cover">
+                    <input
+                        id="photo"
+                        type="file"
+                        class="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-indigo-50 file:text-indigo-700
+                            hover:file:bg-indigo-100"
+                        @input="form.photo = $event.target.files[0]"
+                    />
+                </div>
+                
+                <InputError class="mt-2" :message="form.errors.photo" />
+            </div>
             <div>
                 <InputLabel for="name" value="Name" />
 
