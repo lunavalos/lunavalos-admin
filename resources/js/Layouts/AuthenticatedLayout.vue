@@ -176,7 +176,7 @@ onMounted(() => {
             <aside 
                 :class="[
                     'bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out z-20', 
-                    isSidebarExpanded ? 'w-64' : 'w-20 hidden sm:flex'
+                    isSidebarExpanded ? 'w-20 md:w-64 flex' : 'hidden md:flex md:w-20'
                 ]"
             >
                 <!-- Navigation Links -->
@@ -387,7 +387,6 @@ onMounted(() => {
 @media (max-width: 767px) {
     aside {
         width: 5rem !important;
-        display: flex !important;
     }
     aside span {
         display: none !important;
