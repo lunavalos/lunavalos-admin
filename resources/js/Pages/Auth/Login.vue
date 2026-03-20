@@ -6,6 +6,8 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref } from 'vue';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline';
 
 defineProps({
     canResetPassword: {
@@ -21,6 +23,8 @@ const form = useForm({
     password: '',
     remember: false,
 });
+
+const showPassword = ref(false);
 
 const submit = () => {
     form.post(route('login'), {
@@ -57,14 +61,26 @@ const submit = () => {
             <div class="mt-4">
                 <InputLabel for="password" value="Password" />
 
-                <TextInput
-                    id="password"
-                    type="password"
-                    class="mt-1 block w-full"
-                    v-model="form.password"
-                    required
-                    autocomplete="current-password"
-                />
+                <div class="relative">
+                    <TextInput
+                        id="password"
+                        :type="showPassword ? 'text' : 'password'"
+                        class="mt-1 block w-full pr-10"
+                        v-model="form.password"
+                        required
+                        autocomplete="current-password"
+                    />
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 mt-1">
+                        <button
+                            type="button"
+                            @click="showPassword = !showPassword"
+                            class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                        >
+                            <EyeIcon v-if="!showPassword" class="h-5 w-5" aria-hidden="true" />
+                            <EyeSlashIcon v-else class="h-5 w-5" aria-hidden="true" />
+                        </button>
+                    </div>
+                </div>
 
                 <InputError class="mt-2" :message="form.errors.password" />
             </div>
