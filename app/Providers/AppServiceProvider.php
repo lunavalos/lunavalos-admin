@@ -37,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
                 
                 if (!empty($settings['smtp_username']) && !empty($settings['smtp_password'])) {
                     config([
+                        'mail.default' => 'smtp',
                         'mail.mailers.smtp.transport' => 'smtp',
                         'mail.mailers.smtp.host' => 'smtp.gmail.com',
                         'mail.mailers.smtp.port' => 465,
