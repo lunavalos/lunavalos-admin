@@ -46,6 +46,22 @@ class ProfileController extends Controller
     }
 
     /**
+     * Update the user's vault records.
+     */
+    public function updateVault(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'vault_credentials' => ['nullable', 'string']
+        ]);
+
+        $request->user()->forceFill([
+            'vault_credentials' => $validated['vault_credentials'] ?? ''
+        ])->save();
+
+        return Redirect::route('profile.edit')->with('status', 'vault-updated');
+    }
+
+    /**
      * Delete the user's account.
      */
     public function destroy(Request $request): RedirectResponse
