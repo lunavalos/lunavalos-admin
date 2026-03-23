@@ -6,9 +6,19 @@ use Illuminate\Http\Request;
 use App\Models\Client;
 use Carbon\Carbon;
 use Inertia\Inertia;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class FinanceController extends Controller
+class FinanceController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Finanzas', only: ['index', 'receipt']),
+            new Middleware('can:Editar Finanzas', only: ['sendReceipt']), // Asumiendo que enviar correos requiere permisos un poco más altos
+        ];
+    }
+
     public function index(Request $request)
     {
         $range = $request->query('range', 'default');
