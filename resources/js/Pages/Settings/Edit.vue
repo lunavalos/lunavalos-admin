@@ -29,6 +29,7 @@ const form = useForm({
     company_tiktok: props.settings.company_tiktok || '',
     company_yt: props.settings.company_yt || '',
     smtp_username: props.settings.smtp_username || '',
+    smtp_from_address: props.settings.smtp_from_address || '',
     smtp_password: props.settings.smtp_password || '',
 });
 
@@ -204,16 +205,20 @@ const isTab = (tabName) => {
 
                                     <h4 class="text-md font-bold mb-4 text-gray-800 border-b pb-2 pt-4">Conexión SMTP de Correos (Integración Google Workspace)</h4>
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                        <div>
-                                            <InputLabel value="Correo Emisor (Gmail / Workspace)" />
+                                        <div class="md:col-span-2">
+                                            <InputLabel value="Correo Emisor Real (Gmail / Workspace)" />
                                             <input type="email" v-model="form.smtp_username" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="ejemplo@tu-agencia.com">
                                         </div>
                                         <div>
                                             <InputLabel value="Contraseña de Aplicación" />
                                             <input type="password" v-model="form.smtp_password" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Las 16 letras generadas por Google">
                                         </div>
+                                        <div>
+                                            <InputLabel value="Alias Remitente (Opcional)" />
+                                            <input type="email" v-model="form.smtp_from_address" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="finanzas@tu-agencia.com">
+                                        </div>
                                         <div class="col-span-2 text-xs text-gray-500 mt-2">
-                                            ⚠️ Al llenar esto, el sistema enviará los recibos (y cualquier otro correo del sistema) usando tu propia cuenta corporativa de Google automáticamente.
+                                            ⚠️ Al llenar esto, el sistema enviará los recibos (y cualquier otro correo del sistema) usando tu propia cuenta corporativa de Google automáticamente. Si tienes un Alias configurado en Google, puedes agregarlo a la derecha.
                                         </div>
                                     </div>
                                 </div>

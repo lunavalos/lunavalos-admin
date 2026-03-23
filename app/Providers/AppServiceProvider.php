@@ -43,7 +43,7 @@ class AppServiceProvider extends ServiceProvider
                         'mail.mailers.smtp.encryption' => 'tls',
                         'mail.mailers.smtp.username' => $settings['smtp_username'],
                         'mail.mailers.smtp.password' => $settings['smtp_password'],
-                        'mail.from.address' => $settings['smtp_username'],
+                        'mail.from.address' => !empty($settings['smtp_from_address']) ? $settings['smtp_from_address'] : $settings['smtp_username'],
                         'mail.from.name' => $settings['company_commercial_name'] ?? 'LunAvalos',
                     ]);
                 }

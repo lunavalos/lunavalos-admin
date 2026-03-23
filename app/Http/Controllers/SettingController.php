@@ -59,6 +59,7 @@ class SettingController extends Controller
             'company_tiktok' => 'nullable|string',
             'company_yt' => 'nullable|string',
             'smtp_username' => 'nullable|string|email',
+            'smtp_from_address' => 'nullable|string|email',
             'smtp_password' => 'nullable|string',
         ]);
 
