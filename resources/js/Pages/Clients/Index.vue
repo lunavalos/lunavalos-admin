@@ -2,7 +2,12 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { TrashIcon, PencilSquareIcon, EnvelopeIcon, CheckBadgeIcon, EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
+import Modal from '@/Components/Modal.vue';
+import TextInput from '@/Components/TextInput.vue';
+import InputError from '@/Components/InputError.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
 
 const props = defineProps({
     clients: Array,
@@ -73,6 +78,40 @@ const closeModal = () => {
     isModalOpen.value = false;
     selectedClient.value = null;
     showClientVault.value = false;
+};
+
+const confirmingPassword = ref(false);
+const passwordInput = ref(null);
+const confirmForm = useForm({
+    password: '',
+});
+
+const toggleClientVault = () => {
+    if (showClientVault.value) {
+        showClientVault.value = false;
+    } else {
+        confirmingPassword.value = true;
+        nextTick(() => passwordInput.value?.focus());
+    }
+};
+
+const verifyPassword = () => {
+    confirmForm.post(route('profile.vault.verify'), {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+            showClientVault.value = true;
+            closePasswordModal();
+        },
+        onError: () => passwordInput.value?.focus(),
+        onFinish: () => confirmForm.reset(),
+    });
+};
+
+const closePasswordModal = () => {
+    confirmingPassword.value = false;
+    confirmForm.clearErrors();
+    confirmForm.reset();
 };
 </script>
 
@@ -237,7 +276,7 @@ const closeModal = () => {
                                     <div class="mt-6 pt-4 border-t border-gray-100" v-if="selectedClient?.login_credentials || selectedClient?.notes">
                                         <div class="flex justify-between items-center mb-2">
                                             <strong class="text-blue-900">Bóveda de Accesos / Notas:</strong>
-                                            <button v-if="selectedClient?.login_credentials" type="button" @click="showClientVault = !showClientVault" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-2 py-1 rounded">
+                                            <button v-if="selectedClient?.login_credentials" type="button" @click="toggleClientVault" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-2 py-1 rounded">
                                                 <template v-if="!showClientVault">
                                                     <EyeIcon class="h-3 w-3 mr-1" /> Revelar
                                                 </template>
@@ -262,6 +301,48 @@ const closeModal = () => {
                 </div>
             </div>
         </div>
+
+        <!-- Modal Confirmar Contraseña (sobrepuesto) -->
+        <Modal :show="confirmingPassword" @close="closePasswordModal">
+            <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900">
+                    Confirmación de Seguridad
+                </h2>
+
+                <p class="mt-1 text-sm text-gray-600">
+                    Por favor, ingresa tu contraseña de inicio de sesión para desbloquear la bóveda del cliente.
+                </p>
+
+                <div class="mt-6">
+                    <TextInput
+                        id="password_confirm"
+                        ref="passwordInput"
+                        v-model="confirmForm.password"
+                        type="password"
+                        class="mt-1 block w-3/4"
+                        placeholder="Tu contraseña"
+                        @keyup.enter="verifyPassword"
+                    />
+
+                    <InputError :message="confirmForm.errors.password" class="mt-2" />
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <SecondaryButton @click="closePasswordModal">
+                        Cancelar
+                    </SecondaryButton>
+
+                    <PrimaryButton
+                        class="ms-3"
+                        :class="{ 'opacity-25': confirmForm.processing }"
+                        :disabled="confirmForm.processing"
+                        @click="verifyPassword"
+                    >
+                        Desbloquear
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
 
     </AuthenticatedLayout>
 </template>

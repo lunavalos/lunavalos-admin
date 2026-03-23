@@ -62,6 +62,20 @@ class ProfileController extends Controller
     }
 
     /**
+     * Verify the user's password for unlocking vaults.
+     */
+    public function verifyPassword(Request $request): RedirectResponse
+    {
+        if (!\Illuminate\Support\Facades\Hash::check($request->password, $request->user()->password)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'password' => 'La contraseña es incorrecta.',
+            ]);
+        }
+
+        return back();
+    }
+
+    /**
      * Delete the user's account.
      */
     public function destroy(Request $request): RedirectResponse

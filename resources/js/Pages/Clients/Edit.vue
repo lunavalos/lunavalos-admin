@@ -4,8 +4,12 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
-import { ref } from 'vue';
-import { EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import Modal from '@/Components/Modal.vue';
+import SecondaryButton from '@/Components/SecondaryButton.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import { ref, computed, watch, nextTick } from 'vue';
+import { CheckCircleIcon, PlusCircleIcon, PlusIcon, TagIcon, PaperClipIcon, TrashIcon, UserIcon, ArrowLeftIcon, BuildingOfficeIcon, UserPlusIcon, MagnifyingGlassIcon, EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline';
+import axios from 'axios';
 
 const props = defineProps({
     client: Object,
@@ -87,7 +91,44 @@ const form = useForm({
     has_custom_email_config: props.client.has_custom_email_config === 1 || props.client.has_custom_email_config === true,
 });
 
+const fileInput = ref(null);
+const attachedFiles = ref([...(props.client.attachments || [])]);
+
 const showCredentials = ref(false);
+const confirmingPassword = ref(false);
+const passwordInput = ref(null);
+
+const confirmForm = useForm({
+    password: '',
+});
+
+const toggleCredentials = () => {
+    if (showCredentials.value) {
+        showCredentials.value = false;
+    } else {
+        confirmingPassword.value = true;
+        nextTick(() => passwordInput.value?.focus());
+    }
+};
+
+const verifyPassword = () => {
+    confirmForm.post(route('profile.vault.verify'), {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => {
+            showCredentials.value = true;
+            closeModal();
+        },
+        onError: () => passwordInput.value?.focus(),
+        onFinish: () => confirmForm.reset(),
+    });
+};
+
+const closeModal = () => {
+    confirmingPassword.value = false;
+    confirmForm.clearErrors();
+    confirmForm.reset();
+};
 
 const addEmailAccount = () => {
     showCredentials.value = true;
@@ -407,7 +448,7 @@ const deleteClient = () => {
                         <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                             <div class="flex justify-between items-center mb-2">
                                 <InputLabel for="login_credentials" value="Bóveda de Accesos (CPanel, Wp-Admin, etc.)" class="font-bold text-gray-800" />
-                                <button type="button" @click="showCredentials = !showCredentials" class="text-sm text-blue-600 hover:text-blue-800 flex items-center font-semibold">
+                                <button type="button" @click="toggleCredentials" class="text-sm text-blue-600 hover:text-blue-800 flex items-center font-semibold">
                                     <template v-if="!showCredentials">
                                         <EyeIcon class="h-4 w-4 mr-1" /> Mostrar Contraseñas
                                     </template>
@@ -672,5 +713,48 @@ const deleteClient = () => {
                 </form>
             </div>
         </div>
+
+        <!-- MODAL CONTRASEÑA -->
+        <Modal :show="confirmingPassword" @close="closeModal">
+            <div class="p-6">
+                <h2 class="text-lg font-medium text-gray-900">
+                    Confirmación de Seguridad
+                </h2>
+
+                <p class="mt-1 text-sm text-gray-600">
+                    Por favor, ingresa tu contraseña de inicio de sesión para desbloquear la bóveda.
+                </p>
+
+                <div class="mt-6">
+                    <TextInput
+                        id="password_confirm"
+                        ref="passwordInput"
+                        v-model="confirmForm.password"
+                        type="password"
+                        class="mt-1 block w-3/4"
+                        placeholder="Tu contraseña"
+                        @keyup.enter="verifyPassword"
+                    />
+
+                    <InputError :message="confirmForm.errors.password" class="mt-2" />
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <SecondaryButton @click="closeModal">
+                        Cancelar
+                    </SecondaryButton>
+
+                    <PrimaryButton
+                        class="ms-3"
+                        :class="{ 'opacity-25': confirmForm.processing }"
+                        :disabled="confirmForm.processing"
+                        @click="verifyPassword"
+                    >
+                        Desbloquear
+                    </PrimaryButton>
+                </div>
+            </div>
+        </Modal>
+
     </AuthenticatedLayout>
 </template>
