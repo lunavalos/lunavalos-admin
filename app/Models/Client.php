@@ -41,6 +41,7 @@ class Client extends Model
         'smtp_port',
         'smtp_tls',
         'has_custom_email_config',
+        'email_accounts',
     ];
 
     protected $casts = [
@@ -53,6 +54,7 @@ class Client extends Model
         'pop_tls' => 'boolean',
         'smtp_tls' => 'boolean',
         'has_custom_email_config' => 'boolean',
+        'email_accounts' => 'array',
     ];
 
     public function user()

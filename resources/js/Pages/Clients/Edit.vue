@@ -66,6 +66,7 @@ const form = useForm({
     hosting_provider: props.client.hosting_provider || '',
     email_provider: props.client.email_provider || '',
     login_credentials: props.client.login_credentials || '',
+    email_accounts: props.client.email_accounts || [],
     notes: props.client.notes || '',
     login_email: '',
     login_password: '',
@@ -87,6 +88,20 @@ const form = useForm({
 });
 
 const showCredentials = ref(false);
+
+const addEmailAccount = () => {
+    showCredentials.value = true;
+    form.email_accounts.push({
+        email: '',
+        password: '',
+        username: '',
+        phone: ''
+    });
+};
+
+const removeEmailAccount = (index) => {
+    form.email_accounts.splice(index, 1);
+};
 
 const submit = () => {
     form.post(route('clients.update', props.client.id), {
@@ -411,6 +426,65 @@ const deleteClient = () => {
                                 placeholder="Escribe aquí los usuarios y contraseñas..."
                             ></textarea>
                             <div v-if="!showCredentials && form.login_credentials" class="text-xs text-gray-500 mt-1 italic">Presiona "Mostrar Contraseñas" para ver el contenido.</div>
+                        </div>
+
+                        <!-- Boveda de Correos Institucionales -->
+                        <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                            <div class="flex justify-between items-center mb-4">
+                                <InputLabel value="Cuentas de Correo Institucional" class="font-bold text-gray-800" />
+                                <button type="button" @click="addEmailAccount" class="bg-[#264ab3] hover:bg-[#193074] text-white text-xs font-bold py-1.5 px-3 rounded shadow transition">
+                                    + Agregar Correo
+                                </button>
+                            </div>
+                            
+                            <div v-if="form.email_accounts.length === 0" class="text-sm text-gray-500 italic text-center py-4 border-2 border-dashed border-gray-300 rounded mb-2">
+                                No hay correos registrados. Presiona "+ Agregar Correo" para comenzar.
+                            </div>
+
+                            <div v-else class="overflow-x-auto mt-4 border border-gray-200 rounded-lg shadow-sm">
+                                <table class="min-w-full divide-y divide-gray-200 bg-white">
+                                    <thead class="bg-gray-100">
+                                        <tr>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[30%]">
+                                                Dirección de correo
+                                            </th>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[25%]">
+                                                Contraseña
+                                            </th>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[20%]">
+                                                Usuario <span class="text-gray-400 font-normal normal-case">(Opcional)</span>
+                                            </th>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-r border-gray-200 w-[20%]">
+                                                Teléfono <span class="text-gray-400 font-normal normal-case">(Opcional)</span>
+                                            </th>
+                                            <th scope="col" class="px-2 py-2.5 w-[5%] text-center text-xs font-medium text-gray-500 uppercase tracking-wider relative bg-gray-50">
+                                                <div v-if="!showCredentials" class="absolute inset-0 bg-gray-100 flex items-center justify-center z-10" title="Desbloquea la bóveda para editar">🔒</div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200 transition-all duration-300" :class="{'opacity-50 blur-[4px] pointer-events-none select-none': !showCredentials}">
+                                        <tr v-for="(account, index) in form.email_accounts" :key="index" class="hover:bg-blue-50/50 transition-colors group">
+                                            <td class="border-r border-gray-200 p-0 relative">
+                                                <input type="email" v-model="account.email" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-[#264ab3] text-sm bg-transparent px-3 py-2.5 placeholder-gray-300" placeholder="ejemplo@dominio.com" required>
+                                            </td>
+                                            <td class="border-r border-gray-200 p-0 relative">
+                                                <input type="text" v-model="account.password" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-[#264ab3] text-sm bg-transparent px-3 py-2.5 font-mono placeholder-gray-300" placeholder="Contraseña">
+                                            </td>
+                                            <td class="border-r border-gray-200 p-0 relative">
+                                                <input type="text" v-model="account.username" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-[#264ab3] text-sm bg-transparent px-3 py-2.5 placeholder-gray-300" placeholder="Usuario">
+                                            </td>
+                                            <td class="border-r border-gray-200 p-0 relative">
+                                                <input type="text" v-model="account.phone" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-[#264ab3] text-sm bg-transparent px-3 py-2.5 placeholder-gray-300" placeholder="Teléfono">
+                                            </td>
+                                            <td class="p-0 text-center whitespace-nowrap align-middle bg-gray-50 group-hover:bg-red-50/30 transition-colors">
+                                                <button type="button" @click="removeEmailAccount(index)" class="text-gray-400 hover:text-red-600 transition p-2 inline-flex items-center justify-center rounded-full w-full h-full" title="Eliminar fila">
+                                                    <TrashIcon class="h-4 w-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         
                         <div class="mt-6">

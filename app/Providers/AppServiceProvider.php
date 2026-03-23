@@ -30,5 +30,26 @@ class AppServiceProvider extends ServiceProvider
         if (app()->environment('production')) {
             URL::forceScheme('https');
         }
+
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('settings')) {
+                $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
+                
+                if (!empty($settings['smtp_username']) && !empty($settings['smtp_password'])) {
+                    config([
+                        'mail.mailers.smtp.transport' => 'smtp',
+                        'mail.mailers.smtp.host' => 'smtp.gmail.com',
+                        'mail.mailers.smtp.port' => 465,
+                        'mail.mailers.smtp.encryption' => 'tls',
+                        'mail.mailers.smtp.username' => $settings['smtp_username'],
+                        'mail.mailers.smtp.password' => $settings['smtp_password'],
+                        'mail.from.address' => $settings['smtp_username'],
+                        'mail.from.name' => $settings['company_commercial_name'] ?? 'LunAvalos',
+                    ]);
+                }
+            }
+        } catch (\Exception $e) {
+            // Ignore if DB not ready
+        }
     }
 }

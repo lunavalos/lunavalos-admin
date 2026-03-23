@@ -9,7 +9,7 @@ import {
     BriefcaseIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon,
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
-    SwatchIcon
+    SwatchIcon, BanknotesIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -295,6 +295,25 @@ onMounted(() => {
                                 </span>
                             </Link>
                         </li>
+                        
+                        <!-- Finances Link -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Finanzas'))">
+                            <Link 
+                                :href="route('finances.index')"
+                                :class="[
+                                    route().current('finances.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Finanzas' : ''"
+                            >
+                                <BanknotesIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Finanzas
+                                </span>
+                            </Link>
+                        </li>
+
                         <!-- Clients Link -->
                         <li v-if="$page.props.auth.user.can.view_clients">
                             <Link 

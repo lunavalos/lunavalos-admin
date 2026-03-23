@@ -54,6 +54,11 @@ Route::middleware('auth')->group(function () {
     Route::post('tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assign'])->name('tickets.assign');
     Route::post('notifications/mark-as-read', [\App\Http\Controllers\DashboardController::class, 'markNotificationsAsRead'])->name('notifications.markAsRead');
 
+    // Finanzas
+    Route::get('finances', [\App\Http\Controllers\FinanceController::class, 'index'])->name('finances.index');
+    Route::get('finances/{client}/receipt', [\App\Http\Controllers\FinanceController::class, 'receipt'])->name('finances.receipt');
+    Route::post('finances/{client}/send-receipt', [\App\Http\Controllers\FinanceController::class, 'sendReceipt'])->name('finances.send-receipt');
+
     // Signature Generator
     Route::resource('signature-templates', \App\Http\Controllers\SignatureTemplateController::class);
     Route::get('/client/signatures', [\App\Http\Controllers\SignatureGeneratorController::class, 'index'])->name('client.signatures');

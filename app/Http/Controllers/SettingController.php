@@ -58,6 +58,8 @@ class SettingController extends Controller
             'company_ig' => 'nullable|string',
             'company_tiktok' => 'nullable|string',
             'company_yt' => 'nullable|string',
+            'smtp_username' => 'nullable|string|email',
+            'smtp_password' => 'nullable|string',
         ]);
 
         if ($request->hasFile('company_logo')) {

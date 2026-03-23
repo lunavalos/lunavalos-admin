@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { ArrowUpTrayIcon, DocumentTextIcon, CheckCircleIcon } from '@heroicons/vue/24/outline';
+import { ArrowUpTrayIcon, DocumentTextIcon, CheckCircleIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
 
 const fileInput = ref(null);
 const fileError = ref('');
@@ -32,6 +32,7 @@ const SystemFields = [
     { value: 'notes', label: 'Notas' },
     { value: 'login_email', label: 'Email de Acceso (Para Entrar Aplicación)' },
     { value: 'login_password', label: 'Contraseña de Acceso (Para Entrar Aplicación)' },
+    { value: 'email_accounts', label: 'Cuentas Corp. (correo|pass|usuario|tel)' },
 ];
 
 const form = useForm({
@@ -190,18 +191,24 @@ const submitImport = () => {
                         {{ fileError }}
                     </div>
 
-                    <div class="relative overflow-hidden inline-block cursor-pointer">
-                        <button class="bg-[#264ab3] hover:bg-[#193074] text-white font-bold py-3 px-8 rounded shadow-lg transition-colors inline-flex items-center">
-                            <ArrowUpTrayIcon class="h-5 w-5 mr-2" />
-                            Seleccionar Archivo CSV
-                        </button>
-                        <input 
-                            type="file" 
-                            accept=".csv, text/csv"
-                            ref="fileInput"
-                            @change="handleFileUpload" 
-                            class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
-                        />
+                    <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+                        <div class="relative overflow-hidden inline-block cursor-pointer">
+                            <button class="bg-[#264ab3] hover:bg-[#193074] text-white font-bold py-3 px-8 rounded shadow-lg transition-colors inline-flex items-center w-full sm:w-auto justify-center">
+                                <ArrowUpTrayIcon class="h-5 w-5 mr-2" />
+                                Seleccionar Archivo CSV
+                            </button>
+                            <input 
+                                type="file" 
+                                accept=".csv, text/csv"
+                                ref="fileInput"
+                                @change="handleFileUpload" 
+                                class="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                        </div>
+                        <a href="/plantilla_clientes.csv" download="Plantilla de Clientes Lunavalos.csv" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded shadow-lg transition-colors inline-flex items-center w-full sm:w-auto justify-center">
+                            <ArrowDownTrayIcon class="h-5 w-5 mr-2" />
+                            Descargar plantilla CSV
+                        </a>
                     </div>
                 </div>
 

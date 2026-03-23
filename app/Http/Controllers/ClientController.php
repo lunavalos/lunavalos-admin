@@ -90,6 +90,31 @@ class ClientController extends Controller implements HasMiddleware
                     }
                 }
             }
+            // Parse email_accounts from text format: email|pass|user|phone separated by lines or commas
+            if (!empty($clientData['email_accounts']) && is_string($clientData['email_accounts'])) {
+                $rawAccounts = trim($clientData['email_accounts']);
+                $parsedAccounts = [];
+                // Split by line breaks, and optionally by commas if they used them (assume linebreaks for Excel cells)
+                $lines = preg_split('/[\r\n]+/', $rawAccounts);
+                
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if (empty($line)) continue;
+                    
+                    $parts = explode('|', $line);
+                    if (count($parts) >= 1 && !empty(trim($parts[0]))) {
+                        $parsedAccounts[] = [
+                            'email' => trim($parts[0] ?? ''),
+                            'password' => trim($parts[1] ?? ''),
+                            'username' => trim($parts[2] ?? ''),
+                            'phone' => trim($parts[3] ?? ''),
+                        ];
+                    }
+                }
+                $clientData['email_accounts'] = $parsedAccounts;
+            } else {
+                $clientData['email_accounts'] = null;
+            }
 
             // User creation logic mapping dynamically
             $userId = null;
@@ -207,6 +232,7 @@ class ClientController extends Controller implements HasMiddleware
             'has_custom_email_config' => 'boolean',
             'login_email' => 'nullable|email|max:255',
             'login_password' => 'nullable|string|min:6',
+            'email_accounts' => 'nullable|array',
             'quote_id' => 'nullable|exists:quotes,id',
             'quote_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
             'contract_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
@@ -326,6 +352,7 @@ class ClientController extends Controller implements HasMiddleware
             'has_custom_email_config' => 'boolean',
             'login_email' => 'nullable|email|max:255',
             'login_password' => 'nullable|string|min:6',
+            'email_accounts' => 'nullable|array',
             'quote_id' => 'nullable|exists:quotes,id',
             'quote_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
             'contract_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
