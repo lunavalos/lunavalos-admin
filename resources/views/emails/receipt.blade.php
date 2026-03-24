@@ -4,9 +4,21 @@
     <title>Renovación de Servicio</title>
 </head>
 <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+@php
+    $logoPath = null;
+    try {
+        if (\Illuminate\Support\Facades\Schema::hasTable('settings')) {
+            $logoPath = \App\Models\Setting::where('key', 'company_logo')->value('value');
+        }
+    } catch (\Exception $e) {}
+@endphp
     
     <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="color: #264ab3; margin: 0;">LUNAVALOS</h2>
+        @if ($logoPath)
+            <img src="{{ asset('storage/' . $logoPath) }}" alt="LUNAVALOS" style="max-height: 50px; width: auto; max-width: 100%;">
+        @else
+            <h2 style="color: #264ab3; margin: 0;">LUNAVALOS</h2>
+        @endif
         <p style="color: #666; font-size: 14px; margin-top: 5px;">Aviso de Renovación de Servicios</p>
     </div>
 
