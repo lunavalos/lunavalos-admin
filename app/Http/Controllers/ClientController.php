@@ -233,6 +233,10 @@ class ClientController extends Controller implements HasMiddleware
             'login_email' => 'nullable|email|max:255',
             'login_password' => 'nullable|string|min:6',
             'email_accounts' => 'nullable|array',
+            'costs' => 'nullable|array',
+            'costs.*.concept' => 'required|string',
+            'costs.*.amount' => 'required|numeric',
+            'costs.*.billing_frequency' => 'required|in:monthly,annual,unique',
             'quote_id' => 'nullable|exists:quotes,id',
             'quote_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
             'contract_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
@@ -289,7 +293,7 @@ class ClientController extends Controller implements HasMiddleware
         }
 
         // Clean up from validated array to avoid fillable issues if they aren't fillable
-        unset($validated['quote_file'], $validated['contract_file'], $validated['branding_file'], $validated['receipt_file']);
+        unset($validated['quote_file'], $validated['contract_file'], $validated['branding_file'], $validated['receipt_file'], $validated['costs']);
 
         $client = Client::create($validated);
 
@@ -310,6 +314,19 @@ class ClientController extends Controller implements HasMiddleware
                             'billing_frequency' => $item->billing_type
                         ]);
                     }
+                }
+            }
+        }
+
+        if ($request->has('costs') && is_array($request->costs)) {
+            foreach ($request->costs as $cost) {
+                if (!empty($cost['concept']) && isset($cost['amount'])) {
+                    \App\Models\ClientCost::create([
+                        'client_id' => $client->id,
+                        'concept' => $cost['concept'],
+                        'amount' => $cost['amount'],
+                        'billing_frequency' => $cost['billing_frequency'] ?? 'monthly',
+                    ]);
                 }
             }
         }

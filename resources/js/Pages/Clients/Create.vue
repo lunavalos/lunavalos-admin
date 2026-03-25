@@ -4,8 +4,8 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
-import { ref, nextTick } from 'vue';
-import { EyeIcon, EyeSlashIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import { ref, nextTick, computed } from 'vue';
+import { EyeIcon, EyeSlashIcon, TrashIcon, ChartBarIcon } from '@heroicons/vue/24/outline';
 import Modal from '@/Components/Modal.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -92,6 +92,7 @@ const form = useForm({
     smtp_port: '465',
     smtp_tls: true,
     has_custom_email_config: false,
+    costs: [],
 });
 
 const showCredentials = ref(false);
@@ -143,6 +144,47 @@ const addEmailAccount = () => {
 const removeEmailAccount = (index) => {
     form.email_accounts.splice(index, 1);
 };
+
+const addingCost = ref(false);
+const tempCost = ref({ concept: '', amount: '', billing_frequency: 'monthly' });
+
+const submitCost = () => {
+    if(tempCost.value.concept && tempCost.value.amount) {
+        form.costs.push({...tempCost.value});
+        tempCost.value = { concept: '', amount: '', billing_frequency: 'monthly' };
+        addingCost.value = false;
+    }
+};
+
+const deleteCost = (index) => {
+    form.costs.splice(index, 1);
+};
+
+const formatCurrency = (value) => {
+    if (!value) return '$0.00';
+    return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+    }).format(value);
+};
+
+const totalMonthlyCosts = computed(() => {
+    return form.costs
+        .filter(c => c.billing_frequency === 'monthly')
+        .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+});
+
+const totalAnnualCosts = computed(() => {
+    return form.costs
+        .filter(c => c.billing_frequency === 'annual')
+        .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+});
+
+const totalUniqueCosts = computed(() => {
+    return form.costs
+        .filter(c => c.billing_frequency === 'unique')
+        .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+});
 
 const submit = () => {
     form.post(route('clients.store'), {
@@ -665,6 +707,127 @@ const submit = () => {
                                     autocomplete="new-password"
                                 />
                                 <InputError class="mt-2" :message="form.errors.login_password" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 7. Costos Internos y Rentabilidad (Nuevo Módulo) -->
+                    <div class="card bg-white shadow-sm sm:rounded-lg mb-6" v-if="$page.props.auth.user.is_admin">
+                        <div class="border-b border-gray-200 p-6 pb-4">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                                        <ChartBarIcon class="h-5 w-5 mr-2 text-indigo-600" />
+                                        7. Rentabilidad y Costos Internos
+                                    </h3>
+                                    <p class="text-sm text-gray-500 mt-1">Lleva el control de lo que este cliente te cuesta mantener (dominio, freelancers, licencias, etc).</p>
+                                </div>
+                                <button type="button" @click="addingCost = !addingCost" class="btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded shadow-sm text-sm transition transition-colors">
+                                    {{ addingCost ? 'Cancelar' : '+ Agregar Costo' }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Formulario para Agregar Costo -->
+                        <div v-if="addingCost" class="p-6 bg-indigo-50 border-b border-indigo-100">
+                            <h4 class="font-bold text-indigo-800 mb-4 text-sm uppercase">Nuevo Costo</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div class="md:col-span-2">
+                                    <InputLabel for="cost_concept" value="Concepto" class="font-bold text-gray-700" />
+                                    <TextInput id="cost_concept" type="text" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md" v-model="tempCost.concept" placeholder="Ej: Dominio web, Diseñador Freelance, etc." />
+                                </div>
+                                <div>
+                                    <InputLabel for="cost_amount" value="Costo ($)" class="font-bold text-gray-700" />
+                                    <TextInput id="cost_amount" type="number" step="0.01" min="0" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md" v-model="tempCost.amount" placeholder="0.00" />
+                                </div>
+                                <div>
+                                    <InputLabel for="cost_freq" value="Frecuencia" class="font-bold text-gray-700" />
+                                    <select id="cost_freq" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md shadow-sm" v-model="tempCost.billing_frequency">
+                                        <option value="monthly">Mensual</option>
+                                        <option value="annual">Anual</option>
+                                        <option value="unique">Único</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-4 mt-2">
+                                    <button type="button" @click="submitCost" class="btn bg-[#264ab3] hover:bg-[#193074] text-white font-bold py-2 px-6 rounded shadow">
+                                        Guardar Costo
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de Costos -->
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 border-b border-t text-xs uppercase text-gray-600 font-bold">
+                                    <tr>
+                                        <th class="p-4" style="width: 50%">Concepto</th>
+                                        <th class="p-4 text-center">Frecuencia</th>
+                                        <th class="p-4 text-right">Costo Estimado</th>
+                                        <th class="p-4 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(cost, idx) in form.costs" :key="idx" class="border-b hover:bg-gray-50">
+                                        <td class="p-4 font-medium text-gray-800">{{ cost.concept }}</td>
+                                        <td class="p-4 text-center text-sm">
+                                            <span class="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold" v-if="cost.billing_frequency === 'monthly'">Mensual</span>
+                                            <span class="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold" v-else-if="cost.billing_frequency === 'annual'">Anual</span>
+                                            <span class="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold" v-else>Único</span>
+                                        </td>
+                                        <td class="p-4 text-right font-bold text-red-600">{{ formatCurrency(cost.amount) }}</td>
+                                        <td class="p-4 text-center">
+                                            <button type="button" @click="deleteCost(idx)" class="text-gray-400 hover:text-red-500 transition" title="Eliminar Costo">
+                                                <TrashIcon class="h-5 w-5 inline-block" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="form.costs.length === 0">
+                                        <td colspan="4" class="p-6 text-center text-gray-400 italic">No se han registrado costos internos para este cliente.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Sumario de Utilidad -->
+                        <div class="bg-gray-50 p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 rounded-b-lg border-t border-gray-200">
+                            <!-- Ingresos Estimados -->
+                            <div>
+                                <h4 class="text-xs font-bold uppercase text-gray-500 mb-2 tracking-wider">Métrica de Ingresos</h4>
+                                <div class="text-sm flex justify-between mb-1">
+                                    <span>Cobro Inicial:</span>
+                                    <span class="font-bold text-gray-800">{{ formatCurrency(form.initial_price) }}</span>
+                                </div>
+                                <div class="text-sm flex justify-between">
+                                    <span>Renovación:</span>
+                                    <span class="font-bold text-green-700">{{ formatCurrency(form.renewal_amount) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Costos Estimados -->
+                            <div>
+                                <h4 class="text-xs font-bold uppercase text-gray-500 mb-2 tracking-wider">Totales de Costos</h4>
+                                <div class="text-sm flex justify-between mb-1">
+                                    <span>Únicos:</span>
+                                    <span class="font-bold text-red-600">{{ formatCurrency(totalUniqueCosts) }}</span>
+                                </div>
+                                <div class="text-sm flex justify-between pb-1 mb-1 border-b border-gray-200">
+                                    <span>Anuales:</span>
+                                    <span class="font-bold text-red-600">{{ formatCurrency(totalAnnualCosts) }}</span>
+                                </div>
+                                <div class="text-sm flex justify-between text-gray-800">
+                                    <span>Mensuales:</span>
+                                    <span class="font-bold text-red-600">{{ formatCurrency(totalMonthlyCosts) }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Utilidad Aparente (Simplificada) -->
+                            <div class="bg-white p-4 rounded-md shadow-sm border border-gray-100 flex flex-col justify-center">
+                                <h4 class="text-xs font-bold uppercase text-gray-500 tracking-wider">Margen Inicial Aproximado (Utilidad)</h4>
+                                <div class="mt-2 text-xl font-black" :class="(form.initial_price - totalUniqueCosts) > 0 ? 'text-green-600' : ((form.initial_price - totalUniqueCosts) === 0 ? 'text-gray-600' : 'text-red-600')">
+                                    {{ formatCurrency(form.initial_price - totalUniqueCosts) }}
+                                </div>
+                                <div class="text-xs text-gray-400 mt-1">Calculado: Cobro Inicial menos Costos Únicos.</div>
                             </div>
                         </div>
                     </div>
