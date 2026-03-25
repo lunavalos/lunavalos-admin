@@ -306,7 +306,7 @@ const submit = () => {
                                 >
                                     <option value="" disabled>-- Catálogo de Servicios --</option>
                                     <option v-for="srv in services" :key="srv.id" :value="srv.id">
-                                        {{ srv.name }} ({{ srv.billing_type === 'unique' ? 'Único' : 'Mensual' }})
+                                        {{ srv.name }} ({{ srv.billing_type === 'unique' ? 'Único' : (srv.billing_type === 'annual' ? 'Anual' : 'Mensual') }})
                                     </option>
                                 </select>
                                 <button 
@@ -364,6 +364,7 @@ const submit = () => {
                                             >
                                                 <option value="unique">Único</option>
                                                 <option value="monthly">Mensual</option>
+                                                <option value="annual">Anual</option>
                                             </select>
                                         </td>
                                         <!-- Quantity -->

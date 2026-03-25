@@ -66,4 +66,9 @@ class Client extends Model
     {
         return $this->belongsTo(Quote::class);
     }
+
+    public function costs()
+    {
+        return $this->hasMany(ClientCost::class);
+    }
 }

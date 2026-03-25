@@ -11,7 +11,7 @@
     } catch (\Exception $e) {}
 @endphp
 @if ($logoPath)
-<img src="{{ asset('storage/' . $logoPath) }}" class="logo" alt="{!! strip_tags($slot) !!}" style="max-height: 50px; width: auto; max-width: 100%;">
+<img src="{{ asset('storage/' . $logoPath) }}" class="logo" alt="{!! strip_tags($slot) !!}" style="max-height: 150px; width: auto; max-width: 100%;">
 @else
 @if (trim($slot) === 'Laravel')
 <img src="https://laravel.com/img/notification-logo-v2.1.png" class="logo" alt="Laravel Logo">

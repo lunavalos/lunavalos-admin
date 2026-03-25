@@ -32,6 +32,12 @@ Route::middleware('auth')->group(function () {
     Route::post('clients/import-bulk', [\App\Http\Controllers\ClientController::class, 'importBulk'])->name('clients.importBulk');
     Route::resource('clients', \App\Http\Controllers\ClientController::class);
     Route::post('clients/{client}/renew', [\App\Http\Controllers\ClientController::class, 'renew'])->name('clients.renew');
+    
+    // Client Costs
+    Route::post('clients/{client}/costs', [\App\Http\Controllers\ClientCostController::class, 'store'])->name('clients.costs.store');
+    Route::put('clients/{client}/costs/{cost}', [\App\Http\Controllers\ClientCostController::class, 'update'])->name('clients.costs.update');
+    Route::delete('clients/{client}/costs/{cost}', [\App\Http\Controllers\ClientCostController::class, 'destroy'])->name('clients.costs.destroy');
+
     Route::resource('agencies', \App\Http\Controllers\AgencyController::class)->except(['create', 'show', 'edit']);
 
 

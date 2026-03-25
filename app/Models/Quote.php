@@ -27,7 +27,7 @@ class Quote extends Model
         'is_multiple_choice' => 'boolean'
     ];
 
-    protected $appends = ['total_unique', 'total_monthly'];
+    protected $appends = ['total_unique', 'total_monthly', 'total_annual'];
 
     public function getTotalUniqueAttribute()
     {
@@ -39,6 +39,13 @@ class Quote extends Model
     public function getTotalMonthlyAttribute()
     {
         return $this->items->where('billing_type', 'monthly')->reduce(function ($carry, $item) {
+            return $carry + ($item->quantity * $item->unit_price);
+        }, 0);
+    }
+
+    public function getTotalAnnualAttribute()
+    {
+        return $this->items->where('billing_type', 'annual')->reduce(function ($carry, $item) {
             return $carry + ($item->quantity * $item->unit_price);
         }, 0);
     }

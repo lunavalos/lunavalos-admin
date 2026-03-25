@@ -15,7 +15,7 @@
     
     <div style="text-align: center; margin-bottom: 20px;">
         @if ($logoPath)
-            <img src="{{ asset('storage/' . $logoPath) }}" alt="LUNAVALOS" style="max-height: 50px; width: auto; max-width: 100%;">
+            <img src="{{ asset('storage/' . $logoPath) }}" alt="LUNAVALOS" style="max-height: 150px; width: auto; max-width: 100%;">
         @else
             <h2 style="color: #264ab3; margin: 0;">LUNAVALOS</h2>
         @endif

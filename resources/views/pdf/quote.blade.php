@@ -139,6 +139,11 @@
             color: #166534;
         }
 
+        .badge-annual {
+            background-color: #fef08a; /* yellow-200 */
+            color: #854d0e; /* yellow-800 */
+        }
+
         .text-center {
             text-align: center;
         }
@@ -207,10 +212,13 @@
         // Calculations
         $uniqueTotal = 0;
         $monthlyTotal = 0;
+        $annualTotal = 0;
         foreach ($quote->items as $item) {
             $lineTotal = $item->unit_price * $item->quantity;
             if ($item->billing_type == 'unique') {
                 $uniqueTotal += $lineTotal;
+            } elseif ($item->billing_type == 'annual') {
+                $annualTotal += $lineTotal;
             } else {
                 $monthlyTotal += $lineTotal;
             }
@@ -283,6 +291,8 @@
                             {{ $item->concept }}
                             @if($item->billing_type == 'unique')
                                 <span class="concept-badge badge-unique">PAGO ÚNICO</span>
+                            @elseif($item->billing_type == 'annual')
+                                <span class="concept-badge badge-annual">ANUAL</span>
                             @else
                                 <span class="concept-badge badge-monthly">MENSUAL</span>
                             @endif
@@ -313,6 +323,13 @@
                     </tr>
                 @endif
     
+                @if($annualTotal > 0)
+                    <tr>
+                        <td class="totals-label">INVERSIÓN ANUAL</td>
+                        <td class="totals-value">${{ number_format($annualTotal, 2) }}</td>
+                    </tr>
+                @endif
+    
                 @if($uniqueTotal > 0)
                     <tr>
                         <td class="totals-label">TOTAL PAGO ÚNICO</td>
@@ -320,7 +337,7 @@
                     </tr>
                 @endif
     
-                @if($uniqueTotal <= 0 && $monthlyTotal <= 0)
+                @if($uniqueTotal <= 0 && $monthlyTotal <= 0 && $annualTotal <= 0)
                     <tr>
                         <td class="totals-label">TOTAL</td>
                         <td class="totals-value">$0.00</td>

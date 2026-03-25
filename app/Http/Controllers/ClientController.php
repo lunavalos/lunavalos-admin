@@ -294,9 +294,23 @@ class ClientController extends Controller implements HasMiddleware
         $client = Client::create($validated);
 
         if (!empty($validated['quote_id'])) {
-            $quote = \App\Models\Quote::find($validated['quote_id']);
+            $quote = \App\Models\Quote::with('items.costs')->find($validated['quote_id']);
             if ($quote) {
                 $quote->update(['status' => 'Completada']);
+                
+                // Copiar costos de la cotización al nuevo cliente
+                foreach ($quote->items as $item) {
+                    foreach ($item->costs as $cost) {
+                        \App\Models\ClientCost::create([
+                            'client_id' => $client->id,
+                            'concept' => $cost->title . ' (' . $item->concept . ')',
+                            // Calculate total cost for that item's row based on quantity (quantity * price) if needed, or just price.
+                            // The cost relation has: title, quantity, price.
+                            'amount' => $cost->price * $cost->quantity,
+                            'billing_frequency' => $item->billing_type
+                        ]);
+                    }
+                }
             }
         }
 
@@ -305,6 +319,7 @@ class ClientController extends Controller implements HasMiddleware
 
     public function show(Client $client)
     {
+        $client->load('costs');
         return \Inertia\Inertia::render('Clients/Show', [
             'client' => $client
         ]);
@@ -312,6 +327,7 @@ class ClientController extends Controller implements HasMiddleware
 
     public function edit(Client $client)
     {
+        $client->load('costs');
         return \Inertia\Inertia::render('Clients/Edit', [
             'client' => $client,
             'services' => \App\Models\Service::all(),

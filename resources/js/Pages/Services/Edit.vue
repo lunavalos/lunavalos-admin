@@ -121,6 +121,7 @@ const submit = () => {
                                     >
                                         <option value="unique">Pago Total Único</option>
                                         <option value="monthly">Mensualidad / Iguala</option>
+                                        <option value="annual">Anual</option>
                                     </select>
                                     <InputError class="mt-2" :message="form.errors.billing_type" />
                                 </div>
