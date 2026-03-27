@@ -34,7 +34,7 @@ class AppServiceProvider extends ServiceProvider
         try {
             if (\Illuminate\Support\Facades\Schema::hasTable('settings')) {
                 $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
-                
+
                 if (!empty($settings['smtp_username']) && !empty($settings['smtp_password'])) {
                     config([
                         'mail.default' => 'smtp',
