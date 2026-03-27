@@ -145,7 +145,7 @@ const submit = () => {
                                     <InputError class="mt-2" :message="form.errors.price" />
                                 </div>
 
-                                <div>
+                                <div v-if="form.billing_type !== 'unique'">
                                     <InputLabel for="renewal_price" value="Precio de Renovación / Anualidad" class="font-bold text-gray-700" />
                                     <div class="relative mt-1">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">

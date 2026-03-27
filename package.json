@@ -26,6 +26,8 @@
     },
     "dependencies": {
         "@heroicons/vue": "^2.2.0",
+        "chart.js": "^4.5.1",
+        "vue-chartjs": "^5.3.3",
         "vuedraggable": "^4.1.0"
     }
 }
