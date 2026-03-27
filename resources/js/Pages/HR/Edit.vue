@@ -21,6 +21,11 @@ const form = useForm({
     nss: props.employee.nss,
     rfc: props.employee.rfc,
     address: props.employee.address,
+    blood_type: props.employee.blood_type || '',
+    gmm_policy: props.employee.gmm_policy || '',
+    gmm_insurer: props.employee.gmm_insurer || '',
+    gmm_advisor_name: props.employee.gmm_advisor_name || '',
+    gmm_advisor_phone: props.employee.gmm_advisor_phone || '',
     position: props.employee.position,
     department: props.employee.department,
     join_date: props.employee.join_date,
@@ -127,7 +132,34 @@ const submit = () => {
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Dirección</label>
                             <input v-model="form.address" type="text" class="w-full border-gray-200 rounded-xl focus:ring-2 focus:ring-[#264ab3] text-sm" />
                         </div>
-                        <div class="md:col-span-2">
+                        
+                        <!-- Nuevos Campos Personal/Fiscal -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Tipo de Sangre</label>
+                            <input v-model="form.blood_type" type="text" placeholder="Ej. O+" class="w-full border-gray-200 rounded-xl focus:ring-2 focus:ring-[#264ab3] text-sm" />
+                        </div>
+                        
+                        <div class="md:col-span-2 mt-4 pt-4 border-t border-gray-100">
+                            <h4 class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4">Seguro de Gastos Médicos Mayores (GMM)</h4>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Póliza GMM</label>
+                            <input v-model="form.gmm_policy" type="text" class="w-full border-gray-200 rounded-xl focus:ring-2 focus:ring-[#264ab3] text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Aseguradora GMM</label>
+                            <input v-model="form.gmm_insurer" type="text" class="w-full border-gray-200 rounded-xl focus:ring-2 focus:ring-[#264ab3] text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Nombre Asesor GMM</label>
+                            <input v-model="form.gmm_advisor_name" type="text" class="w-full border-gray-200 rounded-xl focus:ring-2 focus:ring-[#264ab3] text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Teléfono Asesor GMM</label>
+                            <input v-model="form.gmm_advisor_phone" type="text" class="w-full border-gray-200 rounded-xl focus:ring-2 focus:ring-[#264ab3] text-sm" />
+                        </div>
+                        <div class="md:col-span-2 mt-4 pt-4 border-t border-gray-100">
                             <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2">Notas Especiales</label>
                             <textarea v-model="form.notes" rows="3" class="w-full border-gray-200 rounded-xl focus:ring-2 focus:ring-[#264ab3] text-sm"></textarea>
                         </div>

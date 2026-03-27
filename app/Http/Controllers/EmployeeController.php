@@ -60,6 +60,11 @@ class EmployeeController extends Controller implements HasMiddleware
             'department' => 'nullable|string',
             'join_date' => 'nullable|date',
             'initial_salary' => 'required|numeric|min:0',
+            'blood_type' => 'nullable|string',
+            'gmm_policy' => 'nullable|string',
+            'gmm_insurer' => 'nullable|string',
+            'gmm_advisor_name' => 'nullable|string',
+            'gmm_advisor_phone' => 'nullable|string',
             'notes' => 'nullable|string',
         ]);
 
@@ -116,6 +121,11 @@ class EmployeeController extends Controller implements HasMiddleware
             'department' => 'nullable|string',
             'join_date' => 'nullable|date',
             'status' => 'required|string',
+            'blood_type' => 'nullable|string',
+            'gmm_policy' => 'nullable|string',
+            'gmm_insurer' => 'nullable|string',
+            'gmm_advisor_name' => 'nullable|string',
+            'gmm_advisor_phone' => 'nullable|string',
             'notes' => 'nullable|string',
         ]);
 
@@ -133,8 +143,11 @@ class EmployeeController extends Controller implements HasMiddleware
 
         $file = $request->file('file');
         $extension = $file->getClientOriginalExtension();
-        $fileName = $request->document_type . '_' . time() . '.' . $extension;
-        $path = $file->storeAs('employees/' . $employee->employee_number, $fileName, 'public');
+        // Remove accents and special chars
+        $safeTypeName = preg_replace('/[^a-zA-Z0-9]/', '_', iconv('UTF-8', 'ASCII//TRANSLIT', $request->document_type));
+        $fileName = $safeTypeName . '_' . time() . '.' . $extension;
+        
+        $path = $file->storeAs('employees/' . ($employee->employee_number ?? $employee->id), $fileName, 'public');
 
         EmployeeDocument::create([
             'employee_id' => $employee->id,
@@ -247,6 +260,11 @@ class EmployeeController extends Controller implements HasMiddleware
             '[departamento]' => $employee->department ?? '',
             '[fecha_ingreso]' => $employee->join_date ? \Carbon\Carbon::parse($employee->join_date)->format('d/m/Y') : '',
             '[salario_actual]' => '$' . number_format((float) $employee->current_salary, 2, '.', ','),
+            '[tipo_sangre]' => $employee->blood_type ?? '',
+            '[poliza_gmm]' => $employee->gmm_policy ?? '',
+            '[aseguradora_gmm]' => $employee->gmm_insurer ?? '',
+            '[asesor_gmm]' => $employee->gmm_advisor_name ?? '',
+            '[telefono_asesor_gmm]' => $employee->gmm_advisor_phone ?? '',
             '[razon_social]' => Setting::where('key', 'company_legal_name')->value('value') ?? '',
             '[rfc_empresa]' => Setting::where('key', 'company_rfc')->value('value') ?? '',
             '[fecha_actual]' => now()->format('d/m/Y'),

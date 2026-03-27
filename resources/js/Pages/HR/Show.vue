@@ -32,10 +32,27 @@ const docForm = useForm({
 });
 
 const uploadDocument = () => {
+    if (docForm.file && docForm.file.size > 10 * 1024 * 1024) {
+        alert('El archivo es demasiado grande (máximo 10MB). Tu archivo pesa ' + (docForm.file.size / (1024 * 1024)).toFixed(2) + 'MB.');
+        return;
+    }
+    
     docForm.post(route('employees.storeDocument', props.employee.id), {
+        forceFormData: true,
+        preserveScroll: true,
         onSuccess: () => {
             docForm.reset('file');
-            document.getElementById('file-upload').value = '';
+            if (document.getElementById('file-upload')) {
+                document.getElementById('file-upload').value = '';
+            }
+        },
+        onError: (errors) => {
+            console.error('Error al subir documento:', errors);
+            if (errors.file) {
+                alert('Error: ' + errors.file);
+            } else {
+                alert('Error al subir el documento. Revisa tu conexión, permisos o si el archivo es demasiado grande para el servidor.');
+            }
         }
     });
 };
@@ -199,6 +216,34 @@ const documentTypes = [
                                         {{ employee.join_date ? new Date(employee.join_date).toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' }) : '---' }}
                                     </dd>
                                 </div>
+                                <div>
+                                    <dt class="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1.5">Tipo de Sangre</dt>
+                                    <dd class="text-sm font-bold text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 uppercase">{{ employee.blood_type || '---' }}</dd>
+                                </div>
+
+                                <!-- GMM Section -->
+                                <div class="sm:col-span-3 mt-6 pt-6 border-t border-gray-50">
+                                    <h4 class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-6">Seguro de Gastos Médicos Mayores (GMM)</h4>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                        <div>
+                                            <dt class="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1.5">Póliza</dt>
+                                            <dd class="text-sm font-bold text-gray-900">{{ employee.gmm_policy || '---' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1.5">Aseguradora</dt>
+                                            <dd class="text-sm font-bold text-gray-900">{{ employee.gmm_insurer || '---' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1.5">Asesor</dt>
+                                            <dd class="text-sm font-bold text-gray-900">{{ employee.gmm_advisor_name || '---' }}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1.5">Tel. Asesor</dt>
+                                            <dd class="text-sm font-bold text-gray-900">{{ employee.gmm_advisor_phone || '---' }}</dd>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="sm:col-span-3">
                                     <dt class="text-[10px] uppercase font-black text-gray-400 tracking-widest mb-1.5">Dirección Registrada</dt>
                                     <dd class="text-sm font-bold text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-100">{{ employee.address || 'Sin dirección registrada' }}</dd>
@@ -260,9 +305,18 @@ const documentTypes = [
                                     <input 
                                         type="file" 
                                         id="file-upload"
-                                        @input="docForm.file = $event.target.files[0]"
+                                        accept=".pdf,.jpg,.jpeg,.png"
+                                        @change="docForm.file = $event.target.files[0]"
                                         class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
                                     />
+                                    <p v-if="docForm.errors.file" class="text-red-500 text-[10px] mt-1 font-bold">{{ docForm.errors.file }}</p>
+                                </div>
+                                
+                                <div v-if="docForm.progress" class="col-span-full mt-2">
+                                    <div class="w-full bg-gray-200 rounded-full h-1">
+                                        <div class="bg-blue-600 h-1 rounded-full" :style="{ width: docForm.progress.percentage + '%' }"></div>
+                                    </div>
+                                    <p class="text-[9px] text-blue-600 font-bold mt-1 text-center uppercase tracking-widest">Subiendo: {{ docForm.progress.percentage }}%</p>
                                 </div>
                                 <button 
                                     @click="uploadDocument" 
