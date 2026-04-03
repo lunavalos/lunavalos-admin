@@ -109,8 +109,12 @@ const statusColors = {
                             <tr v-for="emp in filteredEmployees" :key="emp.id" class="hover:bg-gray-50 transition-colors group">
                                 <td class="px-6 py-4">
                                     <div class="flex items-center">
-                                        <div class="h-10 w-10 flex-shrink-0 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-sm">
-                                            {{ (emp.user?.name || 'EM').substring(0, 2).toUpperCase() }}
+                                        <div class="h-10 w-10 flex-shrink-0">
+                                            <img v-if="emp.photo_url" :src="emp.photo_url" :alt="emp.user?.name" class="h-10 w-10 rounded-full object-cover border border-gray-100 shadow-sm" />
+                                            <img v-else-if="emp.user?.profile_photo_url" :src="emp.user.profile_photo_url" :alt="emp.user.name" class="h-10 w-10 rounded-full object-cover border border-gray-100 shadow-sm grayscale-[50%] opacity-80" />
+                                            <div v-else class="h-10 w-10 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-sm">
+                                                {{ (emp.user?.name || 'EM').substring(0, 2).toUpperCase() }}
+                                            </div>
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-bold text-gray-900 tracking-tight">{{ emp.user?.name || 'Sin usuario vinculado' }}</div>

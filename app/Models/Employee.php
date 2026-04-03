@@ -8,6 +8,7 @@ class Employee extends Model
 {
     protected $fillable = [
         'user_id',
+        'photo_path',
         'employee_number',
         'phone',
         'curp',
@@ -28,11 +29,22 @@ class Employee extends Model
         'notes',
     ];
 
+    protected $appends = [
+        'photo_url',
+    ];
+
     protected $casts = [
         'join_date' => 'date',
         'initial_salary' => 'decimal:2',
         'current_salary' => 'decimal:2',
     ];
+
+    public function getPhotoUrlAttribute()
+    {
+        return $this->photo_path
+            ? \Illuminate\Support\Facades\Storage::url($this->photo_path)
+            : null;
+    }
 
     public function user()
     {

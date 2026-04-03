@@ -66,7 +66,13 @@ class EmployeeController extends Controller implements HasMiddleware
             'gmm_advisor_name' => 'nullable|string',
             'gmm_advisor_phone' => 'nullable|string',
             'notes' => 'nullable|string',
+            'photo' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('photo')) {
+            $path = $request->file('photo')->store('employee-photos', 'public');
+            $validated['photo_path'] = $path;
+        }
 
         $validated['current_salary'] = $validated['initial_salary'];
 
@@ -127,7 +133,16 @@ class EmployeeController extends Controller implements HasMiddleware
             'gmm_advisor_name' => 'nullable|string',
             'gmm_advisor_phone' => 'nullable|string',
             'notes' => 'nullable|string',
+            'photo' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('photo')) {
+            if ($employee->photo_path) {
+                Storage::disk('public')->delete($employee->photo_path);
+            }
+            $path = $request->file('photo')->store('employee-photos', 'public');
+            $validated['photo_path'] = $path;
+        }
 
         $employee->update($validated);
 

@@ -34,6 +34,7 @@ const form = useForm({
     join_date: '',
     initial_salary: '',
     notes: '',
+    photo: null,
 });
 
 const submit = () => {
@@ -62,6 +63,42 @@ const submit = () => {
 
         <div class="max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <form @submit.prevent="submit" class="space-y-6">
+                <!-- Photo Upload Section -->
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center sm:flex-row sm:items-start gap-8">
+                    <div class="relative group">
+                        <div class="h-32 w-32 rounded-3xl overflow-hidden border-4 border-white shadow-xl bg-gray-50 flex items-center justify-center">
+                            <div class="h-full w-full bg-blue-50 text-[#264ab3] flex items-center justify-center text-4xl font-black uppercase">
+                                EM
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-gray-900 mb-1">Foto del Empleado</h3>
+                        <p class="text-xs text-gray-500 mb-4">Sube una fotografía oficial para el expediente. Si no subes ninguna, se usará la del perfil de usuario vinculado (si existe).</p>
+                        
+                        <div class="flex items-center gap-4">
+                            <input 
+                                type="file" 
+                                id="emp-photo"
+                                accept="image/*"
+                                @change="form.photo = $event.target.files[0]"
+                                class="hidden"
+                            />
+                            <label 
+                                for="emp-photo" 
+                                class="bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-xl text-xs font-bold cursor-pointer hover:bg-gray-50 transition shadow-sm"
+                            >
+                                Seleccionar Imagen
+                            </label>
+                            <span v-if="form.photo" class="text-[10px] font-bold text-blue-600 truncate max-w-[150px]">
+                                {{ form.photo.name }}
+                            </span>
+                        </div>
+                        <div v-if="form.errors.photo" class="text-red-500 text-[10px] mt-2 font-bold">{{ form.errors.photo }}</div>
+                    </div>
+                </div>
+
                 <!-- User Association -->
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                     <h3 class="text-sm font-black text-gray-900 uppercase tracking-widest mb-6 flex items-center border-b border-gray-50 pb-4">

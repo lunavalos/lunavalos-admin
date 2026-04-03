@@ -153,8 +153,12 @@ const documentTypes = [
                 <div class="md:w-1/4">
                     <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-8">
                         <div class="flex flex-col items-center mb-6">
-                            <div class="h-24 w-24 bg-blue-50 text-[#264ab3] rounded-3xl flex items-center justify-center text-3xl font-black mb-4 border-2 border-white shadow-md uppercase">
-                                {{ (employee.user?.name || 'EM').substring(0,2) }}
+                            <div class="h-24 w-24 mb-4">
+                                <img v-if="employee.photo_url" :src="employee.photo_url" :alt="employee.user?.name" class="h-24 w-24 rounded-3xl object-cover border-2 border-white shadow-md" />
+                                <img v-else-if="employee.user?.profile_photo_url" :src="employee.user.profile_photo_url" :alt="employee.user.name" class="h-24 w-24 rounded-3xl object-cover border-2 border-white shadow-md grayscale-[50%] opacity-80" />
+                                <div v-else class="h-24 w-24 bg-blue-50 text-[#264ab3] rounded-3xl flex items-center justify-center text-3xl font-black border-2 border-white shadow-md uppercase">
+                                    {{ (employee.user?.name || 'EM').substring(0,2) }}
+                                </div>
                             </div>
                             <h3 class="text-lg font-bold text-center text-gray-900">{{ employee.user?.name || '---' }}</h3>
                             <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mt-1">{{ employee.department }}</p>
