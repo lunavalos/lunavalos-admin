@@ -112,7 +112,7 @@ const submitCreate = () => {
                                     <CurrencyDollarIcon class="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <p class="text-sm font-medium text-gray-500 truncate">Proyección Renovaciones (Mes)</p>
+                                    <p class="text-sm font-medium text-gray-500 truncate">Renovaciones (Mes)</p>
                                     <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(stats.monthly_revenue) }}</p>
                                 </div>
                             </div>
@@ -124,7 +124,7 @@ const submitCreate = () => {
                                     <ChartBarIcon class="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <p class="text-xs font-medium text-gray-500 truncate mb-1">Cotizaciones (Pagos Únicos)</p>
+                                    <p class="text-xs font-medium text-gray-500 truncate mb-1">Cotizaciones (Únicos)</p>
                                     <p class="text-xl font-bold text-gray-900">{{ formatCurrency(stats.projected_unique) }}</p>
                                 </div>
                             </div>
@@ -136,7 +136,7 @@ const submitCreate = () => {
                                     <ChartBarIcon class="h-6 w-6" />
                                 </div>
                                 <div>
-                                    <p class="text-xs font-medium text-gray-500 truncate mb-1">Cotizaciones (Igualas Mensuales)</p>
+                                    <p class="text-xs font-medium text-gray-500 truncate mb-1">Cotizaciones (Mensuales)</p>
                                     <p class="text-xl font-bold text-gray-900">{{ formatCurrency(stats.projected_monthly) }}</p>
                                 </div>
                             </div>

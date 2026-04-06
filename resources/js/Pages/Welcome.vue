@@ -27,7 +27,7 @@ function handleImageError() {
 </script>
 
 <template>
-    <Head title="Welcome" />
+    <Head title="LunAvalos Digital House" />
     <div class="bg-gray-50 text-black/50 dark:bg-black dark:text-white/50">
         <img
             id="background"
@@ -144,11 +144,11 @@ function handleImageError() {
                                         </h2>
 
                                         <p class="mt-4 text-sm/relaxed">
-                                            Laravel has wonderful documentation
+                                            LunAvalos Digital House has wonderful documentation
                                             covering every aspect of the
                                             framework. Whether you are a
                                             newcomer or have prior experience
-                                            with Laravel, we recommend reading
+                                            with LunAvalos, we recommend reading
                                             our documentation from beginning to
                                             end.
                                         </p>
@@ -378,7 +378,7 @@ function handleImageError() {
                 <footer
                     class="py-16 text-center text-sm text-black dark:text-white/70"
                 >
-                    Laravel v{{ laravelVersion }} (PHP v{{ phpVersion }})
+                    LunAvalos Digital House (PHP v{{ phpVersion }})
                 </footer>
             </div>
         </div>
