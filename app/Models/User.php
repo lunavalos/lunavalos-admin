@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
+use Laragear\TwoFactor\Contracts\TwoFactorAuthenticatable as TwoFactorContract;
 use Laragear\TwoFactor\TwoFactorAuthentication;
 
-class User extends Authenticatable
+class User extends Authenticatable implements TwoFactorContract
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasRoles, TwoFactorAuthentication;
