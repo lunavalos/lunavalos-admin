@@ -4,6 +4,7 @@ import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
 import UpdateVaultForm from './Partials/UpdateVaultForm.vue';
+import TwoFactorAuthenticationForm from './Partials/TwoFactorAuthenticationForm.vue';
 import { Head } from '@inertiajs/vue3';
 
 defineProps({
@@ -12,6 +13,9 @@ defineProps({
     },
     status: {
         type: String,
+    },
+    twoFactorEnabled: {
+        type: Boolean,
     },
 });
 </script>
@@ -40,10 +44,12 @@ defineProps({
                     />
                 </div>
 
-                <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
-                >
+                <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8">
                     <UpdatePasswordForm class="max-w-xl" />
+                </div>
+
+                <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8 border-l-4 border-[#264ab3]">
+                    <TwoFactorAuthenticationForm :enabled="twoFactorEnabled" class="max-w-xl" />
                 </div>
 
                 <div

@@ -47,12 +47,18 @@ const saveAgency = () => {
     if (isEditing.value) {
         form.put(route('agencies.update', form.id), {
             preserveScroll: true,
-            onSuccess: () => closeModal(),
+            onSuccess: () => {
+                closeModal();
+                form.reset();
+            },
         });
     } else {
         form.post(route('agencies.store'), {
             preserveScroll: true,
-            onSuccess: () => closeModal(),
+            onSuccess: () => {
+                closeModal();
+                form.reset();
+            },
         });
     }
 };
