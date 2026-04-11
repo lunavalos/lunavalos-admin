@@ -121,7 +121,7 @@ class DashboardController extends Controller
             return Inertia::render('Dashboard', [
                 'lists' => [
                     'tickets' => $tickets,
-                    'plan_details' => $planDetails
+                    'plan_details' => $planDetails,
                 ]
             ]);
         }
@@ -145,5 +145,49 @@ class DashboardController extends Controller
         return Inertia::render('ClientPanel/Emails', [
             'client' => $client
         ]);
+    }
+
+    public function clientBriefing(Request $request)
+    {
+        $user = $request->user();
+        $client = $user->client;
+
+        if (!$client) {
+            return redirect()->route('dashboard');
+        }
+
+        return Inertia::render('ClientPanel/Briefing', [
+            'briefing_details' => [
+                'briefing_context' => $client->briefing_context,
+                'briefing_target_audience' => $client->briefing_target_audience,
+                'briefing_competitors' => $client->briefing_competitors,
+                'briefing_references' => $client->briefing_references,
+                'briefing_contact_methods' => $client->briefing_contact_methods,
+                'briefing_current_emails' => $client->briefing_current_emails,
+            ]
+        ]);
+    }
+
+    public function updateBriefing(Request $request)
+    {
+        $user = $request->user();
+        $client = $user->client;
+
+        if (!$client) {
+            return redirect()->route('dashboard');
+        }
+
+        $validated = $request->validate([
+            'briefing_context' => 'nullable|string',
+            'briefing_target_audience' => 'nullable|string',
+            'briefing_competitors' => 'nullable|string',
+            'briefing_references' => 'nullable|string',
+            'briefing_contact_methods' => 'nullable|string',
+            'briefing_current_emails' => 'nullable|string',
+        ]);
+
+        $client->update($validated);
+
+        return redirect()->back()->with('message', '¡Briefing creativo guardado correctamente!');
     }
 }

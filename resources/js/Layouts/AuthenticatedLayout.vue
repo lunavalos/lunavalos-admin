@@ -9,7 +9,7 @@ import {
     BriefcaseIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon,
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
-    SwatchIcon, BanknotesIcon
+    SwatchIcon, BanknotesIcon, LightBulbIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -254,6 +254,24 @@ onMounted(() => {
                                 <SwatchIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                                 <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
                                     Firma
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Briefing Link (For all clients) -->
+                        <li v-if="$page.props.auth.user.is_client">
+                            <Link 
+                                :href="route('client.briefing')"
+                                :class="[
+                                    route().current('client.briefing') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Briefing Creativo' : ''"
+                            >
+                                <LightBulbIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Briefing
                                 </span>
                             </Link>
                         </li>

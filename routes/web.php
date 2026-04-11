@@ -19,6 +19,12 @@ Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'ind
 Route::get('/client/emails', [\App\Http\Controllers\DashboardController::class, 'clientEmails'])
     ->middleware(['auth', 'verified'])
     ->name('client.emails');
+Route::get('/client/briefing', [\App\Http\Controllers\DashboardController::class, 'clientBriefing'])
+    ->middleware(['auth', 'verified'])
+    ->name('client.briefing');
+Route::post('/client/briefing', [\App\Http\Controllers\DashboardController::class, 'updateBriefing'])
+    ->middleware(['auth', 'verified'])
+    ->name('client.briefing.update');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

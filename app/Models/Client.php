@@ -42,6 +42,12 @@ class Client extends Model
         'smtp_tls',
         'has_custom_email_config',
         'email_accounts',
+        'briefing_context',
+        'briefing_target_audience',
+        'briefing_competitors',
+        'briefing_references',
+        'briefing_contact_methods',
+        'briefing_current_emails',
     ];
 
     protected $casts = [

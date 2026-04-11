@@ -64,55 +64,6 @@ const getRenewalBadgeClass = (days) => {
     return 'bg-green-100 text-green-800'; // Vigente normal
 };
 
-const isModalOpen = ref(false);
-const selectedClient = ref(null);
-const showClientVault = ref(false);
-
-const viewTechnicalDetails = (client) => {
-    selectedClient.value = client;
-    isModalOpen.value = true;
-    showClientVault.value = false;
-};
-
-const closeModal = () => {
-    isModalOpen.value = false;
-    selectedClient.value = null;
-    showClientVault.value = false;
-};
-
-const confirmingPassword = ref(false);
-const passwordInput = ref(null);
-const confirmForm = useForm({
-    password: '',
-});
-
-const toggleClientVault = () => {
-    if (showClientVault.value) {
-        showClientVault.value = false;
-    } else {
-        confirmingPassword.value = true;
-        nextTick(() => passwordInput.value?.focus());
-    }
-};
-
-const verifyPassword = () => {
-    confirmForm.post(route('profile.vault.verify'), {
-        preserveScroll: true,
-        preserveState: true,
-        onSuccess: () => {
-            showClientVault.value = true;
-            closePasswordModal();
-        },
-        onError: () => passwordInput.value?.focus(),
-        onFinish: () => confirmForm.reset(),
-    });
-};
-
-const closePasswordModal = () => {
-    confirmingPassword.value = false;
-    confirmForm.clearErrors();
-    confirmForm.reset();
-};
 </script>
 
 <template>
@@ -203,13 +154,13 @@ const closePasswordModal = () => {
                                     </td>
                                     <td class="p-4 text-center">
                                         <div class="flex justify-center items-center space-x-3">
-                                            <button 
-                                                @click="viewTechnicalDetails(client)"
+                                            <Link 
+                                                :href="route('clients.show', client.id)"
                                                 class="text-blue-500 hover:text-blue-700 transition"
-                                                title="Ver Detalles Técnicos"
+                                                title="Ver Expediente de Cliente"
                                             >
                                                 <EyeIcon class="h-5 w-5" />
-                                            </button>
+                                            </Link>
                                             <Link 
                                                 v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Editar Clientes')"
                                                 :href="route('clients.edit', client.id)" 
@@ -248,101 +199,6 @@ const closePasswordModal = () => {
                 </div>
             </div>
         </div>
-
-        <!-- Modal "Ver Detalles Técnicos" -->
-        <div v-if="isModalOpen" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="closeModal" aria-hidden="true"></div>
-                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-xl sm:w-full">
-                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                        <div class="sm:flex sm:items-start">
-                            <div class="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                                <h3 class="text-xl leading-6 font-bold text-gray-900 mb-4 pb-2 border-b flex justify-between items-center" id="modal-title">
-                                    Activos Técnicos: {{ selectedClient?.business_name }}
-                                    <button @click="closeModal" class="text-gray-400 hover:text-gray-500">
-                                        <XMarkIcon class="h-6 w-6" />
-                                    </button>
-                                </h3>
-                                
-                                <div class="mt-4 space-y-4">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700 text-sm">
-                                        <div><strong class="text-blue-900 block">Dominio(s):</strong> {{ selectedClient?.domain_names || 'N/A' }}</div>
-                                        <div><strong class="text-blue-900 block">Prov. Dominio:</strong> {{ selectedClient?.domain_provider || 'N/A' }}</div>
-                                        <div><strong class="text-blue-900 block">Prov. Hosting:</strong> {{ selectedClient?.hosting_provider || 'N/A' }}</div>
-                                        <div><strong class="text-blue-900 block">Prov. Correos:</strong> {{ selectedClient?.email_provider || 'N/A' }}</div>
-                                    </div>
-                                    
-                                    <div class="mt-6 pt-4 border-t border-gray-100" v-if="selectedClient?.login_credentials || selectedClient?.notes">
-                                        <div class="flex justify-between items-center mb-2">
-                                            <strong class="text-blue-900">Bóveda de Accesos / Notas:</strong>
-                                            <button v-if="selectedClient?.login_credentials" type="button" @click="toggleClientVault" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-2 py-1 rounded">
-                                                <template v-if="!showClientVault">
-                                                    <EyeIcon class="h-3 w-3 mr-1" /> Revelar
-                                                </template>
-                                                <template v-else>
-                                                    <EyeSlashIcon class="h-3 w-3 mr-1" /> Ocultar
-                                                </template>
-                                            </button>
-                                        </div>
-                                        <pre v-if="showClientVault" class="bg-gray-800 text-green-400 p-3 rounded text-sm overflow-x-auto whitespace-pre-wrap">{{ selectedClient?.login_credentials }}</pre>
-                                        <pre v-else-if="selectedClient?.login_credentials" class="bg-gray-200 text-transparent select-none p-3 rounded text-sm mt-1">************************
-************************</pre>
-                                        
-                                        <div class="mt-4 bg-yellow-50 p-3 rounded text-sm text-yellow-800 border border-yellow-200" v-if="selectedClient?.notes">
-                                            <strong>Notas Generales:</strong><br/>
-                                            {{ selectedClient?.notes }}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Modal Confirmar Contraseña (sobrepuesto) -->
-        <Modal :show="confirmingPassword" @close="closePasswordModal">
-            <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900">
-                    Confirmación de Seguridad
-                </h2>
-
-                <p class="mt-1 text-sm text-gray-600">
-                    Por favor, ingresa tu contraseña de inicio de sesión para desbloquear la bóveda del cliente.
-                </p>
-
-                <div class="mt-6">
-                    <TextInput
-                        id="password_confirm"
-                        ref="passwordInput"
-                        v-model="confirmForm.password"
-                        type="password"
-                        class="mt-1 block w-3/4"
-                        placeholder="Tu contraseña"
-                        @keyup.enter="verifyPassword"
-                    />
-
-                    <InputError :message="confirmForm.errors.password" class="mt-2" />
-                </div>
-
-                <div class="mt-6 flex justify-end">
-                    <SecondaryButton @click="closePasswordModal">
-                        Cancelar
-                    </SecondaryButton>
-
-                    <PrimaryButton
-                        class="ms-3"
-                        :class="{ 'opacity-25': confirmForm.processing }"
-                        :disabled="confirmForm.processing"
-                        @click="verifyPassword"
-                    >
-                        Desbloquear
-                    </PrimaryButton>
-                </div>
-            </div>
-        </Modal>
 
     </AuthenticatedLayout>
 </template>

@@ -12,9 +12,8 @@ import {
     InboxIcon,
     HomeIcon,
     CalendarIcon,
-    ChatBubbleOvalLeftEllipsisIcon,
     Square3Stack3DIcon,
-    CheckBadgeIcon
+    CheckBadgeIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -407,6 +406,7 @@ const submitCreate = () => {
                                 </div>
                             </div>
                         </div>
+
                     </div>
                 </template>
 
