@@ -98,6 +98,7 @@ const cancelConfirmation = () => {
             <div class="max-w-xl text-sm text-gray-600 space-y-4">
                 <p>
                     Cuando la autenticación de dos pasos está habilitada, se pedirá un token seguro durante el inicio de sesión. Puedes usar aplicaciones como Google Authenticator, Authy o Apple Keychain.
+                    <br>Descargar Google Authenticator <a target="_blank" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=es&pli=1">Google Play</a> o <a target="_blank" href="https://apps.apple.com/us/app/google-authenticator/id388497605">App Store</a>
                 </p>
             </div>
 
