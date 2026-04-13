@@ -577,4 +577,17 @@ const takeTicket = () => {
     padding-left: 1.25rem;
     margin-bottom: 0.5rem;
 }
+
+/* Fix for blue chat bubbles (user's own messages) */
+.bg-blue-600 .wysiwyg-content {
+    color: white !important;
+}
+.bg-blue-600 .wysiwyg-content * {
+    color: white !important;
+}
+.bg-blue-600 .wysiwyg-content a {
+    color: #f99f1f !important;
+    text-decoration: underline;
+    font-weight: bold;
+}
 </style>

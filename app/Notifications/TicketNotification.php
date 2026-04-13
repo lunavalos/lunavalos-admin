@@ -8,7 +8,7 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class TicketNotification extends Notification implements ShouldBroadcast
+class TicketNotification extends Notification implements ShouldBroadcast, ShouldQueue
 {
     use Queueable;
 
