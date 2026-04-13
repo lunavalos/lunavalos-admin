@@ -15,7 +15,8 @@ import {
     InboxIcon,
     AdjustmentsHorizontalIcon,
     XMarkIcon,
-    PlusIcon
+    PlusIcon,
+    TrashIcon
 } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -196,6 +197,19 @@ const takeTicket = () => {
     updateAssignee();
 };
 
+const canDelete = computed(() => {
+    if (isAdmin.value) return true;
+    // Client can delete their own ticket if not assigned yet
+    if (isClient.value && isCreator.value && !props.ticket.assigned_id) return true;
+    return false;
+});
+
+const deleteTicket = () => {
+    if (confirm('¿Estás seguro de que deseas eliminar este ticket? Esta acción no se puede deshacer.')) {
+        router.delete(route('tickets.destroy', props.ticket.id));
+    }
+};
+
 </script>
 
 <template>
@@ -241,6 +255,16 @@ const takeTicket = () => {
                             </option>
                         </select>
                     </div>
+
+                    <!-- Delete Button -->
+                    <button 
+                        v-if="canDelete"
+                        @click="deleteTicket"
+                        class="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center group"
+                        title="Eliminar Ticket"
+                    >
+                        <TrashIcon class="h-5 w-5" />
+                    </button>
                 </div>
             </div>
         </template>

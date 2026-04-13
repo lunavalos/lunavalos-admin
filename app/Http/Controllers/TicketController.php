@@ -202,4 +202,23 @@ class TicketController extends Controller
             'assignableUsers' => User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get(),
         ]);
     }
+
+    public function destroy(Ticket $ticket)
+    {
+        $user = Auth::user();
+
+        // Admin can delete anytime
+        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+
+        // Client can only delete their own tickets AND if not assigned yet
+        $isOwner = $ticket->creator_id === $user->id;
+        $isNotAssigned = is_null($ticket->assigned_id);
+
+        if ($isAdmin || ($isOwner && $isNotAssigned)) {
+            $ticket->delete();
+            return redirect()->route('tickets.index')->with('success', 'Ticket eliminado correctamente.');
+        }
+
+        return redirect()->back()->with('error', 'No tienes permisos para eliminar este ticket o ya ha sido asignado.');
+    }
 }

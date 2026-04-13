@@ -14,7 +14,8 @@ import {
     InboxIcon,
     AdjustmentsHorizontalIcon,
     XMarkIcon,
-    PaperClipIcon
+    PaperClipIcon,
+    TrashIcon
 } from '@heroicons/vue/24/outline';
 import Modal from '@/Components/Modal.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -115,6 +116,12 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
 };
 
+const deleteTicket = (ticketId) => {
+    if (confirm('¿Estás seguro de que deseas eliminar este ticket?')) {
+        router.delete(route('tickets.destroy', ticketId));
+    }
+};
+
 </script>
 
 <template>
@@ -196,6 +203,15 @@ const formatDate = (dateString) => {
                                 <h4 class="font-bold text-gray-800 text-sm mb-2 group-hover:text-[#264ab3] transition-colors line-clamp-2">
                                     {{ ticket.title }}
                                 </h4>
+
+                                <!-- Quick Delete for Admin -->
+                                <button 
+                                    @click.prevent="deleteTicket(ticket.id)"
+                                    class="absolute -top-2 -right-2 p-1.5 bg-white rounded-lg border border-gray-100 text-gray-400 opacity-0 group-hover:opacity-100 hover:text-red-500 hover:border-red-100 hover:bg-red-50 transition-all z-10 shadow-sm"
+                                    title="Eliminar"
+                                >
+                                    <TrashIcon class="h-3.5 w-3.5" />
+                                </button>
 
                                 <!-- Ticket Meta -->
                                 <div class="flex items-center justify-between mt-4 pt-3 border-t border-gray-50 text-[11px] text-gray-400 font-medium">

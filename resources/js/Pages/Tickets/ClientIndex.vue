@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { 
     InboxIcon, 
@@ -10,7 +10,8 @@ import {
     CalendarIcon,
     ChatBubbleOvalLeftEllipsisIcon,
     XMarkIcon,
-    PaperClipIcon
+    PaperClipIcon,
+    TrashIcon
 } from '@heroicons/vue/24/outline';
 import Modal from '@/Components/Modal.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -68,6 +69,12 @@ const submitCreate = () => {
         onSuccess: () => closeCreateModal(),
     });
 };
+
+const deleteTicket = (ticketId) => {
+    if (confirm('¿Estás seguro de que deseas eliminar este ticket? Esta acción no se puede deshacer.')) {
+        router.delete(route('tickets.destroy', ticketId));
+    }
+};
 </script>
 
 <template>
@@ -123,7 +130,7 @@ const submitCreate = () => {
                             v-for="ticket in filteredTickets" 
                             :key="ticket.id"
                             :href="route('tickets.show', ticket.id)"
-                            class="p-6 flex flex-col md:flex-row md:items-center hover:bg-gray-50 transition-all group"
+                            class="p-6 flex flex-col md:flex-row md:items-center hover:bg-gray-50 transition-all group relative"
                         >
                             <div class="flex-1 min-w-0 md:pr-8">
                                 <div class="flex items-center space-x-3 mb-2">
@@ -169,6 +176,16 @@ const submitCreate = () => {
                                     <ChevronRightIcon class="h-6 w-6" />
                                 </div>
                             </div>
+                            
+                            <!-- Overlay Delete Button (since parent is a Link) -->
+                            <button 
+                                v-if="!ticket.assigned_id"
+                                @click.prevent="deleteTicket(ticket.id)"
+                                class="absolute top-4 right-4 p-2 bg-white rounded-xl border border-gray-100 text-gray-400 hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100 z-10"
+                                title="Eliminar Ticket"
+                            >
+                                <TrashIcon class="h-4 w-4" />
+                            </button>
                         </Link>
                     </div>
                 </div>
