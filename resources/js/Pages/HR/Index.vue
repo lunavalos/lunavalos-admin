@@ -11,6 +11,7 @@ import {
     ChevronRightIcon
 } from '@heroicons/vue/24/outline';
 import { ref, computed } from 'vue';
+import { CakeIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     employees: Array
@@ -32,6 +33,33 @@ const statusColors = {
     'Activo': 'bg-green-100 text-green-700',
     'Inactivo': 'bg-red-100 text-red-700',
     'Suspendido': 'bg-yellow-100 text-yellow-700',
+};
+
+const getUpcomingBirthday = (birthDate) => {
+    if (!birthDate) return null;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [year, month, day] = birthDate.split('T')[0].split('-');
+    
+    let nextBirthday = new Date(today.getFullYear(), parseInt(month) - 1, parseInt(day));
+    
+    if (nextBirthday < today) {
+        nextBirthday.setFullYear(today.getFullYear() + 1);
+    }
+    
+    const diffTime = nextBirthday - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays <= 7) {
+        return {
+            days: diffDays,
+            dateRaw: nextBirthday,
+            formatted: nextBirthday.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+        };
+    }
+    return null;
 };
 
 </script>
@@ -117,7 +145,18 @@ const statusColors = {
                                             </div>
                                         </div>
                                         <div class="ml-4">
-                                            <div class="text-sm font-bold text-gray-900 tracking-tight">{{ emp.user?.name || 'Sin usuario vinculado' }}</div>
+                                            <div class="text-sm font-bold text-gray-900 tracking-tight flex items-center flex-wrap gap-2">
+                                                {{ emp.user?.name || 'Sin usuario vinculado' }}
+                                                
+                                                <div v-if="getUpcomingBirthday(emp.birth_date)" 
+                                                     class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-pink-100 text-pink-800 border border-pink-200 shadow-sm"
+                                                     :title="`Cumpleaños el ${getUpcomingBirthday(emp.birth_date).formatted}`">
+                                                    <CakeIcon class="w-3.5 h-3.5 mr-1" />
+                                                    <span v-if="getUpcomingBirthday(emp.birth_date).days === 0">Hoy</span>
+                                                    <span v-else-if="getUpcomingBirthday(emp.birth_date).days === 1">Mañana</span>
+                                                    <span v-else>En {{ getUpcomingBirthday(emp.birth_date).days }} días</span>
+                                                </div>
+                                            </div>
                                             <div class="text-xs text-gray-500 font-medium">No. {{ emp.employee_number }}</div>
                                         </div>
                                     </div>

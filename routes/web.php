@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
     Route::post('clients/import-bulk', [\App\Http\Controllers\ClientController::class, 'importBulk'])->name('clients.importBulk');
     Route::resource('clients', \App\Http\Controllers\ClientController::class);
     Route::post('clients/{client}/renew', [\App\Http\Controllers\ClientController::class, 'renew'])->name('clients.renew');
+    Route::post('clients/{client}/toggle-historical', [\App\Http\Controllers\ClientController::class, 'toggleHistorical'])->name('clients.toggleHistorical');
     
     // Client Costs
     Route::post('clients/{client}/costs', [\App\Http\Controllers\ClientCostController::class, 'store'])->name('clients.costs.store');

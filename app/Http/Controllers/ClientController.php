@@ -453,4 +453,14 @@ class ClientController extends Controller implements HasMiddleware
 
         return redirect()->back()->with('error', 'El cliente no tiene una fecha configurada para renovar.');
     }
+
+    public function toggleHistorical(Client $client)
+    {
+        $client->update([
+            'is_historical' => !$client->is_historical
+        ]);
+        
+        $status = $client->is_historical ? 'movido a históricos' : 'restaurado a activos';
+        return redirect()->route('clients.index')->with('message', "Cliente $status exitosamente.");
+    }
 }

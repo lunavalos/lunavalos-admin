@@ -10,6 +10,7 @@ class Employee extends Model
         'user_id',
         'photo_path',
         'employee_number',
+        'birth_date',
         'phone',
         'curp',
         'nss',
@@ -34,6 +35,7 @@ class Employee extends Model
     ];
 
     protected $casts = [
+        'birth_date' => 'date',
         'join_date' => 'date',
         'initial_salary' => 'decimal:2',
         'current_salary' => 'decimal:2',

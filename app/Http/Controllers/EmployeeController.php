@@ -65,6 +65,7 @@ class EmployeeController extends Controller implements HasMiddleware
             'gmm_insurer' => 'nullable|string',
             'gmm_advisor_name' => 'nullable|string',
             'gmm_advisor_phone' => 'nullable|string',
+            'birth_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'photo' => 'nullable|image|max:2048',
         ]);
@@ -132,6 +133,7 @@ class EmployeeController extends Controller implements HasMiddleware
             'gmm_insurer' => 'nullable|string',
             'gmm_advisor_name' => 'nullable|string',
             'gmm_advisor_phone' => 'nullable|string',
+            'birth_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'photo' => 'nullable|image|max:2048',
         ]);

@@ -23,6 +23,7 @@ const form = useForm({
     curp: '',
     nss: '',
     rfc: '',
+    birth_date: '',
     address: '',
     blood_type: '',
     gmm_policy: '',
@@ -181,6 +182,10 @@ const submit = () => {
                     </h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-2">Fecha de Nacimiento</label>
+                            <input v-model="form.birth_date" type="date" class="w-full border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-[#264ab3] focus:border-transparent text-sm" />
+                        </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-500 uppercase mb-2">CURP</label>
                             <input v-model="form.curp" type="text" class="w-full border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-[#264ab3] focus:border-transparent text-sm uppercase" />

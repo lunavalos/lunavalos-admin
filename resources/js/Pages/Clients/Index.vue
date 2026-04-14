@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { TrashIcon, PencilSquareIcon, EnvelopeIcon, CheckBadgeIcon, EyeIcon, EyeSlashIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+import { TrashIcon, PencilSquareIcon, EnvelopeIcon, CheckBadgeIcon, EyeIcon, EyeSlashIcon, XMarkIcon, MagnifyingGlassIcon, ArchiveBoxArrowDownIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/vue/24/outline';
 import { ref, computed, nextTick } from 'vue';
 import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -14,6 +14,41 @@ const props = defineProps({
 });
 
 const form = useForm({});
+
+const searchQuery = ref('');
+const currentTab = ref('activos'); // 'activos' or 'historicos'
+
+const filteredClients = computed(() => {
+    let list = props.clients || [];
+    
+    // Filter by tab
+    if (currentTab.value === 'activos') {
+        list = list.filter(c => !c.is_historical);
+    } else {
+        list = list.filter(c => c.is_historical);
+    }
+    
+    // Filter by search
+    if (searchQuery.value) {
+        const q = searchQuery.value.toLowerCase();
+        list = list.filter(c => 
+            (c.business_name && c.business_name.toLowerCase().includes(q)) ||
+            (c.contact_name && c.contact_name.toLowerCase().includes(q)) ||
+            (c.email && c.email.toLowerCase().includes(q))
+        );
+    }
+    
+    return list;
+});
+
+const toggleHistorical = (id, isHistorical) => {
+    const action = isHistorical ? 'restaurar' : 'mover a históricos';
+    if (confirm(`¿Estás seguro de ${action} este cliente?`)) {
+        form.post(route('clients.toggleHistorical', id), {
+            preserveScroll: true
+        });
+    }
+};
 
 const deleteClient = (id) => {
     if (confirm('¿Estás seguro de que deseas eliminar este cliente? Esta acción no se puede deshacer.')) {
@@ -95,6 +130,35 @@ const getRenewalBadgeClass = (days) => {
         <div class="py-12">
             <div class="container mx-auto">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg card border border-gray-100">
+                    <!-- Search and Tabs -->
+                    <div class="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
+                        <div class="flex space-x-1 p-1 bg-gray-100 rounded-lg">
+                            <button 
+                                @click="currentTab = 'activos'"
+                                :class="['px-4 py-1.5 text-sm font-semibold rounded-md transition-all', currentTab === 'activos' ? 'bg-white shadow-sm text-[#264ab3]' : 'text-gray-500 hover:text-gray-700']"
+                            >
+                                Clientes Activos
+                            </button>
+                            <button 
+                                @click="currentTab = 'historicos'"
+                                :class="['px-4 py-1.5 text-sm font-semibold rounded-md transition-all', currentTab === 'historicos' ? 'bg-white shadow-sm text-[#264ab3]' : 'text-gray-500 hover:text-gray-700']"
+                            >
+                                Históricos
+                            </button>
+                        </div>
+                        <div class="relative w-full md:w-72">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <MagnifyingGlassIcon class="h-4 w-4 text-gray-400" />
+                            </div>
+                            <input 
+                                v-model="searchQuery"
+                                type="text" 
+                                placeholder="Buscar cliente por empresa, contacto o email..." 
+                                class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-[#264ab3] focus:border-[#264ab3] shadow-sm"
+                            />
+                        </div>
+                    </div>
+                    
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
@@ -108,7 +172,7 @@ const getRenewalBadgeClass = (days) => {
                             </thead>
                             <tbody>
                                 <tr 
-                                    v-for="client in clients" 
+                                    v-for="client in filteredClients" 
                                     :key="client.id" 
                                     class="border-b hover:bg-gray-50 transition"
                                 >
@@ -185,10 +249,19 @@ const getRenewalBadgeClass = (days) => {
                                             >
                                                 <TrashIcon class="h-5 w-5" />
                                             </button>
+                                            <button 
+                                                v-if="$page.props.auth.user.is_admin"
+                                                @click="toggleHistorical(client.id, client.is_historical)" 
+                                                class="text-orange-400 hover:text-orange-600 transition ml-2 border-l border-gray-200 pl-3"
+                                                :title="client.is_historical ? 'Restaurar a Activos' : 'Mover a Históricos'"
+                                            >
+                                                <ArchiveBoxArrowDownIcon v-if="!client.is_historical" class="h-5 w-5" />
+                                                <ArrowRightStartOnRectangleIcon v-else class="h-5 w-5" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
-                                <tr v-if="clients.length === 0">
+                                <tr v-if="filteredClients.length === 0">
                                     <td colspan="5" class="p-8 text-center text-gray-500 italic">
                                         No se encontraron clientes registrados en la base de datos. ¡Registra el primero!
                                     </td>

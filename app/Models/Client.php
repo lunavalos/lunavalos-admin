@@ -17,6 +17,7 @@ class Client extends Model
         'contract_date',
         'initial_price',
         'next_renewal_date',
+        'is_historical',
         'renewal_amount',
         'package_services',
         'auto_renew_notice',
@@ -53,6 +54,7 @@ class Client extends Model
     protected $casts = [
         'contract_date' => 'date',
         'next_renewal_date' => 'date',
+        'is_historical' => 'boolean',
         'auto_renew_notice' => 'boolean',
         'initial_price' => 'decimal:2',
         'renewal_amount' => 'decimal:2',
