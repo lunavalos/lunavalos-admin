@@ -129,7 +129,12 @@ const formatDate = (dateString, withTime = false) => {
 };
 
 // Logic for visibility of actions
-const canAssign = computed(() => isAdmin.value && props.ticket?.status !== 'Completados');
+const canAssign = computed(() => {
+    if (props.ticket?.status === 'Completados') return false;
+    if (isAdmin.value) return true;
+    if (!isClient.value && (isCreator.value || props.ticket?.assigned_id === page.props.auth?.user?.id)) return true;
+    return false;
+});
 const canProcess = computed(() => props.ticket?.status !== 'Completados' && !isClient.value && (props.ticket?.status === 'Nuevos' || props.ticket?.assigned_id === page.props.auth?.user?.id));
 const canReview = computed(() => props.ticket?.assigned_id === page.props.auth?.user?.id && (props.ticket?.status === 'En Proceso' || props.ticket?.status === 'Ajustes'));
 const canComment = computed(() => {
