@@ -22,6 +22,8 @@ class EnforceTwoFactorActivation
             
             // Permitir acceso a las rutas de perfil y activación de 2FA, así como el cierre de sesión
             if (!$request->routeIs('profile.*') && 
+                !$request->routeIs('password.*') && 
+                !$request->routeIs('verification.*') && 
                 !$request->routeIs('two-factor.*') && 
                 !$request->routeIs('logout')) {
                 
