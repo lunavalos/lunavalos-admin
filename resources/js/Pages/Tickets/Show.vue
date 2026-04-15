@@ -285,7 +285,15 @@ const deleteTicket = () => {
                         class="flex items-start"
                         :class="ticket.creator_id === $page.props.auth.user.id ? 'flex-row-reverse' : ''"
                     >
-                        <div 
+                        <img v-if="ticket.creator?.profile_photo_url"
+                            :src="ticket.creator.profile_photo_url" 
+                            :alt="ticket.creator?.name"
+                            class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white"
+                            :class="[
+                                ticket.creator_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'
+                            ]"
+                        />
+                        <div v-else
                             class="h-10 w-10 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm font-bold border-2 border-white"
                             :class="[
                                 ticket.creator_id === $page.props.auth.user.id ? 'ml-4 bg-[#264ab3]' : 'mr-4 bg-gray-200 !text-gray-500'
@@ -350,7 +358,15 @@ const deleteTicket = () => {
                         
                         <!-- Regular User Message -->
                         <template v-else>
-                            <div 
+                            <img v-if="msg.user?.profile_photo_url"
+                                :src="msg.user.profile_photo_url" 
+                                :alt="msg.user?.name"
+                                class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white"
+                                :class="[
+                                    msg.user_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'
+                                ]"
+                            />
+                            <div v-else
                                 class="h-10 w-10 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm font-bold border-2 border-white"
                                 :class="[
                                     msg.user_id === $page.props.auth.user.id ? 'ml-4 bg-[#264ab3]' : 'mr-4 bg-purple-500'
@@ -488,7 +504,12 @@ const deleteTicket = () => {
                         <div>
                             <span class="text-xs text-gray-400 block mb-1">Creador:</span>
                             <div class="flex items-center">
-                                <span class="h-6 w-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold mr-2">
+                                <img v-if="ticket.creator?.profile_photo_url"
+                                    :src="ticket.creator.profile_photo_url" 
+                                    :alt="ticket.creator.name"
+                                    class="h-6 w-6 rounded-full object-cover border border-gray-100 shadow-sm mr-2"
+                                />
+                                <span v-else class="h-6 w-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold mr-2">
                                     {{ ticket.creator.name.charAt(0) }}
                                 </span>
                                 <span class="text-sm font-bold text-gray-700">{{ ticket.creator.name }}</span>
@@ -498,7 +519,12 @@ const deleteTicket = () => {
                         <div>
                             <span class="text-xs text-gray-400 block mb-1">Asignado a:</span>
                             <div v-if="ticket.assigned" class="flex items-center">
-                                <span class="h-6 w-6 rounded-full bg-[#264ab3] text-white flex items-center justify-center text-[10px] font-bold mr-2">
+                                <img v-if="ticket.assigned?.profile_photo_url"
+                                    :src="ticket.assigned.profile_photo_url" 
+                                    :alt="ticket.assigned.name"
+                                    class="h-6 w-6 rounded-full object-cover border border-gray-100 shadow-sm mr-2"
+                                />
+                                <span v-else class="h-6 w-6 rounded-full bg-[#264ab3] text-white flex items-center justify-center text-[10px] font-bold mr-2">
                                     {{ ticket.assigned?.name ? ticket.assigned.name.charAt(0) : '?' }}
                                 </span>
                                 <span class="text-sm font-bold text-gray-700">{{ ticket.assigned?.name }}</span>

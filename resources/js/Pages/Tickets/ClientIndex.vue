@@ -166,7 +166,13 @@ const deleteTicket = (ticketId) => {
 
                                     <div v-if="ticket.assigned" class="flex flex-col items-center">
                                         <span class="text-[10px] uppercase text-gray-400 font-bold mb-1 tracking-tighter">Asignado</span>
-                                        <div class="h-8 w-8 rounded-full bg-blue-100 text-[#264ab3] flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm" :title="ticket.assigned.name">
+                                        <img v-if="ticket.assigned.profile_photo_url"
+                                            :src="ticket.assigned.profile_photo_url"
+                                            :alt="ticket.assigned.name"
+                                            :title="ticket.assigned.name"
+                                            class="h-8 w-8 rounded-full object-cover border-2 border-white shadow-sm"
+                                        />
+                                        <div v-else class="h-8 w-8 rounded-full bg-blue-100 text-[#264ab3] flex items-center justify-center text-xs font-bold border-2 border-white shadow-sm" :title="ticket.assigned.name">
                                             {{ ticket.assigned.name.charAt(0) }}
                                         </div>
                                     </div>
