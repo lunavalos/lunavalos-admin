@@ -35,6 +35,11 @@ class AuthenticatedSessionController extends Controller
 
         // If user has 2FA enabled, log out immediately and redirect to challenge
         if ($user->hasTwoFactorEnabled()) {
+            if ($user->isSafeDevice($request)) {
+                $request->session()->regenerate();
+                return redirect()->intended(route('dashboard', absolute: false));
+            }
+
             Auth::logout();
             $id = $user->id;
             $request->session()->put('two_factor_user_id', $id);

@@ -36,6 +36,9 @@ class TwoFactorController extends Controller
 
         if ($request->code) {
             if ($user->validateTwoFactorCode($request->code)) {
+                if (config('two-factor.safe_devices.enabled')) {
+                    $user->addSafeDevice($request);
+                }
                 Auth::login($user, $request->session()->get('two_factor_remember', false));
                 $request->session()->forget(['two_factor_user_id', 'two_factor_remember']);
                 $request->session()->put('two_factor_auth_passed', true);
@@ -44,6 +47,9 @@ class TwoFactorController extends Controller
             }
         } elseif ($request->recovery_code) {
             if ($user->useRecoveryCode($request->recovery_code)) {
+                if (config('two-factor.safe_devices.enabled')) {
+                    $user->addSafeDevice($request);
+                }
                 Auth::login($user, $request->session()->get('two_factor_remember', false));
                 $request->session()->forget(['two_factor_user_id', 'two_factor_remember']);
                 $request->session()->put('two_factor_auth_passed', true);
