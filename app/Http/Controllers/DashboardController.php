@@ -50,6 +50,12 @@ class DashboardController extends Controller
                         ->latest()
                         ->take(5)
                         ->get(),
+                    'my_tickets' => \App\Models\Ticket::where('assigned_id', $user->id)
+                        ->orWhere('creator_id', $user->id)
+                        ->with(['assigned', 'messages', 'creator'])
+                        ->latest()
+                        ->take(5)
+                        ->get(),
                 ]
             ]);
 
@@ -118,9 +124,20 @@ class DashboardController extends Controller
                 }
             }
 
+            if (!$user->hasRole('Cliente')) {
+                // For other roles (Employee, Designer, etc.)
+                $myTickets = \App\Models\Ticket::where('assigned_id', $user->id)
+                    ->orWhere('creator_id', $user->id)
+                    ->with(['assigned', 'messages', 'creator'])
+                    ->latest()
+                    ->take(5)
+                    ->get();
+            }
+
             return Inertia::render('Dashboard', [
                 'lists' => [
                     'tickets' => $tickets,
+                    'my_tickets' => $myTickets ?? [],
                     'plan_details' => $planDetails,
                 ]
             ]);

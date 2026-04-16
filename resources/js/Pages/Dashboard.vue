@@ -143,7 +143,7 @@ const submitCreate = () => {
                     </div>
 
                     <!-- Listas Grid Admin -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         
                         <!-- Cotizaciones Pendientes -->
                         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
@@ -209,6 +209,65 @@ const submitCreate = () => {
                                                 <span class="text-xs text-gray-400 font-medium">#{{ ticket.id }}</span>
                                                 <span v-if="ticket.creator" class="text-xs text-gray-500 font-bold truncate">/ {{ ticket.creator?.name }}</span>
                                                 <span v-if="ticket.assigned" class="text-xs text-blue-500 font-bold truncate">• Asignado: {{ ticket.assigned?.name }}</span>
+                                            </div>
+                                            <h4 class="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                                                {{ ticket.title }}
+                                            </h4>
+                                            <div class="flex items-center mt-2 text-[11px] text-gray-500 space-x-3 font-medium">
+                                                <span class="flex items-center">
+                                                    <CalendarIcon class="h-3.5 w-3.5 mr-1 opacity-70" />
+                                                    {{ formatDate(ticket.created_at) }}
+                                                </span>
+                                                <span class="flex items-center">
+                                                    <ChatBubbleOvalLeftEllipsisIcon class="h-3.5 w-3.5 mr-1 opacity-70" />
+                                                    {{ ticket.messages?.length || 0 }} mensajes
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="shrink-0">
+                                            <div class="p-2 rounded-xl bg-gray-50 group-hover:bg-blue-100 transition-colors">
+                                                <ChevronRightIcon class="h-5 w-5 text-gray-400 group-hover:text-blue-600" />
+                                            </div>
+                                        </div>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mis Tickets -->
+                        <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="p-5 border-b border-gray-50 flex justify-between items-center bg-white">
+                                <h3 class="text-base font-bold text-gray-800 flex items-center">
+                                    <InboxIcon class="h-6 w-6 mr-2 text-[#264ab3]" />
+                                    Mis Tickets
+                                </h3>
+                                <Link :href="route('tickets.index')" class="text-xs font-bold text-[#264ab3] hover:underline px-3 py-1 bg-blue-50 rounded-full">Ver todos</Link>
+                            </div>
+                            <div class="p-2">
+                                <div v-if="!lists.my_tickets || lists.my_tickets.length === 0" class="p-8 text-center">
+                                    <InboxIcon class="h-10 w-10 text-gray-200 mx-auto mb-2" />
+                                    <p class="text-gray-400 text-sm">No tienes tickets asignados.</p>
+                                </div>
+                                <div v-else class="divide-y divide-gray-50 max-h-[400px] overflow-y-auto">
+                                    <Link 
+                                        v-for="ticket in lists.my_tickets" 
+                                        :key="ticket.id"
+                                        :href="route('tickets.show', ticket.id)"
+                                        class="p-4 flex items-center hover:bg-gray-50 transition-colors group"
+                                    >
+                                        <div class="flex-1 min-w-0 pr-4">
+                                            <div class="flex items-center space-x-2 mb-1">
+                                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter" :class="{
+                                                    'bg-blue-100 text-blue-700': ticket.status === 'Nuevos',
+                                                    'bg-yellow-100 text-yellow-700': ticket.status === 'En Proceso',
+                                                    'bg-purple-100 text-purple-700': ticket.status === 'En Revisión',
+                                                    'bg-orange-100 text-orange-700': ticket.status === 'Ajustes',
+                                                    'bg-green-100 text-green-700': ticket.status === 'Completados',
+                                                }">
+                                                    {{ ticket.status }}
+                                                </span>
+                                                <span class="text-xs text-gray-400 font-medium">#{{ ticket.id }}</span>
+                                                <span v-if="ticket.creator" class="text-xs text-gray-500 font-bold truncate">/ {{ ticket.creator?.name }}</span>
                                             </div>
                                             <h4 class="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors truncate">
                                                 {{ ticket.title }}

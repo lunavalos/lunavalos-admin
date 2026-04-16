@@ -51,11 +51,30 @@ const priorityColors = {
     'Urgente': 'bg-red-100 text-red-700',
 };
 
+// For filtering
+const showOnlyMyTickets = ref(false);
+const selectedUserId = ref(null);
+
+const filteredTickets = computed(() => {
+    let result = props.tickets;
+    
+    if (isAdmin.value) {
+        if (selectedUserId.value) {
+            result = result.filter(t => t.assigned_id === selectedUserId.value || t.creator_id === selectedUserId.value);
+        }
+    } else {
+        if (showOnlyMyTickets.value) {
+            result = result.filter(t => t.assigned_id === page.props.auth.user.id || t.creator_id === page.props.auth.user.id);
+        }
+    }
+    return result;
+});
+
 // Organize tickets by status
 const columns = computed(() => {
     return statuses.map(status => ({
         ...status,
-        tickets: props.tickets.filter(t => t.status === status.name)
+        tickets: filteredTickets.value.filter(t => t.status === status.name)
     }));
 });
 
@@ -137,13 +156,31 @@ const deleteTicket = (ticketId) => {
                     </h2>
                     <p class="text-sm text-gray-500 mt-1">Gestión visual de tareas y solicitudes de clientes.</p>
                 </div>
-                <button 
-                    @click="openCreateModal"
-                    class="bg-[#264ab3] hover:bg-[#193074] text-white px-5 py-2.5 rounded-xl shadow-lg shadow-blue-200 transition-all font-bold flex items-center group"
-                >
-                    <PlusIcon class="h-5 w-5 mr-1 group-hover:rotate-90 transition-transform" />
-                    Nuevo Ticket
-                </button>
+                <div class="flex items-center space-x-6">
+                    <!-- Checkbox for normal users -->
+                    <div v-if="!isAdmin" class="flex items-center bg-white px-4 py-2 border border-gray-200 rounded-xl shadow-sm">
+                        <input id="only-my-tickets" type="checkbox" v-model="showOnlyMyTickets" class="rounded border-gray-300 text-[#264ab3] shadow-sm focus:ring-[#264ab3]">
+                        <label for="only-my-tickets" class="ml-2 text-sm text-gray-700 font-bold whitespace-nowrap cursor-pointer">Ver solo mis tickets</label>
+                    </div>
+                    
+                    <!-- Dropdown for admins -->
+                    <div v-if="isAdmin" class="flex items-center">
+                        <select v-model="selectedUserId" class="border-gray-200 rounded-xl shadow-sm text-sm font-bold text-gray-700 focus:border-[#264ab3] focus:ring-[#264ab3] px-10 py-2">
+                            <option :value="null">Todos los usuarios</option>
+                            <option v-for="assignableUser in assignableUsers" :key="assignableUser.id" :value="assignableUser.id">
+                                {{ assignableUser.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <button 
+                        @click="openCreateModal"
+                        class="bg-[#264ab3] hover:bg-[#193074] text-white px-5 py-2.5 rounded-xl shadow-lg shadow-blue-200 transition-all font-bold flex items-center group"
+                    >
+                        <PlusIcon class="h-5 w-5 mr-1 group-hover:rotate-90 transition-transform" />
+                        Nuevo Ticket
+                    </button>
+                </div>
             </div>
         </template>
 
