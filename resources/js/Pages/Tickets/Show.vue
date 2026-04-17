@@ -169,20 +169,11 @@ const daysSinceLastResponse = computed(() => {
 
 const canClose = computed(() => {
     const status = props.ticket?.status;
-    const isAssigned = props.ticket?.assigned_id === page.props.auth?.user?.id;
 
-    // Rule 1: In 'Ajustes', only the assigned user can close after 7 days of silence
-    if (status === 'Ajustes') {
-        return isAssigned && daysSinceLastResponse.value > 7;
-    }
+    if (status === 'Completados') return false;
 
-    // Rule 2: In 'En Revisión'
-    if (status === 'En Revisión') {
-        // Creator or Admin can close, BUT NOT if they are the ones assigned to the work
-        if ((isCreator.value || isAdmin.value) && !isAssigned) return true;
-        
-        // Exception: Assigned user can close if creator silent for 7 days
-        if (isAssigned && daysSinceLastResponse.value > 7) return true;
+    if (isAdmin.value || isCreator.value || props.ticket?.assigned_id === page.props.auth?.user?.id) {
+        return true;
     }
 
     return false;
@@ -466,6 +457,17 @@ const deleteTicket = () => {
                             >
                                 <AdjustmentsHorizontalIcon class="h-4 w-4 mr-2" />
                                 Solicitar Ajustes
+                            </button>
+
+                            <button 
+                                v-if="canRequestAdjustments"
+                                type="button"
+                                @click="submitMessage('Completados')"
+                                class="text-xs font-bold bg-green-600 text-white px-4 py-2 rounded-xl border border-green-700 hover:bg-green-700 transition-all shadow-lg shadow-green-200 flex items-center"
+                                :disabled="messageForm.processing || !messageForm.message"
+                            >
+                                <CheckCircleIcon class="h-4 w-4 mr-2" />
+                                Aceptar y Completar
                             </button>
 
                             <!-- Close Ticket Button -->
