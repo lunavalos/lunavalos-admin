@@ -104,10 +104,13 @@ const closePasswordModal = () => {
                             </div>
                         </div>
                         
-                        <div class="mt-8 pt-6 border-t border-gray-100" v-if="client.login_credentials || client.notes">
-                            <div class="flex justify-between items-center mb-3">
-                                <strong class="text-blue-900 text-lg">Bóveda de Accesos / Notas</strong>
-                                <button v-if="client.login_credentials" type="button" @click="toggleClientVault" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors">
+                        <div class="mt-8 pt-6 border-t border-gray-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center">
+                                    <ServerStackIcon class="h-6 w-6 mr-2 text-blue-600" />
+                                    <strong class="text-blue-900 text-lg">Bóveda de Accesos / Notas</strong>
+                                </div>
+                                <button type="button" @click="toggleClientVault" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors">
                                     <template v-if="!showClientVault">
                                         <EyeIcon class="h-4 w-4 mr-1.5" /> Desbloquear Bóveda
                                     </template>
@@ -117,19 +120,65 @@ const closePasswordModal = () => {
                                 </button>
                             </div>
                             
-                            <div v-if="client.login_credentials" class="mb-6 shadow-inner rounded-xl overflow-hidden border border-gray-200">
-                                <pre v-if="showClientVault" class="bg-gray-900 text-green-400 p-6 text-sm overflow-x-auto whitespace-pre-wrap font-mono">{{ client.login_credentials }}</pre>
-                                <pre v-else class="bg-gray-100 text-transparent select-none p-6 text-sm font-mono flex items-center justify-center min-h-[100px]" style="background-image: repeating-linear-gradient(45deg, #f3f4f6 25%, transparent 25%, transparent 75%, #f3f4f6 75%, #f3f4f6), repeating-linear-gradient(45deg, #f3f4f6 25%, #ffffff 25%, #ffffff 75%, #f3f4f6 75%, #f3f4f6); background-position: 0 0, 10px 10px; background-size: 20px 20px;">
-                                    <div class="bg-white/90 backdrop-blur-sm px-6 py-3 rounded-full text-gray-500 font-bold border border-gray-200 shadow-sm flex items-center">
-                                        <EyeSlashIcon class="h-5 w-5 mr-2" />
-                                        Contenido encriptado y bloqueado
+                            <!-- Contenido de la Bóveda -->
+                            <div v-if="showClientVault" class="mt-4 space-y-6">
+                                <!-- 1. Bóveda Estructurada -->
+                                <div v-if="client.vault_credentials?.length > 0" class="mb-4">
+                                    <h4 class="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-3 flex items-center">
+                                        <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+                                        Accesos Directos
+                                    </h4>
+                                    <div class="overflow-x-auto border border-indigo-100 rounded-2xl shadow-sm">
+                                        <table class="min-w-full divide-y divide-gray-200">
+                                            <thead class="bg-indigo-50">
+                                                <tr>
+                                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Servicio</th>
+                                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Usuario</th>
+                                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Contraseña</th>
+                                                    <th class="px-4 py-3 text-left text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Notas / URL</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="bg-white divide-y divide-gray-100">
+                                                <tr v-for="(vault, idx) in client.vault_credentials" :key="idx" class="hover:bg-indigo-50/30 transition-colors">
+                                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">{{ vault.service || vault.platform }}</td>
+                                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ vault.username || vault.user }}</td>
+                                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-indigo-600 font-bold">{{ vault.password }}</td>
+                                                    <td class="px-4 py-3 text-sm text-gray-500 italic">{{ vault.notes || vault.url || '-' }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </pre>
+                                </div>
+
+                                <!-- 2. Bóveda en Bloque / Texto (Textarea) -->
+                                <div class="shadow-md rounded-2xl overflow-hidden border border-gray-200">
+                                    <div class="bg-gray-800 px-4 py-2 border-b border-gray-700 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between">
+                                        <span>Bóveda de Texto Libre</span>
+                                        <span v-if="!client.login_credentials" class="text-red-400 italic normal-case font-normal">(Vacía)</span>
+                                    </div>
+                                    <textarea 
+                                        readonly 
+                                        class="w-full bg-[#1a1b1e] text-emerald-400 p-6 text-sm font-mono border-0 focus:ring-0 resize-none block" 
+                                        rows="10"
+                                        placeholder="No hay credenciales de texto registradas..."
+                                    >{{ client.login_credentials }}</textarea>
+                                </div>
+                            </div>
+
+                            <!-- Estado Bloqueado -->
+                            <div v-else class="mt-4">
+                                <div class="bg-gray-100 rounded-2xl p-10 flex flex-col items-center justify-center border-2 border-dashed border-gray-200">
+                                    <div class="bg-white p-4 rounded-full shadow-sm mb-4">
+                                        <EyeSlashIcon class="h-8 w-8 text-gray-400" />
+                                    </div>
+                                    <p class="text-gray-500 font-medium">La bóveda se encuentra bloqueada.</p>
+                                    <p class="text-gray-400 text-xs mt-1">Presiona "Desbloquear Bóveda" para visualizar los accesos.</p>
+                                </div>
                             </div>
                             
-                            <div class="bg-yellow-50/80 p-5 rounded-xl text-sm border border-yellow-200/60 shadow-sm" v-if="client.notes">
-                                <strong class="text-yellow-800 text-base mb-2 block font-bold">Notas Generales:</strong>
-                                <p class="text-yellow-700 whitespace-pre-wrap">{{ client.notes }}</p>
+                            <div class="mt-6 bg-yellow-50/80 p-5 rounded-xl text-sm border border-yellow-200/60 shadow-sm" v-if="client.notes">
+                                <strong class="text-yellow-800 text-base mb-2 block font-bold font-heading">Notas Generales:</strong>
+                                <div class="text-yellow-700 whitespace-pre-wrap">{{ client.notes }}</div>
                             </div>
                         </div>
                     </div>

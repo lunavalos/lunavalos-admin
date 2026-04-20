@@ -32,6 +32,9 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $user = $request->user();
+        
+        // Increment login count
+        $user->increment('login_count');
 
         // If user has 2FA enabled, log out immediately and redirect to challenge
         if ($user->hasTwoFactorEnabled()) {

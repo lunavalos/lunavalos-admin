@@ -71,6 +71,7 @@ const form = useForm({
     email_provider: props.client.email_provider || '',
     login_credentials: props.client.login_credentials || '',
     email_accounts: props.client.email_accounts || [],
+    vault_credentials: props.client.vault_credentials || [],
     notes: props.client.notes || '',
     login_email: '',
     login_password: '',
@@ -142,6 +143,21 @@ const addEmailAccount = () => {
 
 const removeEmailAccount = (index) => {
     form.email_accounts.splice(index, 1);
+};
+
+const addVaultCredential = () => {
+    showCredentials.value = true;
+    form.vault_credentials.push({
+        service: '',
+        url: '',
+        username: '',
+        password: '',
+        notes: ''
+    });
+};
+
+const removeVaultCredential = (index) => {
+    form.vault_credentials.splice(index, 1);
 };
 
 const submit = () => {
@@ -622,10 +638,64 @@ const totalUniqueCosts = computed(() => {
                             </label>
                         </div>
 
-                        <!-- Boveda de Contraseñas -->
+                        <!-- Boveda de Contraseñas Estructurada (NUEVA) -->
+                        <div class="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-lg">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center">
+                                    <UserIcon class="h-5 w-5 mr-2 text-indigo-600" />
+                                    <InputLabel value="Bóveda de Accesos Estructurada" class="font-bold text-indigo-900" />
+                                </div>
+                                <button type="button" @click="addVaultCredential" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-1.5 px-3 rounded shadow transition">
+                                    + Agregar Acceso
+                                </button>
+                            </div>
+                            
+                            <div v-if="form.vault_credentials.length === 0" class="text-sm text-gray-500 italic text-center py-4 border-2 border-dashed border-indigo-200 rounded mb-2 bg-white">
+                                No hay accesos estructurados. Presiona "+ Agregar Acceso" para comenzar.
+                            </div>
+
+                            <div v-else class="overflow-x-auto mt-4 border border-indigo-200 rounded-lg shadow-sm">
+                                <table class="min-w-full divide-y divide-indigo-200 bg-white">
+                                    <thead class="bg-indigo-50">
+                                        <tr>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider border-r border-indigo-100 w-[20%]">Plataforma</th>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider border-r border-indigo-100 w-[20%]">Usuario</th>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider border-r border-indigo-100 w-[20%]">Contraseña</th>
+                                            <th scope="col" class="px-3 py-2.5 text-left text-xs font-bold text-indigo-700 uppercase tracking-wider border-r border-indigo-100 w-[35%]">URL / Notas</th>
+                                            <th scope="col" class="px-2 py-2.5 w-[5%] text-center text-xs font-medium text-gray-500 uppercase tracking-wider relative bg-indigo-50">
+                                                <div v-if="!showCredentials" class="absolute inset-0 bg-indigo-50/80 backdrop-blur-[1px] flex items-center justify-center z-10" title="Desbloquea la bóveda para editar">🔒</div>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-indigo-100 transition-all duration-300" :class="{'opacity-50 blur-[4px] pointer-events-none select-none': !showCredentials}">
+                                        <tr v-for="(vault, index) in form.vault_credentials" :key="index" class="hover:bg-indigo-50/30 transition-colors group">
+                                            <td class="border-r border-indigo-100 p-0">
+                                                <input type="text" v-model="vault.service" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-indigo-500 text-sm bg-transparent px-3 py-2.5 placeholder-gray-300 font-bold" placeholder="Ej: WordPress">
+                                            </td>
+                                            <td class="border-r border-indigo-100 p-0">
+                                                <input type="text" v-model="vault.username" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-indigo-500 text-sm bg-transparent px-3 py-2.5 placeholder-gray-300" placeholder="Usuario">
+                                            </td>
+                                            <td class="border-r border-indigo-100 p-0">
+                                                <input type="text" v-model="vault.password" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-indigo-500 text-sm bg-transparent px-3 py-2.5 font-mono placeholder-gray-300" placeholder="Contraseña">
+                                            </td>
+                                            <td class="border-r border-indigo-100 p-0">
+                                                <input type="text" v-model="vault.notes" class="w-full border-0 focus:ring-2 focus:ring-inset focus:ring-indigo-500 text-sm bg-transparent px-3 py-2.5 placeholder-gray-300" placeholder="URL o notas adicionales">
+                                            </td>
+                                            <td class="p-0 text-center whitespace-nowrap align-middle bg-indigo-50/20 group-hover:bg-red-50/30 transition-colors">
+                                                <button type="button" @click="removeVaultCredential(index)" class="text-gray-400 hover:text-red-600 transition p-2 inline-flex items-center justify-center rounded-full w-full h-full" title="Eliminar fila">
+                                                    <TrashIcon class="h-4 w-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Boveda de Contraseñas (Legacy / Notas rápidas) -->
                         <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                             <div class="flex justify-between items-center mb-2">
-                                <InputLabel for="login_credentials" value="Bóveda de Accesos (CPanel, Wp-Admin, etc.)" class="font-bold text-gray-800" />
+                                <InputLabel for="login_credentials" value="Bóveda en Bloque (Texto libre)" class="font-bold text-gray-800" />
                                 <button type="button" @click="toggleCredentials" class="text-sm text-blue-600 hover:text-blue-800 flex items-center font-semibold">
                                     <template v-if="!showCredentials">
                                         <EyeIcon class="h-4 w-4 mr-1" /> Mostrar Contraseñas

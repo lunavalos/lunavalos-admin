@@ -139,7 +139,10 @@ class DashboardController extends Controller
                     'tickets' => $tickets,
                     'my_tickets' => $myTickets ?? [],
                     'plan_details' => $planDetails,
-                ]
+                ],
+                'two_factor_notice' => ($user->hasRole('Cliente') && !$user->hasTwoFactorEnabled() && $user->login_count <= 3) 
+                    ? "Le quedan " . (4 - $user->login_count) . " inicios de sesión antes de que la configuración de 2FA sea obligatoria. Por favor, actívela en su perfil lo antes posible." 
+                    : null,
             ]);
         }
     }

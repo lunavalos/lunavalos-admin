@@ -14,6 +14,7 @@ import {
     CalendarIcon,
     Square3Stack3DIcon,
     CheckBadgeIcon,
+    ShieldExclamationIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -298,6 +299,21 @@ const submitCreate = () => {
 
                 <!-- Vista de Cliente -->
                 <template v-else-if="$page.props.auth.user.is_client">
+                    <!-- 2FA Grace Period Notice -->
+                    <div v-if="$page.props.two_factor_notice" class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-8 rounded-r-2xl animate-pulse">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <ShieldExclamationIcon class="h-5 w-5 text-amber-400" aria-hidden="true" />
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-amber-700 font-medium">
+                                    {{ $page.props.two_factor_notice }}
+                                    <Link :href="route('profile.edit')" class="font-bold underline ml-2 hover:text-amber-800 transition-colors">Configurar 2FA ahora →</Link>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <!-- Bienvenida y Acción Rápida -->
                         <div class="md:col-span-1">

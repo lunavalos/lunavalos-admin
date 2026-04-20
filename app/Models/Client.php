@@ -49,6 +49,7 @@ class Client extends Model
         'briefing_references',
         'briefing_contact_methods',
         'briefing_current_emails',
+        'vault_credentials',
     ];
 
     protected $casts = [
@@ -63,6 +64,7 @@ class Client extends Model
         'smtp_tls' => 'boolean',
         'has_custom_email_config' => 'boolean',
         'email_accounts' => 'array',
+        'vault_credentials' => 'array',
     ];
 
     public function user()

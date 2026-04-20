@@ -4,6 +4,7 @@ import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import { ref, computed, onMounted, nextTick } from 'vue';
 import { 
     ChevronLeftIcon,
+    ChevronRightIcon,
     PaperAirplaneIcon,
     PaperClipIcon,
     ChatBubbleLeftRightIcon,
@@ -16,7 +17,8 @@ import {
     AdjustmentsHorizontalIcon,
     XMarkIcon,
     PlusIcon,
-    TrashIcon
+    TrashIcon,
+    BuildingOfficeIcon
 } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -587,6 +589,37 @@ const deleteTicket = () => {
                                     Actualizar
                                 </button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Info Card (Only for Staff/Admin when creator is a Client) -->
+                <div v-if="!isClient && ticket.creator?.client" class="bg-blue-50 border border-blue-100 rounded-3xl p-6 shadow-sm">
+                    <h3 class="font-bold text-gray-900 border-b border-blue-200/50 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-[#264ab3]">
+                        <BuildingOfficeIcon class="h-4 w-4 mr-2" />
+                        Datos del Cliente
+                    </h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase block mb-1">Empresa / Negocio:</span>
+                            <p class="text-sm font-bold text-[#264ab3]">{{ ticket.creator.client.business_name }}</p>
+                        </div>
+
+                        <div>
+                            <span class="text-[10px] text-gray-400 font-bold uppercase block mb-1">Contacto:</span>
+                            <p class="text-sm font-medium text-gray-700">{{ ticket.creator.client.contact_name }}</p>
+                            <p class="text-[11px] text-gray-500">{{ ticket.creator.client.email }}</p>
+                        </div>
+
+                        <div class="pt-2">
+                            <Link 
+                                :href="route('clients.show', ticket.creator.client.id)"
+                                class="w-full bg-[#264ab3] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-200 flex items-center justify-center hover:bg-[#193074]"
+                            >
+                                Ver Ficha Completa
+                                <ChevronRightIcon class="h-4 w-4 ml-1" />
+                            </Link>
                         </div>
                     </div>
                 </div>
