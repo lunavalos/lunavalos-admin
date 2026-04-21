@@ -1,7 +1,21 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { TrashIcon, PencilSquareIcon, EnvelopeIcon, CheckBadgeIcon, EyeIcon, EyeSlashIcon, XMarkIcon, MagnifyingGlassIcon, ArchiveBoxArrowDownIcon, ArrowRightStartOnRectangleIcon } from '@heroicons/vue/24/outline';
+import { 
+    TrashIcon, 
+    PencilSquareIcon, 
+    EnvelopeIcon, 
+    CheckBadgeIcon, 
+    EyeIcon, 
+    EyeSlashIcon, 
+    XMarkIcon, 
+    MagnifyingGlassIcon, 
+    ArchiveBoxArrowDownIcon, 
+    ArrowRightStartOnRectangleIcon,
+    BarsArrowDownIcon,
+    BarsArrowUpIcon,
+    ArrowsUpDownIcon
+} from '@heroicons/vue/24/outline';
 import { ref, computed, nextTick } from 'vue';
 import Modal from '@/Components/Modal.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -17,9 +31,11 @@ const form = useForm({});
 
 const searchQuery = ref('');
 const currentTab = ref('activos'); // 'activos' or 'historicos'
+const sortBy = ref('created_at');
+const sortOrder = ref('desc');
 
 const filteredClients = computed(() => {
-    let list = props.clients || [];
+    let list = [...(props.clients || [])]; // Create a copy to avoid mutating props
     
     // Filter by tab
     if (currentTab.value === 'activos') {
@@ -37,6 +53,29 @@ const filteredClients = computed(() => {
             (c.email && c.email.toLowerCase().includes(q))
         );
     }
+
+    // Sort logic
+    list.sort((a, b) => {
+        let valA, valB;
+        
+        if (sortBy.value === 'name') {
+            valA = a.business_name?.toLowerCase() || '';
+            valB = b.business_name?.toLowerCase() || '';
+        } else if (sortBy.value === 'renewal') {
+            valA = a.next_renewal_date || (sortOrder.value === 'asc' ? '9999-12-31' : '0000-00-00');
+            valB = b.next_renewal_date || (sortOrder.value === 'asc' ? '9999-12-31' : '0000-00-00');
+        } else if (sortBy.value === 'amount') {
+            valA = parseFloat(a.renewal_amount) || 0;
+            valB = parseFloat(b.renewal_amount) || 0;
+        } else { // created_at
+            valA = a.created_at;
+            valB = b.created_at;
+        }
+        
+        if (valA < valB) return sortOrder.value === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder.value === 'asc' ? 1 : -1;
+        return 0;
+    });
     
     return list;
 });
@@ -131,8 +170,8 @@ const getRenewalBadgeClass = (days) => {
             <div class="container mx-auto">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg card border border-gray-100">
                     <!-- Search and Tabs -->
-                    <div class="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-white">
-                        <div class="flex space-x-1 p-1 bg-gray-100 rounded-lg">
+                    <div class="px-6 py-4 border-b border-gray-100 flex flex-col xl:flex-row justify-between items-center gap-4 bg-white">
+                        <div class="flex space-x-1 p-1 bg-gray-100 rounded-lg shrink-0">
                             <button 
                                 @click="currentTab = 'activos'"
                                 :class="['px-4 py-1.5 text-sm font-semibold rounded-md transition-all', currentTab === 'activos' ? 'bg-white shadow-sm text-[#264ab3]' : 'text-gray-500 hover:text-gray-700']"
@@ -146,16 +185,42 @@ const getRenewalBadgeClass = (days) => {
                                 Históricos
                             </button>
                         </div>
-                        <div class="relative w-full md:w-72">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <MagnifyingGlassIcon class="h-4 w-4 text-gray-400" />
+                        
+                        <div class="flex flex-col md:flex-row items-center gap-3 w-full xl:w-auto">
+                            <!-- Sorting -->
+                            <div class="flex items-center space-x-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+                                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Ordenar:</span>
+                                <select 
+                                    v-model="sortBy"
+                                    class="bg-transparent border-none text-sm font-bold text-[#264ab3] focus:ring-0 py-0 pl-1 pr-8"
+                                >
+                                    <option value="created_at">Fecha Registro</option>
+                                    <option value="name">Alfabético</option>
+                                    <option value="renewal">Fecha Renovación</option>
+                                    <option value="amount">Monto</option>
+                                </select>
+                                <button 
+                                    @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
+                                    class="p-1 hover:bg-white rounded transition-all text-[#264ab3]"
+                                    :title="sortOrder === 'asc' ? 'Ascendente' : 'Descendente'"
+                                >
+                                    <BarsArrowDownIcon v-if="sortOrder === 'desc'" class="h-5 w-5" />
+                                    <BarsArrowUpIcon v-else class="h-5 w-5" />
+                                </button>
                             </div>
-                            <input 
-                                v-model="searchQuery"
-                                type="text" 
-                                placeholder="Buscar cliente por empresa, contacto o email..." 
-                                class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-[#264ab3] focus:border-[#264ab3] shadow-sm"
-                            />
+
+                            <!-- Search -->
+                            <div class="relative w-full md:w-72">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <MagnifyingGlassIcon class="h-4 w-4 text-gray-400" />
+                                </div>
+                                <input 
+                                    v-model="searchQuery"
+                                    type="text" 
+                                    placeholder="Buscar cliente..." 
+                                    class="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-[#264ab3] focus:border-[#264ab3] shadow-sm"
+                                />
+                            </div>
                         </div>
                     </div>
                     
