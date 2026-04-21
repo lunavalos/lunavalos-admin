@@ -32,8 +32,12 @@ class TicketController extends Controller
 
         $tickets = $query->latest()->get();
 
-        // Prepare users who can be assigned (Admins and Employees)
-        $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get();
+        // Prepare users who can be assigned (Admins, Employees, and Clients for Admins to filter/assign)
+        $rolesToShow = ['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'];
+        if ($user->hasAnyRole(['Administrador', 'Administrador Master'])) {
+            $rolesToShow[] = 'Cliente';
+        }
+        $assignableUsers = User::role($rolesToShow)->orderBy('name')->get();
 
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
@@ -96,6 +100,12 @@ class TicketController extends Controller
         if ($request->has('due_date')) {
             $ticket->due_date = $request->due_date;
         }
+
+        // Auto-reassign to creator if it's a client and moving to "En Revisión"
+        if ($ticket->status === 'En Revisión' && $ticket->creator->hasRole('Cliente')) {
+            $ticket->assigned_id = $ticket->creator_id;
+        }
+
         $ticket->save();
 
         if ($oldStatus !== $ticket->status) {
@@ -105,7 +115,8 @@ class TicketController extends Controller
             if ($ticket->creator_id !== Auth::id()) {
                 $ticket->creator->notify(new TicketNotification($ticket, 'status_changed', $message));
             }
-            if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id()) {
+            // Only notify assignee if they are different from the creator
+            if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id() && $ticket->assigned_id !== $ticket->creator_id) {
                 $ticket->assigned->notify(new TicketNotification($ticket, 'status_changed', $message));
             }
         }
@@ -168,6 +179,12 @@ class TicketController extends Controller
         $oldStatus = $ticket->status;
         if ($request->change_status && $request->change_status !== $oldStatus) {
             $ticket->status = $request->change_status;
+
+            // Auto-reassign to creator if it's a client and moving to "En Revisión"
+            if ($ticket->status === 'En Revisión' && $ticket->creator->hasRole('Cliente')) {
+                $ticket->assigned_id = $ticket->creator_id;
+            }
+
             $ticket->save();
 
             // Notify status change separately
@@ -175,7 +192,8 @@ class TicketController extends Controller
             if ($ticket->creator_id !== Auth::id()) {
                 $ticket->creator->notify(new TicketNotification($ticket, 'status_changed', $statusMsg));
             }
-            if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id()) {
+            // Only notify assignee if they are different from the creator
+            if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id() && $ticket->assigned_id !== $ticket->creator_id) {
                 $ticket->assigned->notify(new TicketNotification($ticket, 'status_changed', $statusMsg));
             }
         }
@@ -186,7 +204,8 @@ class TicketController extends Controller
         if ($ticket->creator_id !== Auth::id()) {
             $ticket->creator->notify(new TicketNotification($ticket, 'new_message', $notifMessage));
         }
-        if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id()) {
+        // Only notify assignee if they are different from the creator
+        if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id() && $ticket->assigned_id !== $ticket->creator_id) {
             $ticket->assigned->notify(new TicketNotification($ticket, 'new_message', $notifMessage));
         }
 
@@ -197,9 +216,16 @@ class TicketController extends Controller
     {
         $ticket->load(['creator.client', 'assigned', 'messages.user', 'attachments']);
 
+        $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get();
+
+        // If the ticket creator is a client, add them to the assignable list so they can be manually assigned for review/status tracking
+        if ($ticket->creator && $ticket->creator->hasRole('Cliente')) {
+            $assignableUsers->push($ticket->creator);
+        }
+
         return Inertia::render('Tickets/Show', [
             'ticket' => $ticket,
-            'assignableUsers' => User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get(),
+            'assignableUsers' => $assignableUsers,
         ]);
     }
 

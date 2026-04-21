@@ -182,10 +182,8 @@ const canClose = computed(() => {
 });
 
 const canRequestAdjustments = computed(() => {
-    const isAssigned = props.ticket?.assigned_id === page.props.auth?.user?.id;
     // Only Creator or Admin can request adjustments, and only when the ticket is in 'En Revisión'
-    // Exclude the assigned user from requesting adjustments to their own work
-    return props.ticket?.status === 'En Revisión' && (isCreator.value || isAdmin.value) && !isAssigned;
+    return props.ticket?.status === 'En Revisión' && (isCreator.value || isAdmin.value);
 });
 
 const today = new Date().toISOString().split('T')[0];
