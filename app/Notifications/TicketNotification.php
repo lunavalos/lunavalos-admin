@@ -25,13 +25,11 @@ class TicketNotification extends Notification implements ShouldBroadcast, Should
 
     public function via(object $notifiable): array
     {
-        // Temporalmente deshabilitamos el 'broadcast' si Reverb no está corriendo
-        // para evitar el error de cURL 7 (Connection refused)
         $channels = ['database'];
         
-        // Si tienes Reverb activado en el entorno, lo agregas
-        if (config('broadcasting.default') !== 'reverb' && env('BROADCAST_CONNECTION') !== 'reverb') {
-            // $channels[] = 'broadcast';
+        // Habilitamos el canal de broadcast si hay una conexión configurada (Reverb, Pusher, etc)
+        if (config('broadcasting.default') !== 'null' && config('broadcasting.default') !== 'log') {
+            $channels[] = 'broadcast';
         }
         
         return $channels;
