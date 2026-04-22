@@ -13,6 +13,7 @@ class Ticket extends Model
         'status',
         'creator_id',
         'assigned_id',
+        'client_id',
         'due_date',
         'status_updated_at',
     ];
@@ -43,6 +44,11 @@ class Ticket extends Model
     public function assigned()
     {
         return $this->belongsTo(User::class, 'assigned_id');
+    }
+
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function messages()

@@ -44,7 +44,7 @@ const submit = () => {
     <AuthenticatedLayout>
         <template #header>
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-semibold leading-tight text-gray-800">
+                <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">
                     Editar Servicio: {{ service.name }}
                 </h2>
                 <Link
@@ -58,13 +58,13 @@ const submit = () => {
 
         <div class="py-12">
             <div class="container mx-auto">
-                <div class="card overflow-hidden bg-white shadow-sm sm:rounded-lg max-w-2xl mx-auto">
-                    <div class="p-6 text-gray-900 border-b border-gray-200">
+                <div class="card overflow-hidden bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg max-w-2xl mx-auto border border-gray-100 dark:border-zinc-800">
+                    <div class="p-6 text-gray-900 dark:text-gray-100 border-b border-gray-200 dark:border-zinc-800">
                         <form @submit.prevent="submit" class="space-y-6">
                             
                             <!-- Nombre -->
                             <div>
-                                <InputLabel for="name" value="Nombre del Servicio" class="font-bold text-gray-700" />
+                                <InputLabel for="name" value="Nombre del Servicio" class="font-bold text-gray-700 dark:text-gray-300" />
                                 <TextInput
                                     id="name"
                                     type="text"
@@ -79,18 +79,18 @@ const submit = () => {
                             <!-- Tipo de Producto -->
                             <div class="mb-4">
                                 <label class="inline-flex items-center">
-                                    <input type="checkbox" v-model="form.is_package" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                                    <span class="ml-2 text-sm text-gray-700 font-bold">Es un Paquete (agrupa múltiples servicios)</span>
+                                    <input type="checkbox" v-model="form.is_package" class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300 font-bold">Es un Paquete (agrupa múltiples servicios)</span>
                                 </label>
                             </div>
 
                             <!-- Servicios Incluidos (Solo si es paquete) -->
-                            <div v-if="form.is_package" class="p-4 bg-gray-50 border border-gray-200 rounded-md">
-                                <InputLabel value="Servicios Incluidos en el Paquete" class="font-bold text-gray-700 mb-2" />
+                            <div v-if="form.is_package" class="p-4 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-md">
+                                <InputLabel value="Servicios Incluidos en el Paquete" class="font-bold text-gray-700 dark:text-gray-300 mb-2" />
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <label v-for="availableService in availableServices" :key="availableService.id" class="inline-flex items-center p-2 hover:bg-white rounded">
-                                        <input type="checkbox" :value="availableService.id" v-model="form.services" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                                        <span class="ml-2 text-sm text-gray-700">{{ availableService.name }}</span>
+                                    <label v-for="availableService in availableServices" :key="availableService.id" class="inline-flex items-center p-2 hover:bg-white dark:hover:bg-zinc-900 rounded transition-colors">
+                                        <input type="checkbox" :value="availableService.id" v-model="form.services" class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">{{ availableService.name }}</span>
                                     </label>
                                 </div>
                                 <InputError class="mt-2" :message="form.errors.services" />
@@ -98,10 +98,10 @@ const submit = () => {
 
                             <!-- Descripción -->
                             <div>
-                                <InputLabel for="description" value="Descripción Default (Opcional)" class="font-bold text-gray-700" />
+                                <InputLabel for="description" value="Descripción Default (Opcional)" class="font-bold text-gray-700 dark:text-gray-300" />
                                 <textarea
                                     id="description"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm dark:bg-zinc-950 dark:text-gray-100 placeholder-gray-400 dark:placeholder-zinc-500 transition-colors"
                                     v-model="form.description"
                                     rows="3"
                                     placeholder="Ej. Diseño de trípticos para la promoción de Rendimiento Total..."
@@ -112,11 +112,11 @@ const submit = () => {
                             <!-- Tipo de Cobro & Precio -->
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6" v-if="$page.props.auth.user.is_admin">
                                 <div>
-                                    <InputLabel for="billing_type" value="Tipo de Cobro" class="font-bold text-gray-700" />
+                                    <InputLabel for="billing_type" value="Tipo de Cobro" class="font-bold text-gray-700 dark:text-gray-300" />
                                     <select
                                         id="billing_type"
                                         v-model="form.billing_type"
-                                        class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm bg-white"
+                                        class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-200"
                                         required
                                     >
                                         <option value="unique">Pago Total Único</option>
@@ -127,17 +127,17 @@ const submit = () => {
                                 </div>
 
                                 <div>
-                                    <InputLabel for="price" value="Precio Base ($ MXN)" class="font-bold text-gray-700" />
+                                    <InputLabel for="price" value="Precio Base ($ MXN)" class="font-bold text-gray-700 dark:text-gray-300" />
                                     <div class="relative mt-1">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <span class="text-gray-500 sm:text-sm">$</span>
+                                            <span class="text-gray-500 dark:text-zinc-400 sm:text-sm">$</span>
                                         </div>
                                         <TextInput
                                             id="price"
                                             type="number"
                                             step="0.01"
                                             min="0"
-                                            class="block w-full pl-7 pr-12 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                            class="block w-full pl-7 pr-12 border-gray-300 dark:border-zinc-800 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm dark:bg-zinc-950 dark:text-gray-100"
                                             v-model="form.price"
                                             required
                                         />
@@ -146,7 +146,7 @@ const submit = () => {
                                 </div>
 
                                 <div v-if="form.billing_type !== 'unique'">
-                                    <InputLabel for="renewal_price" value="Precio de Renovación / Anualidad" class="font-bold text-gray-700" />
+                                    <InputLabel for="renewal_price" value="Precio de Renovación / Anualidad" class="font-bold text-gray-700 dark:text-gray-300" />
                                     <div class="relative mt-1">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <span class="text-gray-500 sm:text-sm">$</span>
@@ -156,7 +156,7 @@ const submit = () => {
                                             type="number"
                                             step="0.01"
                                             min="0"
-                                            class="block w-full pl-7 pr-12 border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                            class="block w-full pl-7 pr-12 border-gray-300 dark:border-zinc-800 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm dark:bg-zinc-950 dark:text-gray-100"
                                             v-model="form.renewal_price"
                                             required
                                         />
@@ -166,10 +166,10 @@ const submit = () => {
                             </div>
 
                             <!-- Costos Internos -->
-                            <div class="p-6 bg-gray-50 border border-gray-200 rounded-xl">
+                            <div class="p-6 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl">
                                 <div class="flex justify-between items-center mb-4">
-                                    <h4 class="font-bold text-gray-800 uppercase tracking-wider text-xs flex items-center">
-                                        <span class="bg-red-100 text-red-600 p-1 rounded-md mr-2">
+                                    <h4 class="font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider text-xs flex items-center">
+                                        <span class="bg-red-100 dark:bg-rose-900/40 text-red-600 dark:text-rose-400 p-1 rounded-md mr-2">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
@@ -179,7 +179,7 @@ const submit = () => {
                                     <button 
                                         type="button" 
                                         @click="addCost" 
-                                        class="text-xs flex items-center text-red-600 hover:text-red-700 font-bold bg-white border border-red-100 px-3 py-1.5 rounded-lg shadow-sm"
+                                        class="text-xs flex items-center text-red-600 dark:text-rose-400 hover:text-red-700 dark:hover:text-rose-300 font-bold bg-white dark:bg-zinc-900 border border-red-100 dark:border-rose-900/50 px-3 py-1.5 rounded-lg shadow-sm transition-all"
                                     >
                                         <PlusCircleIcon class="h-4 w-4 mr-1" />
                                         Agregar Costo
@@ -189,10 +189,10 @@ const submit = () => {
                                 <div v-if="form.costs.length > 0" class="overflow-x-auto">
                                     <table class="w-full text-sm">
                                         <thead>
-                                            <tr class="text-gray-400 text-left border-b border-gray-200">
-                                                <th class="pb-2 font-semibold">TÍTULO DEL COSTO</th>
-                                                <th class="pb-2 font-semibold text-center w-20">CANT.</th>
-                                                <th class="pb-2 font-semibold text-right w-32">PRECIO UNIT.</th>
+                                            <tr class="text-gray-400 dark:text-zinc-500 text-left border-b border-gray-200 dark:border-zinc-800">
+                                                <th class="pb-2 font-semibold uppercase tracking-tighter text-[10px]">TÍTULO DEL COSTO</th>
+                                                <th class="pb-2 font-semibold text-center w-20 uppercase tracking-tighter text-[10px]">CANT.</th>
+                                                <th class="pb-2 font-semibold text-right w-32 uppercase tracking-tighter text-[10px]">PRECIO UNIT.</th>
                                                 <th class="pb-2 w-10"></th>
                                             </tr>
                                         </thead>
@@ -202,7 +202,7 @@ const submit = () => {
                                                     <input 
                                                         type="text" 
                                                         v-model="cost.title" 
-                                                        class="w-full border-none focus:ring-0 p-0 text-gray-700 bg-transparent placeholder-gray-300"
+                                                        class="w-full border-none focus:ring-0 p-0 text-gray-700 dark:text-gray-200 bg-transparent placeholder-gray-300 dark:placeholder-zinc-600"
                                                         placeholder="Costo por impresión, outsourcing..."
                                                     >
                                                 </td>
@@ -216,11 +216,11 @@ const submit = () => {
                                                 </td>
                                                 <td class="py-3 px-2">
                                                     <div class="flex items-center justify-end">
-                                                        <span class="text-gray-400 mr-1">$</span>
+                                                        <span class="text-gray-400 dark:text-zinc-500 mr-1">$</span>
                                                         <input 
                                                             type="number" 
                                                             v-model="cost.price" 
-                                                            class="w-full border-none focus:ring-0 p-0 text-right text-gray-700 bg-transparent"
+                                                            class="w-full border-none focus:ring-0 p-0 text-right text-gray-700 dark:text-gray-200 bg-transparent"
                                                             step="0.01"
                                                             min="0"
                                                         >
@@ -234,9 +234,9 @@ const submit = () => {
                                             </tr>
                                         </tbody>
                                         <tfoot>
-                                            <tr class="font-bold text-gray-800 border-t border-gray-200">
+                                            <tr class="font-bold text-gray-800 dark:text-gray-100 border-t border-gray-200 dark:border-zinc-800">
                                                 <td class="py-3">TOTAL COSTOS ESTIMADOS:</td>
-                                                <td colspan="2" class="py-3 text-right text-red-600">
+                                                <td colspan="2" class="py-3 text-right text-red-600 dark:text-rose-400">
                                                     ${{ form.costs.reduce((sum, c) => sum + (Number(c.price) * Number(c.quantity)), 0).toFixed(2) }}
                                                 </td>
                                                 <td></td>
@@ -244,12 +244,12 @@ const submit = () => {
                                         </tfoot>
                                     </table>
                                 </div>
-                                <div v-else class="text-center py-6 border-2 border-dashed border-gray-100 rounded-xl">
-                                    <p class="text-gray-400 text-sm italic">No hay costos agregados aún.</p>
+                                <div v-else class="text-center py-6 border-2 border-dashed border-gray-100 dark:border-zinc-900 rounded-xl">
+                                    <p class="text-gray-400 dark:text-zinc-500 text-sm italic">No hay costos agregados aún.</p>
                                 </div>
                             </div>
 
-                            <div class="flex items-center justify-end mt-4 pt-4 border-t border-gray-100">
+                            <div class="flex items-center justify-end mt-4 pt-4 border-t border-gray-100 dark:border-zinc-800">
                                 <button
                                     type="submit"
                                     class="btn bg-primary hover:bg-secondary text-white font-bold py-2 px-6 rounded"

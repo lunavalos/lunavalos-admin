@@ -35,27 +35,27 @@ const deleteRole = (id) => {
 
         <div class="py-12">
             <div class="container mx-auto">
-                <div class="card overflow-hidden bg-white shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900 overflow-x-auto">
+                <div class="card overflow-hidden bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800">
+                    <div class="p-6 text-gray-900 dark:text-gray-100 overflow-x-auto">
                         
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="bg-gray-100 border-b">
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">ID</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">Nombre</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">Permisos</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 text-right w-32 whitespace-nowrap">Acciones</th>
+                                <tr class="bg-gray-100 dark:bg-zinc-950 border-b border-gray-200 dark:border-zinc-800">
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-zinc-400">ID</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-zinc-400">Nombre</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-zinc-400">Permisos</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-zinc-400 text-right w-32 whitespace-nowrap">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr v-for="role in roles" :key="role.id" class="border-b hover:bg-gray-50 transition">
-                                    <td class="p-3">{{ role.id }}</td>
+                            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                                <tr v-for="role in roles" :key="role.id" class="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition">
+                                    <td class="p-3 text-gray-500 dark:text-zinc-400">{{ role.id }}</td>
                                     <td class="p-3 font-semibold text-primary">{{ role.name }}</td>
                                     <td class="p-3">
                                         <span 
                                             v-for="perm in role.permissions" 
                                             :key="perm.id"
-                                            class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded mr-2 mb-1"
+                                            class="inline-block bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs px-2 py-1 rounded mr-2 mb-1 border border-blue-200 dark:border-blue-800/30"
                                         >
                                             {{ perm.name }}
                                         </span>
@@ -68,7 +68,7 @@ const deleteRole = (id) => {
                                             <Link
                                                 v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Editar Roles')"
                                                 :href="route('roles.edit', role.id)"
-                                                class="text-gray-600 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors inline-flex items-center"
+                                                class="text-gray-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 p-2 rounded-full transition-colors inline-flex items-center"
                                             >
                                                 <PencilSquareIcon class="w-5 h-5" />
                                             </Link>
@@ -78,7 +78,7 @@ const deleteRole = (id) => {
                                             <button
                                                 v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Eliminar Roles')"
                                                 @click="deleteRole(role.id)"
-                                                class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors inline-flex items-center"
+                                                class="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-rose-900/20 p-2 rounded-full transition-colors inline-flex items-center"
                                             >
                                                 <TrashIcon class="w-5 h-5" />
                                             </button>

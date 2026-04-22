@@ -20,8 +20,8 @@ const deleteTemplate = (id) => {
     <AuthenticatedLayout>
         <template #header>
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-semibold leading-tight text-gray-800 flex items-center gap-2">
-                    <SwatchIcon class="h-6 w-6 text-gray-500" />
+                <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <SwatchIcon class="h-6 w-6 text-[#264ab3] dark:text-blue-400" />
                     Plantillas de Firmas
                 </h2>
                 <Link :href="route('signature-templates.create')" class="bg-[#264ab3] text-white px-4 py-2 rounded-md font-bold text-sm flex items-center">
@@ -33,31 +33,31 @@ const deleteTemplate = (id) => {
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg border border-gray-200">
-                    <div class="p-6 text-gray-900">
-                        <table class="min-w-full divide-y divide-gray-200">
+                <div class="bg-white dark:bg-zinc-900 overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800">
+                    <div class="p-6 text-gray-900 dark:text-gray-100">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
                             <thead>
                                 <tr>
-                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Nombre</th>
-                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Slug</th>
-                                    <th class="px-6 py-3 bg-gray-50 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                    <th class="px-6 py-3 bg-gray-50"></th>
+                                    <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Nombre</th>
+                                    <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Slug</th>
+                                    <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Estado</th>
+                                    <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950"></th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="template in templates" :key="template.id">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ template.name }}</td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ template.slug }}</td>
+                            <tbody class="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
+                                <tr v-for="template in templates" :key="template.id" class="hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ template.name }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">{{ template.slug }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span :class="template.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="px-2 py-1 text-xs rounded-full font-bold">
                                             {{ template.is_active ? 'Activa' : 'Inactiva' }}
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                                        <Link :href="route('signature-templates.edit', template.id)" class="text-indigo-600 hover:text-indigo-900 inline-block">
+                                        <Link :href="route('signature-templates.edit', template.id)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 inline-block">
                                             <PencilIcon class="h-5 w-5" />
                                         </Link>
-                                        <button @click="deleteTemplate(template.id)" class="text-red-600 hover:text-red-900 inline-block">
+                                        <button @click="deleteTemplate(template.id)" class="text-red-600 dark:text-rose-400 hover:text-red-900 dark:hover:text-rose-300 inline-block">
                                             <TrashIcon class="h-5 w-5" />
                                         </button>
                                     </td>

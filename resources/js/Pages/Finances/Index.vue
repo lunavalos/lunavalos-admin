@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import {
     DocumentCurrencyDollarIcon,
     CalendarDaysIcon,
@@ -189,26 +189,43 @@ const animateCounter = (key, target, isCurrency = false) => {
     }, stepTime);
 };
 
+const isDark = ref(false);
+let observer = null;
+
 onMounted(() => {
     if (props.kpis) {
         Object.entries(props.kpis).forEach(([key, val]) => {
             animateCounter(key, val);
         });
     }
+
+    isDark.value = document.documentElement.classList.contains('dark');
+    observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'class') {
+                isDark.value = document.documentElement.classList.contains('dark');
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true });
+});
+
+onUnmounted(() => {
+    if (observer) observer.disconnect();
 });
 
 // ─── COLORES base ─────────────────────────────────────────────────────────────
 const palette = {
-    green:       'rgba(34, 197, 94, 1)',
-    greenFade:   'rgba(34, 197, 94, 0.15)',
-    blue:        'rgba(59, 130, 246, 1)',
-    blueFade:    'rgba(59, 130, 246, 0.15)',
-    red:         'rgba(239, 68, 68, 1)',
-    redFade:     'rgba(239, 68, 68, 0.15)',
-    orange:      'rgba(249, 115, 22, 1)',
-    purple:      'rgba(168, 85, 247, 1)',
-    teal:        'rgba(20, 184, 166, 1)',
-    yellow:      'rgba(234, 179, 8, 1)',
+    green:       'rgba(52, 211, 153, 1)',  // emerald-400
+    greenFade:   'rgba(52, 211, 153, 0.15)',
+    blue:        'rgba(96, 165, 250, 1)',   // blue-400
+    blueFade:    'rgba(96, 165, 250, 0.15)',
+    red:         'rgba(251, 113, 133, 1)',   // rose-400
+    redFade:     'rgba(251, 113, 133, 0.15)',
+    orange:      'rgba(251, 146, 60, 1)',    // orange-400
+    purple:      'rgba(167, 139, 250, 1)',   // violet-400
+    teal:        'rgba(45, 212, 191, 1)',    // teal-400
+    yellow:      'rgba(250, 204, 21, 1)',    // yellow-400
 };
 
 const multiColors = [
@@ -217,22 +234,22 @@ const multiColors = [
     palette.red, 'rgba(236, 72, 153, 1)', 'rgba(14, 165, 233, 1)',
 ];
 
-const chartDefaults = {
+const chartDefaults = computed(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
         legend: { display: false },
         tooltip: {
-            backgroundColor: 'rgba(255,255,255,0.97)',
-            titleColor: '#1e293b',
-            bodyColor: '#475569',
-            borderColor: '#e2e8f0',
+            backgroundColor: isDark.value ? 'rgba(30, 41, 59, 0.97)' : 'rgba(255,255,255,0.97)',
+            titleColor: isDark.value ? '#f1f5f9' : '#1e293b',
+            bodyColor: isDark.value ? '#cbd5e1' : '#475569',
+            borderColor: isDark.value ? '#334155' : '#e2e8f0',
             borderWidth: 1,
             cornerRadius: 8,
             padding: 10,
         },
     },
-};
+}));
 
 // ─── Gráfica 1: Ingresos mensuales ───────────────────────────────────────────
 const barChartData = computed(() => {
@@ -254,12 +271,12 @@ const barChartData = computed(() => {
 });
 
 const barChartOptions = computed(() => ({
-    ...chartDefaults,
+    ...chartDefaults.value,
     plugins: {
-        ...chartDefaults.plugins,
+        ...chartDefaults.value.plugins,
         legend: { display: false },
         tooltip: {
-            ...chartDefaults.plugins.tooltip,
+            ...chartDefaults.value.plugins.tooltip,
             callbacks: {
                 label: (ctx) => ' ' + formatCurrency(ctx.raw),
             },
@@ -267,13 +284,13 @@ const barChartOptions = computed(() => ({
     },
     scales: {
         x: {
-            grid: { color: 'rgba(0,0,0,0.04)' },
-            ticks: { color: '#64748b', font: { size: 11 }, maxRotation: 45 },
+            grid: { color: isDark.value ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' },
+            ticks: { color: isDark.value ? '#94a3b8' : '#64748b', font: { size: 11 }, maxRotation: 45 },
         },
         y: {
-            grid: { color: 'rgba(0,0,0,0.05)' },
+            grid: { color: isDark.value ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
             ticks: {
-                color: '#64748b',
+                color: isDark.value ? '#94a3b8' : '#64748b',
                 font: { size: 11 },
                 callback: (v) => formatCurrency(v),
             },
@@ -298,16 +315,16 @@ const doughnutData = computed(() => {
 });
 
 const doughnutOptions = computed(() => ({
-    ...chartDefaults,
+    ...chartDefaults.value,
     plugins: {
-        ...chartDefaults.plugins,
+        ...chartDefaults.value.plugins,
         legend: {
             display: true,
             position: 'bottom',
-            labels: { color: '#475569', padding: 14, font: { size: 11 }, boxWidth: 12 },
+            labels: { color: isDark.value ? '#cbd5e1' : '#475569', padding: 14, font: { size: 11 }, boxWidth: 12 },
         },
         tooltip: {
-            ...chartDefaults.plugins.tooltip,
+            ...chartDefaults.value.plugins.tooltip,
             callbacks: {
                 label: (ctx) => `  ${ctx.label}: ${formatCurrency(ctx.raw)}`,
             },
@@ -367,16 +384,16 @@ const lineChartData = computed(() => {
 });
 
 const lineChartOptions = computed(() => ({
-    ...chartDefaults,
+    ...chartDefaults.value,
     plugins: {
-        ...chartDefaults.plugins,
+        ...chartDefaults.value.plugins,
         legend: {
             display: true,
             position: 'top',
-            labels: { color: '#475569', padding: 16, font: { size: 11 }, boxWidth: 12 },
+            labels: { color: isDark.value ? '#cbd5e1' : '#475569', padding: 16, font: { size: 11 }, boxWidth: 12 },
         },
         tooltip: {
-            ...chartDefaults.plugins.tooltip,
+            ...chartDefaults.value.plugins.tooltip,
             callbacks: {
                 label: (ctx) => `  ${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`,
             },
@@ -384,13 +401,13 @@ const lineChartOptions = computed(() => ({
     },
     scales: {
         x: {
-            grid: { color: 'rgba(0,0,0,0.04)' },
-            ticks: { color: '#64748b', font: { size: 11 } },
+            grid: { color: isDark.value ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' },
+            ticks: { color: isDark.value ? '#94a3b8' : '#64748b', font: { size: 11 } },
         },
         y: {
-            grid: { color: 'rgba(0,0,0,0.05)' },
+            grid: { color: isDark.value ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
             ticks: {
-                color: '#64748b',
+                color: isDark.value ? '#94a3b8' : '#64748b',
                 font: { size: 11 },
                 callback: (v) => formatCurrency(v),
             },
@@ -432,8 +449,8 @@ const statusChartOptions = computed(() => ({
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-gray-800 flex items-center gap-2">
-                <DocumentCurrencyDollarIcon class="h-6 w-6 text-green-600" />
+            <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <DocumentCurrencyDollarIcon class="h-6 w-6 text-green-600 dark:text-teal-400" />
                 Finanzas &amp; Renovaciones
             </h2>
         </template>
@@ -444,7 +461,7 @@ const statusChartOptions = computed(() => ({
             <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
 
                 <!-- Ingresos del mes -->
-                <div class="bg-gradient-to-br from-emerald-500 to-green-700 rounded-2xl p-5 text-white shadow-lg col-span-1">
+                <div class="bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-2xl p-5 text-white shadow-lg col-span-1">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs font-semibold uppercase tracking-wider opacity-80">Este mes</span>
                         <BanknotesIcon class="h-5 w-5 opacity-70" />
@@ -456,7 +473,7 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Próximos 30 días -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl p-5 text-white shadow-lg col-span-1">
+                <div class="bg-gradient-to-br from-blue-400 to-blue-500 rounded-2xl p-5 text-white shadow-lg col-span-1">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs font-semibold uppercase tracking-wider opacity-80">30 días</span>
                         <CalendarDaysIcon class="h-5 w-5 opacity-70" />
@@ -468,7 +485,7 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Anual proyectado -->
-                <div class="bg-gradient-to-br from-purple-500 to-purple-700 rounded-2xl p-5 text-white shadow-lg col-span-1">
+                <div class="bg-gradient-to-br from-violet-400 to-violet-500 rounded-2xl p-5 text-white shadow-lg col-span-1">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs font-semibold uppercase tracking-wider opacity-80">Anual</span>
                         <ArrowTrendingUpIcon class="h-5 w-5 opacity-70" />
@@ -480,7 +497,7 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Clientes activos -->
-                <div class="bg-gradient-to-br from-teal-500 to-teal-700 rounded-2xl p-5 text-white shadow-lg col-span-1">
+                <div class="bg-gradient-to-br from-teal-400 to-cyan-500 rounded-2xl p-5 text-white shadow-lg col-span-1">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs font-semibold uppercase tracking-wider opacity-80">Activos</span>
                         <UserGroupIcon class="h-5 w-5 opacity-70" />
@@ -492,7 +509,7 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Vencidos -->
-                <div class="bg-gradient-to-br from-red-500 to-rose-700 rounded-2xl p-5 text-white shadow-lg col-span-1">
+                <div class="bg-gradient-to-br from-rose-400 to-rose-500 rounded-2xl p-5 text-white shadow-lg col-span-1">
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs font-semibold uppercase tracking-wider opacity-80">Vencidos</span>
                         <ExclamationTriangleIcon class="h-5 w-5 opacity-70" />
@@ -507,8 +524,8 @@ const statusChartOptions = computed(() => ({
                 <div
                     class="rounded-2xl p-5 text-white shadow-lg col-span-1"
                     :class="kpis?.net_profit_estimated >= 0
-                        ? 'bg-gradient-to-br from-amber-500 to-orange-600'
-                        : 'bg-gradient-to-br from-slate-600 to-slate-800'"
+                        ? 'bg-gradient-to-br from-orange-400 to-amber-500'
+                        : 'bg-gradient-to-br from-zinc-500 to-zinc-600'"
                 >
                     <div class="flex items-center justify-between mb-3">
                         <span class="text-xs font-semibold uppercase tracking-wider opacity-80">Ganancia</span>
@@ -528,13 +545,13 @@ const statusChartOptions = computed(() => ({
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
                 <!-- Gráfica 1: Ingresos mensuales (ocupa 2 columnas) -->
-                <div class="xl:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <div class="xl:col-span-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
                     <div class="flex items-center justify-between mb-5">
                         <div>
-                            <h3 class="text-gray-800 font-bold text-sm">Ingresos por Mes</h3>
-                            <p class="text-gray-400 text-xs mt-0.5">Últimos 12 meses + Proyección 6 meses</p>
+                            <h3 class="text-gray-800 dark:text-gray-100 font-bold text-sm">Ingresos por Mes</h3>
+                            <p class="text-gray-400 dark:text-zinc-500 text-xs mt-0.5">Últimos 12 meses + Proyección 6 meses</p>
                         </div>
-                        <span class="text-xs bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1 font-medium">
+                        <span class="text-xs bg-green-50 dark:bg-emerald-900/20 text-green-700 dark:text-emerald-400 border border-green-200 dark:border-emerald-800 rounded-full px-3 py-1 font-medium">
                             Renovaciones
                         </span>
                     </div>
@@ -549,10 +566,10 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Gráfica 2: Distribución por servicio -->
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
                     <div class="mb-5">
-                        <h3 class="text-gray-800 font-bold text-sm">Ingresos por Servicio</h3>
-                        <p class="text-gray-400 text-xs mt-0.5">Distribución de facturación</p>
+                        <h3 class="text-gray-800 dark:text-gray-100 font-bold text-sm">Ingresos por Servicio</h3>
+                        <p class="text-gray-400 dark:text-zinc-500 text-xs mt-0.5">Distribución de facturación</p>
                     </div>
                     <div class="h-64">
                         <Doughnut v-if="doughnutData" :data="doughnutData" :options="doughnutOptions" />
@@ -564,13 +581,13 @@ const statusChartOptions = computed(() => ({
             <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
 
                 <!-- Gráfica 3: Ingresos vs Costos (2 columnas) -->
-                <div class="xl:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <div class="xl:col-span-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
                     <div class="flex items-center justify-between mb-5">
                         <div>
-                            <h3 class="text-gray-800 font-bold text-sm">Ingresos vs Costos Internos</h3>
-                            <p class="text-gray-400 text-xs mt-0.5">Servicios internos + Nómina vs Ingresos (últimos 12 meses)</p>
+                            <h3 class="text-gray-800 dark:text-gray-100 font-bold text-sm">Ingresos vs Costos Internos</h3>
+                            <p class="text-gray-400 dark:text-zinc-500 text-xs mt-0.5">Servicios internos + Nómina vs Ingresos (últimos 12 meses)</p>
                         </div>
-                        <span v-if="kpis?.monthly_payroll" class="text-xs bg-red-50 text-red-600 border border-red-200 rounded-full px-3 py-1 font-medium whitespace-nowrap">
+                        <span v-if="kpis?.monthly_payroll" class="text-xs bg-red-50 dark:bg-rose-900/20 text-red-600 dark:text-rose-400 border border-red-200 dark:border-rose-800 rounded-full px-3 py-1 font-medium whitespace-nowrap">
                             Nómina: {{ formatCurrency(kpis.monthly_payroll) }}/mes
                         </span>
                     </div>
@@ -580,10 +597,10 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Gráfica 4: Estado de clientes -->
-                <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 shadow-sm">
                     <div class="mb-5">
-                        <h3 class="text-gray-800 font-bold text-sm">Estado de Clientes</h3>
-                        <p class="text-gray-400 text-xs mt-0.5">Al corriente · Por vencer · Vencidos</p>
+                        <h3 class="text-gray-800 dark:text-gray-100 font-bold text-sm">Estado de Clientes</h3>
+                        <p class="text-gray-400 dark:text-zinc-500 text-xs mt-0.5">Al corriente · Por vencer · Vencidos</p>
                     </div>
                     <div class="h-64">
                         <Doughnut v-if="statusChartData" :data="statusChartData" :options="statusChartOptions" />
@@ -592,25 +609,25 @@ const statusChartOptions = computed(() => ({
             </div>
 
             <!-- ── TABLA DE RENOVACIONES ───────────────────────────────────── -->
-            <div class="bg-white shadow-sm border border-gray-200 rounded-2xl overflow-hidden">
+            <div class="bg-white dark:bg-zinc-900 shadow-sm border border-gray-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
 
                 <!-- Barra superior de tabla -->
-                <div class="px-6 py-4 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
-                    <h3 class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                        <CalendarDaysIcon class="h-4 w-4 text-green-600" />
+                <div class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex flex-wrap items-center justify-between gap-3">
+                    <h3 class="font-bold text-gray-800 dark:text-gray-100 text-sm flex items-center gap-2">
+                        <CalendarDaysIcon class="h-4 w-4 text-green-600 dark:text-teal-400" />
                         Detalle de Renovaciones
-                        <span class="ml-1 text-xs bg-gray-100 text-gray-500 rounded-full px-2 py-0.5">
+                        <span class="ml-1 text-xs bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 rounded-full px-2 py-0.5">
                             {{ filteredRenewals.length }} registro{{ filteredRenewals.length !== 1 ? 's' : '' }}
                         </span>
                     </h3>
                     <div class="flex flex-wrap items-center gap-2">
                         <!-- Filtro de rango de fechas -->
                         <div class="flex items-center gap-1.5">
-                            <CalendarDaysIcon class="h-3.5 w-3.5 text-gray-400 shrink-0" />
+                            <CalendarDaysIcon class="h-3.5 w-3.5 text-gray-400 dark:text-zinc-500 shrink-0" />
                             <select
                                 :value="currentRange"
                                 @change="changeRange"
-                                class="text-xs border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 py-2 px-2 shadow-sm bg-white"
+                                class="text-xs border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-green-500 focus:border-green-500 py-2 px-2 shadow-sm bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200"
                             >
                                 <option v-for="filter in filters" :key="filter.value" :value="filter.value">
                                     {{ filter.label }}
@@ -619,18 +636,18 @@ const statusChartOptions = computed(() => ({
                         </div>
                         <!-- Buscador -->
                         <div class="relative">
-                            <MagnifyingGlassIcon class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400" />
+                            <MagnifyingGlassIcon class="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-gray-400 dark:text-zinc-500" />
                             <input
                                 v-model="search"
                                 type="text"
                                 placeholder="Buscar cliente o servicio…"
-                                class="pl-8 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 w-52"
+                                class="pl-8 pr-3 py-2 text-xs border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-green-500 focus:border-green-500 w-52 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-zinc-500"
                             />
                         </div>
                         <!-- Exportar CSV -->
                         <button
                             @click="exportCSV"
-                            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-600 dark:text-zinc-300 bg-gray-100 dark:bg-zinc-800 hover:bg-gray-200 dark:hover:bg-zinc-600 rounded-lg transition"
                             title="Exportar a CSV"
                         >
                             <ArrowDownTrayIcon class="h-3.5 w-3.5" />
@@ -640,19 +657,19 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50">
+                    <table class="min-w-full divide-y divide-gray-100 dark:divide-zinc-800">
+                        <thead class="bg-gray-50 dark:bg-zinc-900/50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Servicio</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Fecha Renovación</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Días</th>
-                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Monto</th>
-                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Estado</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Cliente</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Servicio</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Fecha Renovación</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Días</th>
+                                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Monto</th>
+                                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-100">
+                        <tbody class="bg-white dark:bg-zinc-900 divide-y divide-gray-100 dark:divide-zinc-800">
                             <tr v-if="filteredRenewals.length === 0">
                                 <td colspan="7" class="px-6 py-12 text-center text-gray-400 text-sm italic">
                                     No se encontraron renovaciones para el rango o búsqueda seleccionada.
@@ -661,7 +678,7 @@ const statusChartOptions = computed(() => ({
                             <tr
                                 v-for="(item, index) in filteredRenewals"
                                 :key="index"
-                                class="hover:bg-green-50/40 transition-colors"
+                                class="hover:bg-green-50/40 dark:hover:bg-emerald-900/10 transition-colors"
                             >
                                 <!-- Indicador de urgencia -->
                                 <td class="px-6 py-4">
@@ -674,8 +691,8 @@ const statusChartOptions = computed(() => ({
 
                                 <!-- Cliente -->
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="font-bold text-gray-800 text-sm">{{ item.business_name }}</div>
-                                    <div class="text-xs text-gray-400 mt-0.5">{{ item.contact_name }}</div>
+                                    <div class="font-bold text-gray-800 dark:text-gray-200 text-sm">{{ item.business_name }}</div>
+                                    <div class="text-xs text-gray-400 dark:text-zinc-500 mt-0.5">{{ item.contact_name }}</div>
                                 </td>
 
                                 <!-- Servicio -->
@@ -683,8 +700,8 @@ const statusChartOptions = computed(() => ({
                                     <span
                                         class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
                                         :class="item.billing_type === 'monthly'
-                                            ? 'bg-purple-100 text-purple-700'
-                                            : 'bg-blue-100 text-blue-700'"
+                                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'"
                                     >
                                         {{ item.service_name || 'PND' }}
                                         <span v-if="item.billing_type === 'monthly'" class="ml-1 opacity-75">(Mensual)</span>
@@ -696,13 +713,13 @@ const statusChartOptions = computed(() => ({
                                     <div class="flex items-center gap-2">
                                         <span
                                             class="text-sm font-semibold"
-                                            :class="isExpired(item.next_renewal_date) ? 'text-red-600' : 'text-gray-700'"
+                                            :class="isExpired(item.next_renewal_date) ? 'text-red-600 dark:text-rose-400' : 'text-gray-700 dark:text-gray-300'"
                                         >
                                             {{ formatDate(item.next_renewal_date) }}
                                         </span>
                                         <span
                                             v-if="isExpired(item.next_renewal_date)"
-                                            class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold uppercase"
+                                            class="text-[10px] bg-red-100 dark:bg-rose-900/40 text-red-700 dark:text-rose-400 px-1.5 py-0.5 rounded-full font-bold uppercase"
                                         >
                                             Vencido
                                         </span>
@@ -726,7 +743,7 @@ const statusChartOptions = computed(() => ({
 
                                 <!-- Monto -->
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="text-sm font-bold text-gray-800">
+                                    <span class="text-sm font-bold text-gray-800 dark:text-gray-100">
                                         {{ formatCurrency(item.renewal_amount || 0) }}
                                     </span>
                                 </td>
@@ -742,7 +759,7 @@ const statusChartOptions = computed(() => ({
                                                 type:    item.billing_type
                                             })"
                                             target="_blank"
-                                            class="inline-flex items-center justify-center px-3 py-2 bg-white border border-gray-300 rounded-lg font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 transition"
+                                            class="inline-flex items-center justify-center px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 rounded-lg font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-600 transition"
                                             title="Ver / Imprimir Recibo"
                                         >
                                             <PrinterIcon class="h-4 w-4 mr-1" />PDF
@@ -763,9 +780,9 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Footer de tabla con total -->
-                <div v-if="filteredRenewals.length > 0" class="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                <div v-if="filteredRenewals.length > 0" class="px-6 py-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between text-xs text-gray-500 dark:text-zinc-400">
                     <span>Total en la vista actual:</span>
-                    <span class="font-bold text-gray-800 text-sm">
+                    <span class="font-bold text-gray-800 dark:text-gray-100 text-sm">
                         {{ formatCurrency(filteredRenewals.reduce((s, r) => s + (parseFloat(r.renewal_amount) || 0), 0)) }}
                     </span>
                 </div>

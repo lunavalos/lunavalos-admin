@@ -42,18 +42,18 @@ const isAdmin = computed(() => {
 });
 
 const statusColors = {
-    'Nuevos': 'bg-blue-100 text-blue-700 border-blue-200',
-    'En Proceso': 'bg-yellow-100 text-yellow-700 border-yellow-200',
-    'En Revisión': 'bg-purple-100 text-purple-700 border-purple-200',
-    'Ajustes': 'bg-orange-100 text-orange-700 border-orange-200',
-    'Completados': 'bg-green-100 text-green-700 border-green-200',
+    'Nuevos': 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-900/50',
+    'En Proceso': 'bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-900/50',
+    'En Revisión': 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-900/50',
+    'Ajustes': 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-900/50',
+    'Completados': 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-900/50',
 };
 
 const priorityColors = {
-    'Baja': 'bg-gray-100 text-gray-700',
-    'Media': 'bg-blue-100 text-blue-700',
-    'Alta': 'bg-orange-100 text-orange-700',
-    'Urgente': 'bg-red-100 text-red-700',
+    'Baja': 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-gray-300',
+    'Media': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    'Alta': 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+    'Urgente': 'bg-red-100 text-red-700 dark:bg-rose-900/40 dark:text-rose-300',
 };
 
 // Message form
@@ -137,7 +137,7 @@ const canAssign = computed(() => {
     if (!isClient.value && (isCreator.value || props.ticket?.assigned_id === page.props.auth?.user?.id)) return true;
     return false;
 });
-const canProcess = computed(() => props.ticket?.status !== 'Completados' && !isClient.value && (props.ticket?.status === 'Nuevos' || props.ticket?.assigned_id === page.props.auth?.user?.id));
+const canProcess = computed(() => props.ticket?.status !== 'Completados' && !isClient.value);
 const canReview = computed(() => props.ticket?.assigned_id === page.props.auth?.user?.id && (props.ticket?.status === 'En Proceso' || props.ticket?.status === 'Ajustes'));
 const canComment = computed(() => {
     if (props.ticket?.status === 'Completados') return false;
@@ -182,8 +182,8 @@ const canClose = computed(() => {
 });
 
 const canRequestAdjustments = computed(() => {
-    // Only Creator or Admin can request adjustments, and only when the ticket is in 'En Revisión'
-    return props.ticket?.status === 'En Revisión' && (isCreator.value || isAdmin.value);
+    // Only Client can request adjustments or complete, and only when the ticket is in 'En Revisión'
+    return props.ticket?.status === 'En Revisión' && isClient.value;
 });
 
 const today = new Date().toISOString().split('T')[0];
@@ -216,12 +216,12 @@ const deleteTicket = () => {
         <template #header>
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div class="flex items-center">
-                    <Link :href="route('tickets.index')" class="mr-4 p-2 bg-white rounded-xl border border-gray-200 hover:border-[#264ab3] text-gray-500 hover:text-[#264ab3] transition-all">
+                    <Link :href="route('tickets.index')" class="mr-4 p-2 bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 hover:border-[#264ab3] text-gray-500 dark:text-zinc-400 hover:text-[#264ab3] transition-all">
                         <ChevronLeftIcon class="h-6 w-6" />
                     </Link>
                     <div>
                         <div class="flex items-center space-x-2 mb-1">
-                            <span class="text-xs font-bold text-gray-400">TICKET #{{ ticket.id }}</span>
+                            <span class="text-xs font-bold text-gray-400 dark:text-zinc-500">TICKET #{{ ticket.id }}</span>
                             <span 
                                 class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter"
                                 :class="priorityColors[ticket.priority]"
@@ -229,13 +229,29 @@ const deleteTicket = () => {
                                 {{ ticket.priority }}
                             </span>
                         </div>
-                        <h2 class="text-2xl font-bold text-gray-900 leading-tight">{{ ticket.title }}</h2>
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ ticket.title }}</h2>
                     </div>
                 </div>
 
                 <div class="flex items-center space-x-3">
-                    <div class="px-4 py-2 rounded-xl font-bold text-sm border-2" :class="statusColors[ticket.status]">
-                        {{ ticket.status }}
+                    <div class="flex items-center">
+                        <select 
+                            v-if="!isClient"
+                            @change="updateStatus($event.target.value)"
+                            class="px-4 py-2 rounded-xl font-bold text-sm border-2 focus:ring-0 cursor-pointer transition-all appearance-none"
+                            :class="statusColors[ticket.status]"
+                        >
+                            <option v-for="status in ['Nuevos', 'En Proceso', 'En Revisión', 'Ajustes', 'Completados']" 
+                                :key="status" 
+                                :value="status"
+                                :selected="ticket.status === status"
+                            >
+                                {{ status }}
+                            </option>
+                        </select>
+                        <div v-else class="px-4 py-2 rounded-xl font-bold text-sm border-2 transition-all" :class="statusColors[ticket.status]">
+                            {{ ticket.status }}
+                        </div>
                     </div>
                     
                     <!-- Admin Assign -->
@@ -243,7 +259,7 @@ const deleteTicket = () => {
                         <select 
                             v-model="assignForm.assigned_id"
                             @change="updateAssignee"
-                            class="text-sm border-gray-300 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl shadow-sm bg-blue-50 text-blue-700 font-bold"
+                            class="text-sm border-gray-300 dark:border-zinc-800 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl bg-blue-50 dark:bg-zinc-950 text-blue-700 dark:text-blue-400 font-bold"
                         >
                             <option :value="null">Asignar Ticket</option>
                             <option v-for="user in assignableUsers" :key="user.id" :value="user.id">
@@ -256,7 +272,7 @@ const deleteTicket = () => {
                     <button 
                         v-if="canDelete"
                         @click="deleteTicket"
-                        class="p-2.5 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center group"
+                        class="p-2.5 bg-red-50 dark:bg-rose-900/20 text-red-600 dark:text-rose-400 rounded-xl border border-red-100 dark:border-rose-900/40 hover:bg-red-600 dark:hover:bg-rose-600 hover:text-white transition-all flex items-center group"
                         title="Eliminar Ticket"
                     >
                         <TrashIcon class="h-5 w-5" />
@@ -267,9 +283,9 @@ const deleteTicket = () => {
 
         <div class="py-6 h-[calc(100vh-160px)] grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- LEFT: CONVERSATION -->
-            <div class="lg:col-span-2 flex flex-col bg-white rounded-3xl border border-gray-200 shadow-xl shadow-gray-100 overflow-hidden">
+            <div class="lg:col-span-2 flex flex-col bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
                 <!-- Chat Messages -->
-                <div ref="messageContainer" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gray-50/50">
+                <div ref="messageContainer" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gray-50/50 dark:bg-zinc-950/50">
                     <!-- Ticket Description as First Message -->
                     <div 
                         v-if="ticket" 
@@ -285,29 +301,29 @@ const deleteTicket = () => {
                             ]"
                         />
                         <div v-else
-                            class="h-10 w-10 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm font-bold border-2 border-white"
+                            class="h-10 w-10 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-sm font-bold border-2 border-white dark:border-zinc-900"
                             :class="[
-                                ticket.creator_id === $page.props.auth.user.id ? 'ml-4 bg-[#264ab3]' : 'mr-4 bg-gray-200 !text-gray-500'
+                                ticket.creator_id === $page.props.auth.user.id ? 'ml-4 bg-[#264ab3]' : 'mr-4 bg-gray-200 !text-gray-500 dark:bg-zinc-800 dark:!text-zinc-400'
                             ]"
                         >
                             {{ ticket.creator?.name ? ticket.creator.name.charAt(0) : '?' }}
                         </div>
                         <div 
-                            class="flex-1 max-w-2xl p-5 rounded-2xl shadow-sm border"
+                            class="flex-1 max-w-2xl p-5 rounded-2xl border"
                             :class="[
                                 ticket.creator_id === $page.props.auth.user.id 
                                 ? 'bg-blue-600 text-white border-blue-700 rounded-tr-none' 
-                                : 'bg-white text-gray-700 border-gray-100 rounded-tl-none'
+                                : 'bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 border-gray-100 dark:border-zinc-800 rounded-tl-none'
                             ]"
                         >
                             <div 
                                 class="flex justify-between items-center mb-2"
                                 :class="ticket.creator_id === page.props.auth?.user?.id ? 'flex-row-reverse' : ''"
                             >
-                                <span class="font-bold text-sm" :class="ticket.creator_id === page.props.auth?.user?.id ? 'text-white' : 'text-gray-900'">
+                                <span class="font-bold text-sm" :class="ticket.creator_id === page.props.auth?.user?.id ? 'text-white' : 'text-gray-900 dark:text-gray-100'">
                                     {{ ticket.creator?.name || 'Usuario' }}
                                 </span>
-                                <span class="text-[10px]" :class="ticket.creator_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400'">
+                                <span class="text-[10px]" :class="ticket.creator_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400 dark:text-zinc-500'">
                                     {{ formatDate(ticket.created_at, true) }}
                                 </span>
                             </div>
@@ -315,14 +331,14 @@ const deleteTicket = () => {
                             </div>
 
                             <!-- Initial Attachments -->
-                            <div v-if="ticket.attachments?.length > 0" class="mt-4 flex flex-wrap gap-2 overflow-hidden border-t pt-3" :class="ticket.creator_id === $page.props.auth.user.id ? 'border-blue-500' : 'border-gray-50'">
+                            <div v-if="ticket.attachments?.length > 0" class="mt-4 flex flex-wrap gap-2 overflow-hidden border-t pt-3" :class="ticket.creator_id === $page.props.auth.user.id ? 'border-blue-500' : 'border-gray-50 dark:border-zinc-800'">
                                 <a 
                                     v-for="file in ticket.attachments" 
                                     :key="file.id"
                                     :href="'/storage/' + file.file_path" 
                                     target="_blank"
                                     class="inline-flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all"
-                                    :class="ticket.creator_id === $page.props.auth.user.id ? 'bg-blue-500 text-white hover:bg-blue-400' : 'bg-gray-100 text-[#264ab3] hover:bg-gray-200'"
+                                    :class="ticket.creator_id === $page.props.auth.user.id ? 'bg-blue-500 text-white hover:bg-blue-400' : 'bg-gray-100 dark:bg-zinc-800 text-[#264ab3] dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-zinc-600'"
                                 >
                                     <PaperClipIcon class="h-3 w-3 mr-1" />
                                     {{ file.file_name }}
@@ -339,12 +355,12 @@ const deleteTicket = () => {
                         :class="msg.user_id === $page.props.auth.user.id ? 'flex-row-reverse' : (msg.user_id === null ? 'justify-center my-4' : '')"
                     >
                         <!-- System message (Bot) -->
-                        <div v-if="msg.user_id === null" class="w-full max-w-lg bg-gray-50 border border-gray-200 text-gray-500 text-xs px-4 py-3 rounded-2xl text-center shadow-sm flex flex-col items-center">
-                            <span class="font-bold mb-1 flex items-center text-gray-700">
+                        <div v-if="msg.user_id === null" class="w-full max-w-lg bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-600 text-gray-500 dark:text-zinc-300 text-xs px-4 py-3 rounded-2xl text-center shadow-sm flex flex-col items-center">
+                            <span class="font-bold mb-1 flex items-center text-gray-700 dark:text-gray-100">
                                 🤖 Sistema
                             </span>
                             <span>{{ msg.message }}</span>
-                            <span class="text-[10px] text-gray-400 mt-1 block">{{ formatDate(msg.created_at, true) }}</span>
+                            <span class="text-[10px] text-gray-400 dark:text-zinc-500 mt-1 block">{{ formatDate(msg.created_at, true) }}</span>
                         </div>
                         
                         <!-- Regular User Message -->
@@ -366,21 +382,21 @@ const deleteTicket = () => {
                                 {{ msg.user?.name ? msg.user.name.charAt(0) : '?' }}
                             </div>
                             <div 
-                                class="flex-1 max-w-2xl p-5 rounded-2xl shadow-sm border"
+                                class="flex-1 max-w-2xl p-5 rounded-2xl border"
                                 :class="[
                                     msg.user_id === $page.props.auth.user.id 
                                     ? 'bg-blue-600 text-white border-blue-700 rounded-tr-none' 
-                                    : 'bg-white text-gray-700 border-gray-100 rounded-tl-none'
+                                    : 'bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 border-gray-100 dark:border-zinc-800 rounded-tl-none'
                                 ]"
                             >
                                 <div 
                                     class="flex justify-between items-center mb-2"
                                     :class="msg.user_id === page.props.auth?.user?.id ? 'flex-row-reverse' : ''"
                                 >
-                                    <span class="font-bold text-sm" :class="msg.user_id === page.props.auth?.user?.id ? 'text-white' : 'text-gray-900'">
+                                    <span class="font-bold text-sm" :class="msg.user_id === page.props.auth?.user?.id ? 'text-white' : 'text-gray-900 dark:text-gray-100'">
                                         {{ msg.user?.name || 'Usuario' }}
                                     </span>
-                                    <span class="text-[10px]" :class="msg.user_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400'">
+                                    <span class="text-[10px]" :class="msg.user_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400 dark:text-zinc-500'">
                                         {{ formatDate(msg.created_at, true) }}
                                     </span>
                                 </div>
@@ -388,12 +404,12 @@ const deleteTicket = () => {
                                 </div>
                                 
                                 <!-- File Attachment link -->
-                                <div v-if="msg.file_path" class="mt-4 pt-3 border-t overflow-hidden" :class="msg.user_id === $page.props.auth.user.id ? 'border-blue-500' : 'border-gray-50'">
+                                <div v-if="msg.file_path" class="mt-4 pt-3 border-t overflow-hidden" :class="msg.user_id === $page.props.auth.user.id ? 'border-blue-500' : 'border-gray-50 dark:border-zinc-800'">
                                     <a 
                                         :href="'/storage/' + msg.file_path" 
                                         target="_blank"
                                         class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                                        :class="msg.user_id === $page.props.auth.user.id ? 'bg-blue-500 text-white hover:bg-blue-400' : 'bg-gray-100 text-[#264ab3] hover:bg-gray-200'"
+                                        :class="msg.user_id === $page.props.auth.user.id ? 'bg-blue-500 text-white hover:bg-blue-400' : 'bg-gray-100 dark:bg-zinc-800 text-[#264ab3] dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-zinc-600'"
                                     >
                                         <PaperClipIcon class="h-4 w-4 mr-2" />
                                         Descargar Archivo Adjunto
@@ -405,16 +421,16 @@ const deleteTicket = () => {
                 </div>
 
                 <!-- Chat Input Area -->
-                <div v-if="canComment" class="p-4 bg-white border-t border-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
+                <div v-if="canComment" class="p-4 bg-white dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800">
                     <form @submit.prevent="submitMessage('')" class="flex flex-col space-y-3">
-                        <div class="flex flex-col bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-[#264ab3] focus-within:ring-2 focus-within:ring-blue-100 transition-all overflow-hidden">
+                        <div class="flex flex-col bg-gray-50 dark:bg-zinc-950 rounded-2xl border border-gray-200 dark:border-zinc-800 focus-within:border-[#264ab3] dark:focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900/30 transition-all overflow-hidden">
                             <Wysiwyg 
                                 v-model="messageForm.message"
                                 placeholder="Escribe un mensaje aquí..."
                             />
                             
-                            <div class="flex items-center justify-between p-2 bg-white/50 border-t border-gray-100">
-                                <label class="cursor-pointer p-2 text-gray-400 hover:text-[#264ab3] hover:bg-blue-50 rounded-xl transition-all relative overflow-hidden">
+                            <div class="flex items-center justify-between p-2 bg-white/50 dark:bg-zinc-900/50 border-t border-gray-100 dark:border-zinc-800">
+                                <label class="cursor-pointer p-2 text-gray-400 dark:text-zinc-500 hover:text-[#264ab3] dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all relative overflow-hidden">
                                     <input type="file" ref="fileInput" @change="handleFileChange" class="absolute inset-0 opacity-0 cursor-pointer" />
                                     <PaperClipIcon class="h-5 w-5" />
                                 </label>
@@ -424,7 +440,7 @@ const deleteTicket = () => {
                                     </div>
                                     <button 
                                         type="submit"
-                                        class="bg-[#264ab3] text-white p-3 rounded-xl shadow-lg shadow-blue-200 hover:bg-[#193074] transition-all disabled:opacity-50"
+                                        class="bg-[#264ab3] text-white p-3 rounded-xl hover:bg-[#193074] transition-all disabled:opacity-50"
                                         :disabled="messageForm.processing || (!messageForm.message || messageForm.message === '<p><br></p>')"
                                     >
                                         <PaperAirplaneIcon class="h-5 w-5 rotate-[-45deg]" />
@@ -435,24 +451,12 @@ const deleteTicket = () => {
                         
                         <!-- Action Buttons based on status -->
                         <div class="flex flex-wrap gap-2 pt-2">
-                            <!-- User/Assignee sends and changes to "En Revisión" -->
-                            <button 
-                                v-if="canReview"
-                                type="button"
-                                @click="submitMessage('En Revisión')"
-                                class="text-xs font-bold bg-purple-600 text-white px-4 py-2 rounded-xl border border-purple-700 hover:bg-purple-700 transition-all shadow-lg shadow-purple-200 flex items-center"
-                                :disabled="messageForm.processing || !messageForm.message"
-                            >
-                                <CheckCircleIcon class="h-4 w-4 mr-2" />
-                                Enviar y pasar a Revisión
-                            </button>
-
                             <!-- Client/Admin sends and asks for "Ajustes" -->
                             <button 
                                 v-if="canRequestAdjustments"
                                 type="button"
                                 @click="submitMessage('Ajustes')"
-                                class="text-xs font-bold bg-orange-500 text-white px-4 py-2 rounded-xl border border-orange-600 hover:bg-orange-600 transition-all shadow-lg shadow-orange-100 flex items-center"
+                                class="text-xs font-bold bg-orange-500 text-white px-4 py-2 rounded-xl border border-orange-600 hover:bg-orange-600 transition-all flex items-center shadow-none shadow-sm"
                                 :disabled="messageForm.processing || !messageForm.message"
                             >
                                 <AdjustmentsHorizontalIcon class="h-4 w-4 mr-2" />
@@ -463,22 +467,11 @@ const deleteTicket = () => {
                                 v-if="canRequestAdjustments"
                                 type="button"
                                 @click="submitMessage('Completados')"
-                                class="text-xs font-bold bg-green-600 text-white px-4 py-2 rounded-xl border border-green-700 hover:bg-green-700 transition-all shadow-lg shadow-green-200 flex items-center"
+                                class="text-xs font-bold bg-green-600 text-white px-4 py-2 rounded-xl border border-green-700 hover:bg-green-700 transition-all flex items-center shadow-none shadow-sm"
                                 :disabled="messageForm.processing || !messageForm.message"
                             >
                                 <CheckCircleIcon class="h-4 w-4 mr-2" />
                                 Aceptar y Completar
-                            </button>
-
-                            <!-- Close Ticket Button -->
-                            <button 
-                                v-if="canClose"
-                                type="button"
-                                @click="updateStatus('Completados')"
-                                class="text-xs font-bold bg-green-600 text-white px-4 py-2 rounded-xl border border-green-700 hover:bg-green-700 transition-all shadow-lg shadow-green-200 flex items-center"
-                            >
-                                <CheckCircleIcon class="h-4 w-4 mr-2" />
-                                Finalizar Ticket
                             </button>
                         </div>
                     </form>
@@ -496,51 +489,51 @@ const deleteTicket = () => {
             <!-- RIGHT: SIDEBAR INFO -->
             <div class="space-y-6">
                 <!-- Info Card -->
-                <div class="bg-white rounded-3xl border border-gray-200 shadow-xl shadow-gray-100 p-6">
-                    <h3 class="font-bold text-gray-900 border-b border-gray-100 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-[#264ab3]">
+                <div class="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-6">
+                    <h3 class="font-bold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-[#264ab3] dark:text-blue-400">
                         <ClockIcon class="h-4 w-4 mr-2" />
                         Detalles del Ticket
                     </h3>
 
                     <div class="space-y-4">
                         <div>
-                            <span class="text-xs text-gray-400 block mb-1">Creador:</span>
+                            <span class="text-xs text-gray-400 dark:text-zinc-500 block mb-1">Creador:</span>
                             <div class="flex items-center">
                                 <img v-if="ticket.creator?.profile_photo_url"
                                     :src="ticket.creator.profile_photo_url" 
                                     :alt="ticket.creator.name"
-                                    class="h-6 w-6 rounded-full object-cover border border-gray-100 shadow-sm mr-2"
+                                    class="h-6 w-6 rounded-full object-cover border border-gray-100 dark:border-zinc-800 shadow-sm mr-2"
                                 />
-                                <span v-else class="h-6 w-6 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center text-[10px] font-bold mr-2">
+                                <span v-else class="h-6 w-6 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 flex items-center justify-center text-[10px] font-bold mr-2">
                                     {{ ticket.creator.name.charAt(0) }}
                                 </span>
-                                <span class="text-sm font-bold text-gray-700">{{ ticket.creator.name }}</span>
+                                <span class="text-sm font-bold text-gray-700 dark:text-gray-200">{{ ticket.creator.name }}</span>
                             </div>
                         </div>
 
                         <div>
-                            <span class="text-xs text-gray-400 block mb-1">Asignado a:</span>
+                            <span class="text-xs text-gray-400 dark:text-zinc-500 block mb-1">Asignado a:</span>
                             <div v-if="ticket.assigned" class="flex items-center">
                                 <img v-if="ticket.assigned?.profile_photo_url"
                                     :src="ticket.assigned.profile_photo_url" 
                                     :alt="ticket.assigned.name"
-                                    class="h-6 w-6 rounded-full object-cover border border-gray-100 shadow-sm mr-2"
+                                    class="h-6 w-6 rounded-full object-cover border border-gray-100 dark:border-zinc-800 shadow-sm mr-2"
                                 />
-                                <span v-else class="h-6 w-6 rounded-full bg-[#264ab3] text-white flex items-center justify-center text-[10px] font-bold mr-2">
+                                <span v-else class="h-6 w-6 rounded-full bg-[#264ab3] dark:bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold mr-2">
                                     {{ ticket.assigned?.name ? ticket.assigned.name.charAt(0) : '?' }}
                                 </span>
-                                <span class="text-sm font-bold text-gray-700">{{ ticket.assigned?.name }}</span>
+                                <span class="text-sm font-bold text-gray-700 dark:text-gray-200">{{ ticket.assigned?.name }}</span>
                             </div>
                             <div v-else-if="canTake" class="pt-1">
                                 <button 
                                     @click="takeTicket"
-                                    class="w-full bg-blue-50 text-[#264ab3] border border-blue-100 hover:bg-[#264ab3] hover:text-white px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center uppercase tracking-wider"
+                                    class="w-full bg-blue-50 dark:bg-blue-900/30 text-[#264ab3] dark:text-blue-400 border border-blue-100 dark:border-blue-900/50 hover:bg-[#264ab3] dark:hover:bg-blue-600 hover:text-white px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center uppercase tracking-wider"
                                 >
                                     <PlusIcon class="h-3.5 w-3.5 mr-1" />
                                     Tomar este ticket
                                 </button>
                             </div>
-                            <div v-else class="text-sm text-gray-400 italic">No asignado</div>
+                            <div v-else class="text-sm text-gray-400 dark:text-zinc-500 italic">No asignado</div>
                         </div>
 
                         <div>
@@ -553,22 +546,22 @@ const deleteTicket = () => {
                         </div>
 
                         <div>
-                            <span class="text-xs text-gray-400 block mb-1">Último cambio de estado:</span>
-                            <div v-if="ticket.status_updated_at" class="flex items-center text-gray-700 font-bold text-sm">
-                                <ArrowPathIcon class="h-4 w-4 mr-2 text-gray-400" />
+                            <span class="text-xs text-gray-400 dark:text-zinc-500 block mb-1">Último cambio de estado:</span>
+                            <div v-if="ticket.status_updated_at" class="flex items-center text-gray-700 dark:text-gray-200 font-bold text-sm">
+                                <ArrowPathIcon class="h-4 w-4 mr-2 text-gray-400 dark:text-zinc-500" />
                                 {{ formatDate(ticket.status_updated_at, true) }}
                             </div>
-                            <div v-else class="text-sm text-gray-400 italic">No registrado</div>
+                            <div v-else class="text-sm text-gray-400 dark:text-zinc-500 italic">No registrado</div>
                         </div>
 
                         <!-- Date Picker for Assignee -->
-                        <div v-if="canProcess" class="pt-4 border-t border-gray-50">
+                        <div v-if="canProcess" class="pt-4 border-t border-gray-50 dark:border-zinc-800">
                             <InputLabel for="due_date" value="Establecer Entrega" class="text-[10px]" />
                             <div class="flex mt-1 space-x-2">
                                 <TextInput 
                                     id="due_date" 
                                     type="date" 
-                                    class="text-xs flex-1 rounded-xl" 
+                                    class="text-xs flex-1 rounded-xl dark:bg-zinc-950 border-gray-300 dark:border-zinc-800" 
                                     v-model="statusForm.due_date"
                                     :min="today" 
                                 />
@@ -582,7 +575,7 @@ const deleteTicket = () => {
                                 <button 
                                     v-else
                                     @click="updateStatus(ticket.status)"
-                                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 text-xs font-bold rounded-xl transition-all"
+                                    class="bg-gray-200 hover:bg-gray-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-gray-200 px-3 py-1 text-xs font-bold rounded-xl transition-all"
                                 >
                                     Actualizar
                                 </button>
@@ -591,29 +584,30 @@ const deleteTicket = () => {
                     </div>
                 </div>
 
-                <!-- Client Info Card (Only for Staff/Admin when creator is a Client) -->
-                <div v-if="!isClient && ticket.creator?.client" class="bg-blue-50 border border-blue-100 rounded-3xl p-6 shadow-sm">
-                    <h3 class="font-bold text-gray-900 border-b border-blue-200/50 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-[#264ab3]">
+                <!-- Client Info Card (Only for Staff/Admin when linked to a Client) -->
+                <div v-if="!isClient && (ticket.client || ticket.creator?.client)" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-3xl p-6 shadow-sm">
+                    <h3 class="font-bold text-gray-900 dark:text-gray-100 border-b border-blue-200/50 dark:border-blue-800/30 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-[#264ab3] dark:text-blue-400">
                         <BuildingOfficeIcon class="h-4 w-4 mr-2" />
                         Datos del Cliente
                     </h3>
-
+ 
                     <div class="space-y-4">
                         <div>
-                            <span class="text-[10px] text-gray-400 font-bold uppercase block mb-1">Empresa / Negocio:</span>
-                            <p class="text-sm font-bold text-[#264ab3]">{{ ticket.creator.client.business_name }}</p>
+                            <span class="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase block mb-1">Empresa / Negocio:</span>
+                            <p class="text-sm font-bold text-[#264ab3] dark:text-blue-400">{{ ticket.client?.business_name || ticket.creator?.client?.business_name }}</p>
                         </div>
 
                         <div>
-                            <span class="text-[10px] text-gray-400 font-bold uppercase block mb-1">Contacto:</span>
-                            <p class="text-sm font-medium text-gray-700">{{ ticket.creator.client.contact_name }}</p>
-                            <p class="text-[11px] text-gray-500">{{ ticket.creator.client.email }}</p>
+                            <span class="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase block mb-1">Contacto:</span>
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ ticket.client?.contact_name || ticket.creator?.client?.contact_name || 'Sin contacto' }}</p>
+                            <p class="text-[11px] text-gray-500 dark:text-zinc-400">{{ ticket.client?.email || ticket.creator?.client?.email || '' }}</p>
                         </div>
 
                         <div class="pt-2">
                             <Link 
-                                :href="route('clients.show', ticket.creator.client.id)"
-                                class="w-full bg-[#264ab3] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-200 flex items-center justify-center hover:bg-[#193074]"
+                                v-if="ticket.client_id || ticket.creator?.client?.id"
+                                :href="route('clients.show', ticket.client_id || ticket.creator?.client?.id)"
+                                class="w-full bg-[#264ab3] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center hover:bg-[#193074] shadow-none"
                             >
                                 Ver Ficha Completa
                                 <ChevronRightIcon class="h-4 w-4 ml-1" />
@@ -666,16 +660,42 @@ const deleteTicket = () => {
     margin-bottom: 0.5rem;
 }
 
-/* Fix for blue chat bubbles (user's own messages) */
-.bg-blue-600 .wysiwyg-content {
+/* Main styles for the conversation bubbles content */
+:deep(.wysiwyg-content), 
+:deep(.wysiwyg-content *) {
+    color: inherit !important;
+}
+
+/* User's own bubbles (Blue) - Should ALWAYS be white text */
+.bg-blue-600 :deep(.wysiwyg-content),
+.bg-blue-600 :deep(.wysiwyg-content *),
+.dark .bg-blue-600 :deep(.wysiwyg-content),
+.dark .bg-blue-600 :deep(.wysiwyg-content *) {
     color: white !important;
 }
-.bg-blue-600 .wysiwyg-content * {
-    color: white !important;
+
+/* Dark mode generic content (Incoming/System bubbles) */
+.dark .bg-white :deep(.wysiwyg-content),
+.dark .bg-white :deep(.wysiwyg-content *),
+.dark .bg-zinc-900 :deep(.wysiwyg-content),
+.dark .bg-zinc-900 :deep(.wysiwyg-content *),
+.dark .bg-gray-50 :deep(.wysiwyg-content),
+.dark .bg-gray-50 :deep(.wysiwyg-content *),
+.dark .bg-zinc-800 :deep(.wysiwyg-content),
+.dark .bg-zinc-800 :deep(.wysiwyg-content *) {
+    color: #e2e8f0 !important;
 }
-.bg-blue-600 .wysiwyg-content a {
-    color: #f99f1f !important;
-    text-decoration: underline;
+
+/* Ensure links remain visible and themed */
+:deep(.wysiwyg-content a) {
+    color: #3b82f6 !important;
+    text-decoration: underline !important;
     font-weight: bold;
+}
+
+/* Links in blue bubbles need better contrast */
+.bg-blue-600 :deep(.wysiwyg-content a),
+.dark .bg-blue-600 :deep(.wysiwyg-content a) {
+    color: #fbd38d !important;
 }
 </style>

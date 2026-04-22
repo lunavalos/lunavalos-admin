@@ -128,7 +128,7 @@ const formatShortDate = (date) => {
             </div>
 
             <!-- Notes -->
-            <div v-if="receipt.notes" class="mb-24 p-6 bg-slate-50 rounded-2xl border border-slate-100 print:bg-white">
+            <div v-if="receipt.notes" class="mb-24 p-6 bg-zinc-50 rounded-2xl border border-zinc-100 print:bg-white">
                 <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">NOTAS ADICIONALES</p>
                 <p class="text-sm text-gray-700 italic leading-relaxed font-medium">"{{ receipt.notes }}"</p>
             </div>

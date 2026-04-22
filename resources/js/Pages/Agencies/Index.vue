@@ -95,23 +95,23 @@ const deleteAgency = (id) => {
                   <span class="block sm:inline">{{ flashMessage }}</span>
                 </div>
 
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900 overflow-x-auto">
+                <div class="bg-white dark:bg-zinc-900 overflow-hidden shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800">
+                    <div class="p-6 text-gray-900 dark:text-gray-100 overflow-x-auto">
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="bg-gray-100 border-b">
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">ID</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 w-full">Nombre del Origen / Agencia</th>
-                                    <th class="p-3 text-right uppercase font-medium text-sm text-gray-600 w-32 whitespace-nowrap">Acciones</th>
+                                <tr class="bg-gray-100 dark:bg-zinc-950 border-b border-gray-200 dark:border-zinc-800">
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-zinc-400">ID</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-zinc-400 w-full">Nombre del Origen / Agencia</th>
+                                    <th class="p-3 text-right uppercase font-medium text-sm text-gray-600 dark:text-zinc-400 w-32 whitespace-nowrap">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr v-for="agency in agencies" :key="agency.id" class="border-b hover:bg-gray-50 transition">
-                                    <td class="p-3 font-semibold text-gray-500">#{{ agency.id }}</td>
+                            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                                <tr v-for="agency in agencies" :key="agency.id" class="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition">
+                                    <td class="p-3 font-semibold text-gray-500 dark:text-zinc-400">#{{ agency.id }}</td>
                                     <td class="p-3 font-semibold text-primary">{{ agency.name }}</td>
                                     <td class="p-3 text-right space-x-1 whitespace-nowrap">
                                         <div class="group relative inline-block">
-                                            <button @click="openEditModal(agency)" class="text-gray-600 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors inline-flex items-center">
+                                            <button @click="openEditModal(agency)" class="text-gray-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 p-2 rounded-full transition-colors inline-flex items-center">
                                                 <PencilSquareIcon class="w-5 h-5" />
                                             </button>
                                             <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Editar</span>
@@ -137,14 +137,14 @@ const deleteAgency = (id) => {
         </div>
 
         <Modal :show="showModal" @close="closeModal">
-            <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900 mb-4">
+            <div class="p-6 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl border border-transparent dark:border-zinc-800">
+                <h2 class="text-lg font-black text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-wider">
                     {{ isEditing ? 'Editar Origen' : 'Nuevo Origen' }}
                 </h2>
                 
                 <form @submit.prevent="saveAgency">
                     <div class="mb-4">
-                        <InputLabel value="Nombre" />
+                        <InputLabel value="Nombre" class="dark:text-gray-300" />
                         <TextInput
                             type="text"
                             v-model="form.name"
@@ -154,8 +154,8 @@ const deleteAgency = (id) => {
                         <div v-if="form.errors.name" class="text-sm text-red-600 mt-1">{{ form.errors.name }}</div>
                     </div>
 
-                    <div class="flex justify-end gap-2">
-                        <button type="button" @click="closeModal" class="px-4 py-2 border rounded text-gray-600 hover:bg-gray-100">
+                    <div class="flex justify-end gap-2 mt-8">
+                        <button type="button" @click="closeModal" class="px-4 py-2 border border-gray-200 dark:border-zinc-800 rounded-xl text-gray-600 dark:text-zinc-400 font-bold hover:bg-gray-100 dark:hover:bg-zinc-800 transition">
                             Cancelar
                         </button>
                         <PrimaryButton type="submit" :disabled="form.processing">

@@ -151,7 +151,7 @@ const submit = () => {
     <AuthenticatedLayout>
         <template #header>
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-semibold leading-tight text-gray-800">
+                <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100">
                     Editar Cotización #{{ quote.id }}
                 </h2>
                 <Link
@@ -167,22 +167,22 @@ const submit = () => {
             <div class="container mx-auto">
                 <form @submit.prevent="submit" class="space-y-6">
                     <!-- SECTION 1: HEADER -->
-                    <div class="card bg-white shadow-sm sm:rounded-lg">
-                        <div class="border-b border-gray-200 pb-4 mb-4">
-                            <h3 class="text-lg font-bold text-[#264ab3]">Paso 1: Información General</h3>
+                    <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800 p-6">
+                        <div class="border-b border-gray-200 dark:border-zinc-800 pb-4 mb-4">
+                            <h3 class="text-lg font-bold text-[#264ab3] dark:text-blue-400">Paso 1: Información General</h3>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="md:col-span-1">
                                 <div class="flex justify-between items-center">
-                                    <InputLabel for="client_search" value="Buscar Cliente Registrado" class="font-bold text-[#264ab3]" />
-                                    <span class="text-xs text-gray-400 italic">Opcional</span>
+                                    <InputLabel for="client_search" value="Buscar Cliente Registrado" class="font-bold text-[#264ab3] dark:text-blue-400" />
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500 italic">Opcional</span>
                                 </div>
                                 <select 
                                     id="client_search"
                                     v-model="selectedClientId" 
                                     @change="onClientSelect"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md text-sm"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-indigo-500 rounded-md text-sm transition-colors"
                                 >
                                     <option value="">-- Seleccionar cliente --</option>
                                     <option v-for="client in clients" :key="client.id" :value="client.id">
@@ -196,7 +196,7 @@ const submit = () => {
                             </div>
 
                             <div class="md:col-span-1">
-                                <InputLabel for="client_name" value="Empresa / Negocio" class="font-bold text-gray-700" />
+                                <InputLabel for="client_name" value="Empresa / Negocio" class="font-bold text-gray-700 dark:text-gray-300" />
                                 <TextInput
                                     id="client_name"
                                     type="text"
@@ -249,7 +249,7 @@ const submit = () => {
                                 <TextInput
                                     id="issue_date"
                                     type="date"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md bg-gray-50"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md bg-gray-50 dark:bg-zinc-950 dark:text-gray-100 placeholder-gray-400 dark:placeholder-zinc-500 transition-colors"
                                     v-model="form.issue_date"
                                     required
                                     :max="today"
@@ -271,16 +271,16 @@ const submit = () => {
                     </div>
 
                     <!-- SECTION 2: ITEMS BUILDER -->
-                    <div class="card bg-white shadow-sm sm:rounded-lg">
-                        <div class="border-b border-gray-200 pb-4 mb-4 flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
+                    <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800 p-6">
+                        <div class="border-b border-gray-200 dark:border-zinc-800 pb-4 mb-4 flex flex-col md:flex-row md:justify-between md:items-center space-y-4 md:space-y-0">
                             <div>
-                                <h3 class="text-lg font-bold text-[#264ab3]">Paso 2: Servicios a Cotizar</h3>
+                                <h3 class="text-lg font-bold text-[#264ab3] dark:text-blue-400">Paso 2: Servicios a Cotizar</h3>
                                 <div class="mt-2 flex items-center space-x-4">
-                                    <span class="text-xs font-semibold uppercase text-gray-400">Modalidad:</span>
+                                    <span class="text-xs font-semibold uppercase text-gray-400 dark:text-zinc-500">Modalidad:</span>
                                     <label class="inline-flex items-center cursor-pointer">
                                         <input type="checkbox" v-model="form.is_multiple_choice" class="sr-only peer">
-                                        <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#264ab3]"></div>
-                                        <span class="ms-3 text-sm font-medium" :class="form.is_multiple_choice ? 'text-[#264ab3] font-bold' : 'text-gray-500'">
+                                        <div class="relative w-11 h-6 bg-gray-200 dark:bg-zinc-800 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#264ab3]"></div>
+                                        <span class="ms-3 text-sm font-medium transition-colors" :class="form.is_multiple_choice ? 'text-[#264ab3] dark:text-blue-400 font-bold' : 'text-gray-500 dark:text-zinc-400'">
                                             {{ form.is_multiple_choice ? 'Opciones (Elegir una)' : 'Normal (Suma Total)' }}
                                         </span>
                                     </label>
@@ -292,17 +292,17 @@ const submit = () => {
                                 <button 
                                     type="button" 
                                     @click="addCustomService" 
-                                    class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md shadow-sm transition inline-flex items-center font-semibold border border-gray-300"
+                                    class="bg-gray-100 dark:bg-zinc-950 hover:bg-gray-200 dark:hover:bg-zinc-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-md shadow-sm transition inline-flex items-center font-semibold border border-gray-300 dark:border-zinc-800"
                                 >
-                                    <PlusCircleIcon class="h-5 w-5 mr-1 text-gray-500" />
+                                    <PlusCircleIcon class="h-5 w-5 mr-1 text-gray-500 dark:text-zinc-400" />
                                     <span>Servicio Custom</span>
                                 </button>
 
-                                <div class="h-8 w-px bg-gray-200 mx-1"></div>
+                                <div class="h-8 w-px bg-gray-200 dark:bg-zinc-800 mx-1"></div>
 
                                 <select 
                                     v-model="selectedServiceId" 
-                                    class="border-gray-300 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-md shadow-sm sm:text-sm text-gray-700 w-64"
+                                    class="border-gray-300 dark:border-zinc-800 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-md shadow-sm sm:text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-zinc-950 w-64 transition-colors"
                                 >
                                     <option value="" disabled>-- Catálogo de Servicios --</option>
                                     <option v-for="srv in services" :key="srv.id" :value="srv.id">
@@ -326,24 +326,24 @@ const submit = () => {
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse min-w-max">
                                 <thead>
-                                    <tr class="bg-gray-50 border-b">
-                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 w-1/4">Concepto</th>
-                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 w-1/4">Descripción</th>
-                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 w-32">Cobro</th>
-                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 w-24">Cant.</th>
-                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 w-32">Precio Uni.</th>
-                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 w-24">Utilidad</th>
-                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 text-center w-24">Acción</th>
+                                    <tr class="bg-gray-50 dark:bg-zinc-950/50 border-b dark:border-zinc-800">
+                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 dark:text-zinc-400 w-1/4">Concepto</th>
+                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 dark:text-zinc-400 w-1/4">Descripción</th>
+                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 dark:text-zinc-400 w-32">Cobro</th>
+                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 dark:text-zinc-400 w-24">Cant.</th>
+                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 dark:text-zinc-400 w-32">Precio Uni.</th>
+                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 dark:text-zinc-400 w-24 text-center">Utilidad</th>
+                                        <th class="p-3 uppercase font-medium text-xs text-gray-600 dark:text-zinc-400 text-center w-24">Acción</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <template v-for="(item, index) in form.items" :key="index">
-                                        <tr class="border-b group">
+                                        <tr class="border-b dark:border-zinc-800/50 group transition-colors">
                                         <!-- Concept -->
                                         <td class="p-2 align-top">
                                             <TextInput 
                                                 v-model="item.concept" 
-                                                class="w-full text-sm font-semibold !border-transparent !bg-transparent group-hover:!border-gray-300 focus:!bg-white px-2 py-1" 
+                                                class="w-full text-sm font-semibold !border-transparent !bg-transparent group-hover:!border-gray-300 dark:group-hover:!border-zinc-800 focus:!bg-white dark:focus:!bg-zinc-950 px-2 py-1 transition-colors" 
                                                 required 
                                             />
                                         </td>
@@ -352,15 +352,15 @@ const submit = () => {
                                             <textarea 
                                                 v-model="item.description" 
                                                 rows="2" 
-                                                class="w-full text-sm text-gray-600 border-transparent bg-transparent group-hover:border-gray-300 focus:bg-white focus:border-indigo-500 focus:ring-indigo-500 rounded-md px-2 py-1 resize-y" 
+                                                class="w-full text-sm text-gray-600 dark:text-zinc-400 border-transparent bg-transparent group-hover:border-gray-300 dark:group-hover:border-zinc-800 focus:bg-white dark:focus:bg-zinc-950 focus:border-indigo-500 rounded-md px-2 py-1 resize-y transition-colors" 
                                             ></textarea>
                                         </td>
                                         <!-- Type -->
                                         <td class="p-2 align-top text-sm">
                                             <select 
                                                 v-model="item.billing_type" 
-                                                class="w-full text-xs border-transparent bg-transparent group-hover:border-gray-300 focus:bg-white focus:ring-[#264ab3] rounded-md px-1 py-1 font-semibold"
-                                                :class="item.billing_type === 'unique' ? 'text-purple-700' : 'text-green-700'"
+                                                class="w-full text-xs border-transparent bg-transparent group-hover:border-gray-300 dark:group-hover:border-zinc-800 focus:bg-white dark:focus:bg-zinc-950 focus:ring-[#264ab3] rounded-md px-1 py-1 font-semibold transition-colors"
+                                                :class="item.billing_type === 'unique' ? 'text-purple-700 dark:text-purple-400' : 'text-green-700 dark:text-emerald-400'"
                                             >
                                                 <option value="unique">Único</option>
                                                 <option value="monthly">Mensual</option>
@@ -417,15 +417,15 @@ const submit = () => {
                                     </tr>
 
                                     <!-- Internal Costs Row -->
-                                    <tr v-if="expandedItems.includes(index)" class="bg-red-50/30 border-b">
+                                    <tr v-if="expandedItems.includes(index)" class="bg-red-50/30 dark:bg-rose-950/20 border-b dark:border-zinc-800">
                                         <td colspan="7" class="p-4">
-                                            <div class="max-w-3xl mx-auto bg-white border border-red-100 rounded-lg p-3 shadow-sm">
+                                            <div class="max-w-3xl mx-auto bg-white dark:bg-zinc-950 border border-red-100 dark:border-rose-900/40 rounded-lg p-3 shadow-sm transition-colors">
                                                 <div class="flex justify-between items-center mb-2">
-                                                    <span class="text-[10px] font-bold text-red-700 uppercase tracking-wider">Desglose de Costos Internos - {{ item.concept || 'Servicio sin nombre' }}</span>
+                                                    <span class="text-[10px] font-bold text-red-700 dark:text-rose-400 uppercase tracking-wider">Desglose de Costos Internos - {{ item.concept || 'Servicio sin nombre' }}</span>
                                                     <button 
                                                         type="button" 
                                                         @click="addItemCost(index)" 
-                                                        class="text-[10px] bg-red-50 text-red-600 px-2 py-1 rounded border border-red-100 font-bold hover:bg-red-100 flex items-center"
+                                                        class="text-[10px] bg-red-50 dark:bg-zinc-900 text-red-600 dark:text-rose-400 px-2 py-1 rounded border border-red-100 dark:border-rose-900/50 font-bold hover:bg-red-100 dark:hover:bg-zinc-800 flex items-center transition-colors"
                                                     >
                                                         <PlusCircleIcon class="h-3 w-3 mr-1" />
                                                         Añadir Concepto de Costo
@@ -438,7 +438,7 @@ const submit = () => {
                                                             <input 
                                                                 type="text" 
                                                                 v-model="cost.title" 
-                                                                class="w-full text-[11px] border-gray-200 rounded p-1" 
+                                                                class="w-full text-[11px] border-gray-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-100 rounded p-1 transition-colors" 
                                                                 placeholder="Ej. Impresiones, outsourcing..."
                                                             >
                                                         </div>
@@ -446,16 +446,16 @@ const submit = () => {
                                                             <input 
                                                                 type="number" 
                                                                 v-model="cost.quantity" 
-                                                                class="w-full text-[11px] border-gray-200 rounded p-1 text-center" 
+                                                                class="w-full text-[11px] border-gray-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-100 rounded p-1 text-center transition-colors" 
                                                                 placeholder="Cant"
                                                             >
                                                         </div>
                                                         <div class="col-span-3 flex items-center">
-                                                            <span class="text-[10px] text-gray-400 mr-1">$</span>
+                                                            <span class="text-[10px] text-gray-400 dark:text-zinc-500 mr-1">$</span>
                                                             <input 
                                                                 type="number" 
                                                                 v-model="cost.price" 
-                                                                class="w-full text-[11px] border-gray-200 rounded p-1 text-right" 
+                                                                class="w-full text-[11px] border-gray-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-100 rounded p-1 text-right transition-colors" 
                                                                 placeholder="Precio"
                                                             >
                                                         </div>
@@ -479,7 +479,7 @@ const submit = () => {
                                     </tr>
                                     </template>
                                     <tr v-if="form.items.length === 0">
-                                        <td colspan="7" class="p-8 text-center text-gray-400 italic">
+                                        <td colspan="7" class="p-8 text-center text-gray-400 dark:text-zinc-500 italic">
                                             Selecciona un servicio del menú arriba y añádelo a la cotización...
                                         </td>
                                     </tr>
@@ -491,9 +491,9 @@ const submit = () => {
                     <!-- SECTION 3: NOTES AND TOTALS -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Notes -->
-                        <div class="card bg-white shadow-sm sm:rounded-lg">
+                        <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800 p-6">
                             <div class="mb-4">
-                                <InputLabel for="duration" value="Duración / Compromiso" class="font-bold text-gray-700" />
+                                <InputLabel for="duration" value="Duración / Compromiso" class="font-bold text-gray-700 dark:text-gray-300" />
                                 <TextInput
                                     id="duration"
                                     type="text"
@@ -517,32 +517,32 @@ const submit = () => {
                                     type="checkbox" 
                                     id="include_payment_terms" 
                                     v-model="form.include_payment_terms"
-                                    class="rounded border-gray-300 text-[#264ab3] shadow-sm focus:ring-[#264ab3]"
+                                    class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-[#264ab3] shadow-sm focus:ring-[#264ab3]"
                                 />
-                                <label for="include_payment_terms" class="ml-2 block text-sm text-gray-700">
-                                    Añadir nota automática: <strong>50% Anticipo y 50% al entregar</strong> (sólo para <em>Pagos Únicos</em>)
+                                <label for="include_payment_terms" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                                    Añadir nota automática: <strong class="dark:text-blue-400">50% Anticipo y 50% al entregar</strong> (sólo para <em>Pagos Únicos</em>)
                                 </label>
                             </div>
                         </div>
                         
                         <!-- Totals Widget -->
-                        <div class="card bg-gray-50 shadow-sm sm:rounded-lg border border-gray-200">
-                            <h3 class="text-lg font-bold text-gray-800 border-b border-gray-200 pb-3 mb-3">Resumen Inteligente</h3>
+                        <div class="card bg-gray-50 dark:bg-zinc-950/50 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800 p-6">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 border-b border-gray-200 dark:border-zinc-800 pb-3 mb-3">Resumen Inteligente</h3>
                             
                             <div class="space-y-4">
-                                <div class="flex justify-between items-center text-gray-600 bg-white p-3 rounded shadow-sm border border-purple-100">
-                                    <span class="font-medium text-purple-800">Inversión Inicial / Pago Único:</span>
-                                    <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900">{{ formatCurrency(uniqueTotal) }}</span>
-                                    <span v-else class="text-sm font-semibold text-purple-600 uppercase italic">Ver opciones en lista</span>
+                                <div class="flex justify-between items-center text-gray-600 dark:text-zinc-400 bg-white dark:bg-zinc-900 p-3 rounded shadow-sm border border-purple-100 dark:border-purple-900/30 transition-colors">
+                                    <span class="font-medium text-purple-800 dark:text-purple-400">Inversión Inicial / Pago Único:</span>
+                                    <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ formatCurrency(uniqueTotal) }}</span>
+                                    <span v-else class="text-sm font-semibold text-purple-600 dark:text-purple-300 uppercase italic">Ver opciones en lista</span>
                                 </div>
                                 
-                                <div class="flex justify-between items-center text-gray-600 bg-white p-3 rounded shadow-sm border border-green-100">
-                                    <span class="font-medium text-green-800">Inversión Mensual / Iguala:</span>
-                                    <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900">{{ formatCurrency(monthlyTotal) }}</span>
-                                    <span v-else class="text-sm font-semibold text-green-600 uppercase italic">Ver opciones en lista</span>
+                                <div class="flex justify-between items-center text-gray-600 dark:text-zinc-400 bg-white dark:bg-zinc-900 p-3 rounded shadow-sm border border-green-100 dark:border-green-900/30 transition-colors">
+                                    <span class="font-medium text-green-800 dark:text-emerald-400">Inversión Mensual / Iguala:</span>
+                                    <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ formatCurrency(monthlyTotal) }}</span>
+                                    <span v-else class="text-sm font-semibold text-green-600 dark:text-emerald-300 uppercase italic">Ver opciones en lista</span>
                                 </div>
 
-                                <div v-if="form.is_multiple_choice" class="p-3 bg-blue-50 border border-blue-100 rounded text-xs text-blue-700">
+                                <div v-if="form.is_multiple_choice" class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded text-xs text-blue-700 dark:text-blue-300">
                                     <p><strong>Nota:</strong> En esta modalidad, los precios no se suman. El cliente podrá elegir una de las opciones presentadas.</p>
                                 </div>
                             </div>

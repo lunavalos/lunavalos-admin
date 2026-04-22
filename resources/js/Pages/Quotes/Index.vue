@@ -90,7 +90,8 @@ const changeStatus = (id, newStatus, quote) => {
     <AuthenticatedLayout>
         <template #header>
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-semibold leading-tight text-gray-800">
+                <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100 flex items-center">
+                    <DocumentTextIcon class="h-6 w-6 mr-2 text-[#264ab3] dark:text-blue-400" />
                     Historial de Cotizaciones
                 </h2>
                 <Link
@@ -108,41 +109,41 @@ const changeStatus = (id, newStatus, quote) => {
                   <span class="block sm:inline">{{ flashMessage }}</span>
                 </div>
                 
-                <div class="card overflow-hidden bg-white shadow-sm sm:rounded-lg">
-                    <div class="p-6 text-gray-900 overflow-x-auto">
+                <div class="card overflow-hidden bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800">
+                    <div class="p-6 text-gray-900 dark:text-gray-100 overflow-x-auto">
                         
                         <table class="w-full text-left border-collapse">
                             <thead>
-                                <tr class="bg-gray-100 border-b">
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">ID</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">Cliente</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">Estado</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">Total</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">Utilidad Est.</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600">Emisión</th>
-                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 text-right">Acciones</th>
+                                <tr class="bg-gray-100 dark:bg-zinc-950 border-b border-gray-200 dark:border-zinc-800">
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-gray-400">ID</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-gray-400">Cliente</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-gray-400">Estado</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-gray-400">Total</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-gray-400">Utilidad Est.</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-gray-400">Emisión</th>
+                                    <th class="p-3 uppercase font-medium text-sm text-gray-600 dark:text-gray-400 text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="quote in quotes" :key="quote.id" class="border-b hover:bg-gray-50 transition">
-                                    <td class="p-3 font-semibold text-gray-500">#{{ quote.id }}</td>
-                                    <td class="p-3 font-semibold text-primary">{{ quote.client_name }}</td>
+                                <tr v-for="quote in quotes" :key="quote.id" class="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition">
+                                    <td class="p-3 font-semibold text-gray-500 dark:text-gray-400">#{{ quote.id }}</td>
+                                    <td class="p-3 font-semibold text-primary dark:text-blue-400">{{ quote.client_name }}</td>
                                     <td class="p-3">
-                                        <span v-if="quote.status === 'Aceptada'" class="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded">Aceptada</span>
-                                        <span v-else-if="quote.status === 'Contrato Firmado'" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded">Contrato Firmado</span>
-                                        <span v-else-if="quote.status === 'Completada'" class="bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-1 rounded">Completada</span>
-                                        <span v-else-if="quote.status === 'Rechazada'" class="bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">Rechazada</span>
-                                        <span v-else class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2 py-1 rounded">Pendiente</span>
+                                        <span v-if="quote.status === 'Aceptada'" class="bg-green-100 dark:bg-emerald-900/40 text-green-800 dark:text-emerald-300 text-xs font-semibold px-2 py-1 rounded">Aceptada</span>
+                                        <span v-else-if="quote.status === 'Contrato Firmado'" class="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 text-xs font-semibold px-2 py-1 rounded">Contrato Firmado</span>
+                                        <span v-else-if="quote.status === 'Completada'" class="bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 text-xs font-semibold px-2 py-1 rounded">Completada</span>
+                                        <span v-else-if="quote.status === 'Rechazada'" class="bg-red-100 dark:bg-rose-900/40 text-red-800 dark:text-rose-300 text-xs font-semibold px-2 py-1 rounded">Rechazada</span>
+                                        <span v-else class="bg-yellow-100 dark:bg-amber-900/40 text-yellow-800 dark:text-amber-300 text-xs font-semibold px-2 py-1 rounded">Pendiente</span>
                                     </td>
                                     <td class="p-3">
                                         <div class="flex flex-col">
-                                            <span v-if="quote.total_unique > 0" class="font-bold text-gray-900">{{ formatCurrency(quote.total_unique) }}</span>
-                                            <span v-if="quote.total_monthly > 0" class="text-xs text-indigo-600 font-semibold">{{ formatCurrency(quote.total_monthly) }}/mes</span>
-                                            <span v-if="quote.total_unique === 0 && quote.total_monthly === 0" class="text-gray-400">-</span>
+                                            <span v-if="quote.total_unique > 0" class="font-bold text-gray-900 dark:text-gray-100">{{ formatCurrency(quote.total_unique) }}</span>
+                                            <span v-if="quote.total_monthly > 0" class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold">{{ formatCurrency(quote.total_monthly) }}/mes</span>
+                                            <span v-if="quote.total_unique === 0 && quote.total_monthly === 0" class="text-gray-400 dark:text-gray-600">-</span>
                                         </div>
                                     </td>
                                     <td class="p-3">
-                                        <span class="font-bold" :class="calculateQuoteProfit(quote) >= 0 ? 'text-green-600' : 'text-red-600'">
+                                        <span class="font-bold" :class="calculateQuoteProfit(quote) >= 0 ? 'text-green-600 dark:text-emerald-400' : 'text-red-600 dark:text-rose-400'">
                                             {{ formatCurrency(calculateQuoteProfit(quote)) }}
                                         </span>
                                     </td>
@@ -153,7 +154,7 @@ const changeStatus = (id, newStatus, quote) => {
                                             <a
                                                 :href="route('quotes.show', quote.id)"
                                                 target="_blank"
-                                                class="text-[#264ab3] hover:text-[#193074] hover:bg-blue-50 p-2 rounded-full transition-colors inline-flex items-center"
+                                                class="text-[#264ab3] dark:text-blue-400 hover:text-[#193074] dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 p-2 rounded-full transition-colors inline-flex items-center"
                                             >
                                                 <EyeIcon class="w-5 h-5" />
                                             </a>
@@ -165,7 +166,7 @@ const changeStatus = (id, newStatus, quote) => {
                                             <div v-if="quote.status !== 'Contrato Firmado' && !quote.client" class="group relative inline-block">
                                                 <Link
                                                     :href="route('quotes.edit', quote.id)"
-                                                    class="text-gray-600 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors inline-flex items-center"
+                                                    class="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 p-2 rounded-full transition-colors inline-flex items-center"
                                                 >
                                                     <PencilSquareIcon class="w-5 h-5" />
                                                 </Link>
@@ -176,7 +177,7 @@ const changeStatus = (id, newStatus, quote) => {
                                             <div v-if="quote.status !== 'Contrato Firmado' && !quote.client" class="group relative inline-block">
                                                 <button
                                                     @click="deleteQuote(quote.id)"
-                                                    class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-full transition-colors inline-flex items-center"
+                                                    class="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-colors inline-flex items-center"
                                                 >
                                                     <TrashIcon class="w-5 h-5" />
                                                 </button>
@@ -228,7 +229,7 @@ const changeStatus = (id, newStatus, quote) => {
                                     </td>
                                 </tr>
                                 <tr v-if="quotes.length === 0">
-                                    <td colspan="5" class="p-4 text-center text-gray-500">
+                                    <td colspan="7" class="p-8 text-center text-gray-500 dark:text-zinc-500 italic">
                                         No has generado ninguna cotización aún.
                                     </td>
                                 </tr>

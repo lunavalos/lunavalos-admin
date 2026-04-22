@@ -56,12 +56,12 @@ const closePasswordModal = () => {
     <AuthenticatedLayout>
         <template #header>
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-semibold leading-tight text-gray-800 flex items-center">
-                    <Link :href="route('clients.index')" class="mr-3 text-gray-500 hover:text-gray-700 transition">
+                <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100 flex items-center">
+                    <Link :href="route('clients.index')" class="mr-3 text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
                         <ArrowLeftIcon class="h-5 w-5 inline-block" />
                     </Link>
                     <span>Expediente del Cliente:</span> 
-                    <span class="ml-2 text-[#264ab3]">{{ client.business_name }}</span>
+                    <span class="ml-2 text-[#264ab3] dark:text-blue-400">{{ client.business_name }}</span>
                 </h2>
                 <div class="flex space-x-3">
                     <Link
@@ -79,38 +79,38 @@ const closePasswordModal = () => {
             <div class="container mx-auto px-4 max-w-6xl space-y-8">
 
                 <!-- 1. Technical Data (Old Lightbox) -->
-                <div class="card bg-white shadow-sm sm:rounded-lg overflow-hidden border border-gray-100">
-                    <div class="border-b border-gray-100 p-6 bg-blue-50/50 flex items-center">
-                        <ServerStackIcon class="h-6 w-6 mr-2 text-blue-600" />
-                        <h3 class="text-lg font-bold text-gray-900">Activos Técnicos</h3>
+                <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg overflow-hidden border border-gray-100 dark:border-zinc-800">
+                    <div class="border-b border-gray-100 dark:border-zinc-800 p-6 bg-blue-50/50 dark:bg-blue-900/10 flex items-center">
+                        <ServerStackIcon class="h-6 w-6 mr-2 text-blue-600 dark:text-blue-400" />
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Activos Técnicos</h3>
                     </div>
                     <div class="p-6">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-gray-700 text-sm">
-                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                <strong class="text-blue-900 block mb-1">Dominio(s):</strong> 
-                                <span class="font-medium text-gray-800">{{ client.domain_names || 'N/A' }}</span>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 text-gray-700 dark:text-gray-300 text-sm">
+                            <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800">
+                                <strong class="text-blue-900 dark:text-blue-300 block mb-1">Dominio(s):</strong> 
+                                <span class="font-medium text-gray-800 dark:text-gray-200">{{ client.domain_names || 'N/A' }}</span>
                             </div>
-                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                <strong class="text-blue-900 block mb-1">Prov. Dominio:</strong> 
-                                <span class="text-gray-600">{{ client.domain_provider || 'N/A' }}</span>
+                            <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800">
+                                <strong class="text-blue-900 dark:text-blue-300 block mb-1">Prov. Dominio:</strong> 
+                                <span class="text-gray-600 dark:text-zinc-400">{{ client.domain_provider || 'N/A' }}</span>
                             </div>
-                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                <strong class="text-blue-900 block mb-1">Prov. Hosting:</strong> 
-                                <span class="text-gray-600">{{ client.hosting_provider || 'N/A' }}</span>
+                            <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800">
+                                <strong class="text-blue-900 dark:text-blue-300 block mb-1">Prov. Hosting:</strong> 
+                                <span class="text-gray-600 dark:text-zinc-400">{{ client.hosting_provider || 'N/A' }}</span>
                             </div>
-                            <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                                <strong class="text-blue-900 block mb-1">Prov. Correos:</strong> 
-                                <span class="text-gray-600">{{ client.email_provider || 'N/A' }}</span>
+                            <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800">
+                                <strong class="text-blue-900 dark:text-blue-300 block mb-1">Prov. Correos:</strong> 
+                                <span class="text-gray-600 dark:text-zinc-400">{{ client.email_provider || 'N/A' }}</span>
                             </div>
                         </div>
                         
-                        <div class="mt-8 pt-6 border-t border-gray-100">
+                        <div class="mt-8 pt-6 border-t border-gray-100 dark:border-zinc-800">
                             <div class="flex justify-between items-center mb-4">
                                 <div class="flex items-center">
-                                    <ServerStackIcon class="h-6 w-6 mr-2 text-blue-600" />
-                                    <strong class="text-blue-900 text-lg">Bóveda de Accesos / Notas</strong>
+                                    <ServerStackIcon class="h-6 w-6 mr-2 text-blue-600 dark:text-blue-400" />
+                                    <strong class="text-blue-900 dark:text-blue-400 text-lg">Bóveda de Accesos / Notas</strong>
                                 </div>
-                                <button type="button" @click="toggleClientVault" class="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors">
+                                <button type="button" @click="toggleClientVault" class="text-xs font-bold text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 transition-colors">
                                     <template v-if="!showClientVault">
                                         <EyeIcon class="h-4 w-4 mr-1.5" /> Desbloquear Bóveda
                                     </template>
@@ -124,13 +124,13 @@ const closePasswordModal = () => {
                             <div v-if="showClientVault" class="mt-4 space-y-6">
                                 <!-- 1. Bóveda Estructurada -->
                                 <div v-if="client.vault_credentials?.length > 0" class="mb-4">
-                                    <h4 class="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-3 flex items-center">
-                                        <span class="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+                                    <h4 class="text-sm font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-3 flex items-center">
+                                        <span class="w-2 h-2 bg-indigo-500 dark:bg-indigo-400 rounded-full mr-2"></span>
                                         Accesos Directos
                                     </h4>
-                                    <div class="overflow-x-auto border border-indigo-100 rounded-2xl shadow-sm">
-                                        <table class="min-w-full divide-y divide-gray-200">
-                                            <thead class="bg-indigo-50">
+                                    <div class="overflow-x-auto border border-indigo-100 dark:border-indigo-900/30 rounded-2xl shadow-sm">
+                                        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
+                                            <thead class="bg-indigo-50 dark:bg-indigo-900/20">
                                                 <tr>
                                                     <th class="px-4 py-3 text-left text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Servicio</th>
                                                     <th class="px-4 py-3 text-left text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Usuario</th>
@@ -138,12 +138,12 @@ const closePasswordModal = () => {
                                                     <th class="px-4 py-3 text-left text-[10px] font-bold text-indigo-400 uppercase tracking-wider">Notas / URL</th>
                                                 </tr>
                                             </thead>
-                                            <tbody class="bg-white divide-y divide-gray-100">
-                                                <tr v-for="(vault, idx) in client.vault_credentials" :key="idx" class="hover:bg-indigo-50/30 transition-colors">
-                                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">{{ vault.service || vault.platform }}</td>
-                                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{{ vault.username || vault.user }}</td>
-                                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-indigo-600 font-bold">{{ vault.password }}</td>
-                                                    <td class="px-4 py-3 text-sm text-gray-500 italic">{{ vault.notes || vault.url || '-' }}</td>
+                                            <tbody class="bg-white dark:bg-zinc-900 divide-y divide-gray-100 dark:divide-zinc-800">
+                                                <tr v-for="(vault, idx) in client.vault_credentials" :key="idx" class="hover:bg-indigo-50/30 dark:hover:bg-indigo-500/10 transition-colors">
+                                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-gray-100">{{ vault.service || vault.platform }}</td>
+                                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{{ vault.username || vault.user }}</td>
+                                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-mono text-indigo-600 dark:text-indigo-400 font-bold">{{ vault.password }}</td>
+                                                    <td class="px-4 py-3 text-sm text-gray-500 dark:text-zinc-400 italic">{{ vault.notes || vault.url || '-' }}</td>
                                                 </tr>
                                             </tbody>
                                         </table>
@@ -151,10 +151,10 @@ const closePasswordModal = () => {
                                 </div>
 
                                 <!-- 2. Bóveda en Bloque / Texto (Textarea) -->
-                                <div class="shadow-md rounded-2xl overflow-hidden border border-gray-200">
-                                    <div class="bg-gray-800 px-4 py-2 border-b border-gray-700 text-[10px] font-bold text-gray-400 uppercase tracking-widest flex justify-between">
+                                <div class="shadow-md rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800">
+                                    <div class="bg-gray-800 dark:bg-zinc-950 px-4 py-2 border-b border-gray-700 dark:border-zinc-900 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest flex justify-between">
                                         <span>Bóveda de Texto Libre</span>
-                                        <span v-if="!client.login_credentials" class="text-red-400 italic normal-case font-normal">(Vacía)</span>
+                                        <span v-if="!client.login_credentials" class="text-red-400 dark:text-rose-500 italic normal-case font-normal">(Vacía)</span>
                                     </div>
                                     <textarea 
                                         readonly 
@@ -167,71 +167,71 @@ const closePasswordModal = () => {
 
                             <!-- Estado Bloqueado -->
                             <div v-else class="mt-4">
-                                <div class="bg-gray-100 rounded-2xl p-10 flex flex-col items-center justify-center border-2 border-dashed border-gray-200">
-                                    <div class="bg-white p-4 rounded-full shadow-sm mb-4">
-                                        <EyeSlashIcon class="h-8 w-8 text-gray-400" />
+                                <div class="bg-gray-100 dark:bg-zinc-950/50 rounded-2xl p-10 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 dark:border-zinc-800">
+                                    <div class="bg-white dark:bg-zinc-900 p-4 rounded-full shadow-sm mb-4">
+                                        <EyeSlashIcon class="h-8 w-8 text-gray-400 dark:text-zinc-500" />
                                     </div>
-                                    <p class="text-gray-500 font-medium">La bóveda se encuentra bloqueada.</p>
-                                    <p class="text-gray-400 text-xs mt-1">Presiona "Desbloquear Bóveda" para visualizar los accesos.</p>
+                                    <p class="text-gray-500 dark:text-zinc-400 font-medium">La bóveda se encuentra bloqueada.</p>
+                                    <p class="text-gray-400 dark:text-zinc-600 text-xs mt-1">Presiona "Desbloquear Bóveda" para visualizar los accesos.</p>
                                 </div>
                             </div>
                             
-                            <div class="mt-6 bg-yellow-50/80 p-5 rounded-xl text-sm border border-yellow-200/60 shadow-sm" v-if="client.notes">
-                                <strong class="text-yellow-800 text-base mb-2 block font-bold font-heading">Notas Generales:</strong>
-                                <div class="text-yellow-700 whitespace-pre-wrap">{{ client.notes }}</div>
+                            <div class="mt-6 bg-yellow-50/80 dark:bg-yellow-950/20 p-5 rounded-xl text-sm border border-yellow-200/60 dark:border-yellow-900/30 shadow-sm" v-if="client.notes">
+                                <strong class="text-yellow-800 dark:text-yellow-400 text-base mb-2 block font-bold font-heading">Notas Generales:</strong>
+                                <div class="text-yellow-700 dark:text-yellow-500/80 whitespace-pre-wrap">{{ client.notes }}</div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 2. Briefing Creativo -->
-                <div class="card bg-white shadow-sm sm:rounded-lg overflow-hidden border border-gray-100">
-                    <div class="border-b border-gray-100 p-6 bg-yellow-50/50 flex items-center justify-between">
+                <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg overflow-hidden border border-gray-100 dark:border-zinc-800">
+                    <div class="border-b border-gray-100 dark:border-zinc-800 p-6 bg-yellow-50/50 dark:bg-yellow-950/10 flex items-center justify-between">
                         <div class="flex items-center">
-                            <LightBulbIcon class="h-6 w-6 mr-2 text-yellow-600" />
-                            <h3 class="text-lg font-bold text-gray-900">Briefing Creativo</h3>
+                            <LightBulbIcon class="h-6 w-6 mr-2 text-yellow-600 dark:text-yellow-400" />
+                            <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Briefing Creativo</h3>
                         </div>
                     </div>
                     <div class="p-6">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div class="space-y-2">
-                                <h4 class="font-bold text-gray-800 text-sm">1. Cuéntanos sobre tu empresa (contexto, giro, trayectoria)</h4>
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 min-h-[100px] text-gray-700 whitespace-pre-wrap">
+                                <h4 class="font-bold text-gray-800 dark:text-gray-200 text-sm">1. Cuéntanos sobre tu empresa (contexto, giro, trayectoria)</h4>
+                                <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800 min-h-[100px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                     {{ client.briefing_context || 'No especificado por el cliente.' }}
                                 </div>
                             </div>
 
                             <div class="space-y-2">
-                                <h4 class="font-bold text-gray-800 text-sm">2. ¿A qué tipo de clientes están enfocados tus servicios/productos?</h4>
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 min-h-[100px] text-gray-700 whitespace-pre-wrap">
+                                <h4 class="font-bold text-gray-800 dark:text-gray-200 text-sm">2. ¿A qué tipo de clientes están enfocados tus servicios/productos?</h4>
+                                <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800 min-h-[100px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                     {{ client.briefing_target_audience || 'No especificado por el cliente.' }}
                                 </div>
                             </div>
 
                             <div class="space-y-2">
-                                <h4 class="font-bold text-gray-800 text-sm">3. Principales competidores locales/nacionales</h4>
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 min-h-[100px] text-gray-700 whitespace-pre-wrap">
+                                <h4 class="font-bold text-gray-800 dark:text-gray-200 text-sm">3. Principales competidores locales/nacionales</h4>
+                                <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800 min-h-[100px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                     {{ client.briefing_competitors || 'No especificado por el cliente.' }}
                                 </div>
                             </div>
 
                             <div class="space-y-2">
-                                <h4 class="font-bold text-gray-800 text-sm">4. Sitios web de referencia visual para tu diseño/rediseño</h4>
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 min-h-[100px] text-gray-700 whitespace-pre-wrap">
+                                <h4 class="font-bold text-gray-800 dark:text-gray-200 text-sm">4. Sitios web de referencia visual para tu diseño/rediseño</h4>
+                                <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800 min-h-[100px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                     {{ client.briefing_references || 'No especificado por el cliente.' }}
                                 </div>
                             </div>
 
                             <div class="space-y-2">
-                                <h4 class="font-bold text-gray-800 text-sm">5. Métodos de contacto que utiliza tu empresa</h4>
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 min-h-[100px] text-gray-700 whitespace-pre-wrap">
+                                <h4 class="font-bold text-gray-800 dark:text-gray-200 text-sm">5. Métodos de contacto que utiliza tu empresa</h4>
+                                <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800 min-h-[100px] text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                                     {{ client.briefing_contact_methods || 'No especificado por el cliente.' }}
                                 </div>
                             </div>
 
                             <div class="space-y-2">
-                                <h4 class="font-bold text-gray-800 text-sm">6. Actualmente, ¿cuántos correos empresariales tienes?</h4>
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-100 text-gray-700">
+                                <h4 class="font-bold text-gray-800 dark:text-gray-200 text-sm">6. Actualmente, ¿cuántos correos empresariales tienes?</h4>
+                                <div class="bg-gray-50 dark:bg-zinc-950 p-4 rounded-lg border border-gray-100 dark:border-zinc-800 text-gray-700 dark:text-gray-300">
                                     {{ client.briefing_current_emails || 'No especificado.' }}
                                 </div>
                             </div>

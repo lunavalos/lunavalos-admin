@@ -9,7 +9,7 @@ import {
     BriefcaseIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon,
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
-    SwatchIcon, BanknotesIcon, LightBulbIcon
+    SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -37,10 +37,29 @@ const toggleSidebar = () => {
     localStorage.setItem('sidebarExpanded', isSidebarExpanded.value);
 };
 
+const isDarkMode = ref(false);
+
+const toggleDarkMode = () => {
+    isDarkMode.value = !isDarkMode.value;
+    if (isDarkMode.value) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('darkMode', 'true');
+    } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('darkMode', 'false');
+    }
+};
+
 onMounted(() => {
     const savedSidebarState = localStorage.getItem('sidebarExpanded');
     if (savedSidebarState !== null) {
         isSidebarExpanded.value = savedSidebarState === 'true';
+    }
+
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode === 'true' || (!savedDarkMode && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        isDarkMode.value = true;
+        document.documentElement.classList.add('dark');
     }
 
     if (page.props.auth.user) {
@@ -69,66 +88,77 @@ onMounted(() => {
 </script>
 
 <template>
-    <div class="flex flex-col h-screen bg-[#f9fafb] font-sans overflow-hidden">
+    <div class="flex flex-col h-screen bg-[#f9fafb] dark:bg-zinc-950 font-sans overflow-hidden transition-colors duration-300">
         
         <!-- Topbar: spans full width -->
-        <header class="h-16 bg-white flex items-center justify-between px-4 sm:px-6 border-b border-gray-200 z-30 shrink-0">
+        <header class="h-16 bg-white dark:bg-zinc-900 flex items-center justify-between px-4 sm:px-6 border-b border-gray-200 dark:border-zinc-800 z-30 shrink-0">
             <div class="flex items-center">
                 <!-- Sidebar Toggle -->
                 <button 
                     @click="toggleSidebar" 
-                    class="p-2 mr-3 bg-white border border-gray-200 text-[#264ab3] shadow-sm hover:bg-gray-50 focus:outline-none rounded-md transition-colors"
+                    class="p-2 mr-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-[#264ab3] dark:text-blue-400 shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-700 focus:outline-none rounded-md transition-colors"
                 >
                     <Bars3Icon class="h-6 w-6"/>
                 </button>
                 <!-- Logo -->
                 <Link :href="route('dashboard')" class="flex items-center">
-                    <ApplicationLogo class="h-8 auto" />
+                    <ApplicationLogo class="h-8 auto dark:brightness-200" />
                 </Link>
             </div>
 
-            <!-- Notifications & User Dropdown -->
+            <!-- Notifications & DarkMode & User Dropdown -->
             <div class="flex items-center space-x-3">
+                
+                <!-- Dark Mode Toggle -->
+                <button 
+                    @click="toggleDarkMode" 
+                    class="p-2 text-gray-400 hover:text-[#264ab3] dark:hover:text-blue-400 transition-colors focus:outline-none bg-gray-50 dark:bg-zinc-800 rounded-full"
+                    :title="isDarkMode ? 'Modo Claro' : 'Modo Oscuro'"
+                >
+                    <SunIcon v-if="isDarkMode" class="h-6 w-6" />
+                    <MoonIcon v-else class="h-6 w-6" />
+                </button>
+
                 <!-- Notifications Dropdown -->
                 <div class="relative">
                     <Dropdown align="right" width="80">
                         <template #trigger>
-                            <button type="button" class="relative p-2 text-gray-400 hover:text-[#264ab3] transition-colors focus:outline-none bg-gray-50 rounded-full">
+                            <button type="button" class="relative p-2 text-gray-400 hover:text-[#264ab3] dark:hover:text-blue-400 transition-colors focus:outline-none bg-gray-50 dark:bg-zinc-800 rounded-full">
                                 <BellIcon class="h-6 w-6" />
-                                <span v-if="$page.props.auth.notifications.length > 0" class="absolute top-0 right-0 block h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white ring-red-500">
+                                <span v-if="$page.props.auth.notifications.length > 0" class="absolute top-0 right-0 block h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white dark:border-zinc-900 ring-red-500">
                                     {{ $page.props.auth.notifications.length }}
                                 </span>
                             </button>
                         </template>
 
                         <template #content>
-                            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                                <h3 class="text-xs font-bold uppercase tracking-widest text-[#264ab3]">Notificaciones</h3>
+                            <div class="p-4 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center bg-gray-50/50 dark:bg-zinc-900 text-gray-800 dark:text-gray-100">
+                                <h3 class="text-xs font-bold uppercase tracking-widest text-[#264ab3] dark:text-blue-400">Notificaciones</h3>
                                 <button 
                                     v-if="$page.props.auth.notifications.length > 0"
                                     @click="markAllAsRead" 
-                                    class="text-[10px] text-blue-600 hover:underline font-bold"
+                                    class="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold"
                                 >
                                     Marcar como leídas
                                 </button>
                             </div>
-                            <div class="max-h-96 overflow-y-auto custom-scrollbar">
+                            <div class="max-h-96 overflow-y-auto custom-scrollbar dark:bg-zinc-900">
                                 <div v-if="$page.props.auth.notifications.length === 0" class="p-8 text-center">
-                                    <BellIcon class="h-8 w-8 text-gray-200 mx-auto mb-2" />
-                                    <p class="text-xs text-gray-400">Sin notificaciones pendientes</p>
+                                    <BellIcon class="h-8 w-8 text-gray-200 dark:text-zinc-800 mx-auto mb-2" />
+                                    <p class="text-xs text-gray-400 dark:text-zinc-500">Sin notificaciones pendientes</p>
                                 </div>
                                 <div v-else>
                                     <template v-for="notif in $page.props.auth.notifications" :key="notif.id">
                                         <div 
-                                            class="block p-4 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 cursor-pointer"
+                                            class="block p-4 hover:bg-blue-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-gray-50 dark:border-zinc-800 last:border-0 cursor-pointer"
                                             @click="markAllAsRead(notif.data.url)"
                                         >
                                             <div class="flex items-start">
                                                 <div class="flex-1">
-                                                    <p class="text-xs font-bold text-gray-800 mb-1 line-clamp-2">
+                                                    <p class="text-xs font-bold text-gray-800 dark:text-gray-200 mb-1 line-clamp-2">
                                                         {{ notif.data.message }}
                                                     </p>
-                                                    <p class="text-[10px] text-gray-400">
+                                                    <p class="text-[10px] text-gray-400 dark:text-zinc-500">
                                                         Ticket #{{ notif.data.ticket_id }}
                                                     </p>
                                                 </div>
@@ -147,11 +177,11 @@ onMounted(() => {
                     <Dropdown align="right" width="48">
                         <template #trigger>
                             <span class="inline-flex rounded-md items-center">
-                                <button type="button" class="inline-flex items-center gap-2 border border-transparent bg-white pl-3 pr-2 py-1 text-sm font-medium text-gray-700 transition duration-150 ease-in-out hover:text-[#264ab3] focus:outline-none">
+                                <button type="button" class="inline-flex items-center gap-2 border border-transparent bg-white dark:bg-zinc-900 pl-3 pr-2 py-1 text-sm font-medium text-gray-700 dark:text-gray-300 transition duration-150 ease-in-out hover:text-[#264ab3] dark:hover:text-blue-400 focus:outline-none">
                                     <img 
                                         :src="$page.props.auth.user.profile_photo_url" 
                                         :alt="$page.props.auth.user.name" 
-                                        class="h-8 w-8 rounded-full border border-gray-200 object-cover"
+                                        class="h-8 w-8 rounded-full border border-gray-200 dark:border-zinc-800 object-cover"
                                     />
                                     <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -161,12 +191,14 @@ onMounted(() => {
                         </template>
 
                         <template #content>
-                            <DropdownLink :href="route('profile.edit')">
-                                Mi Perfil
-                            </DropdownLink>
-                            <DropdownLink :href="route('logout')" method="post" as="button">
-                                Cerrar Sesión
-                            </DropdownLink>
+                            <div class="dark:bg-zinc-900">
+                                <DropdownLink :href="route('profile.edit')">
+                                    Mi Perfil
+                                </DropdownLink>
+                                <DropdownLink :href="route('logout')" method="post" as="button">
+                                    Cerrar Sesión
+                                </DropdownLink>
+                            </div>
                         </template>
                     </Dropdown>
                 </div>
@@ -179,7 +211,7 @@ onMounted(() => {
             <!-- Sidebar -->
             <aside 
                 :class="[
-                    'bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out z-20', 
+                    'bg-white dark:bg-zinc-900 border-r border-gray-200 dark:border-zinc-800 flex flex-col transition-all duration-300 ease-in-out z-20', 
                     isSidebarExpanded ? 'w-20 md:w-64 flex' : 'hidden md:flex md:w-20'
                 ]"
             >
@@ -191,7 +223,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('dashboard')"
                                 :class="[
-                                    route().current('dashboard') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('dashboard') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -209,7 +243,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('tickets.index')"
                                 :class="[
-                                    route().current('tickets.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('tickets.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -227,7 +263,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('client.emails')"
                                 :class="[
-                                    route().current('client.emails') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('client.emails') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -245,7 +283,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('client.signatures')"
                                 :class="[
-                                    route().current('client.signatures') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('client.signatures') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -263,7 +303,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('client.briefing')"
                                 :class="[
-                                    route().current('client.briefing') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('client.briefing') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -284,7 +326,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('services.index')"
                                 :class="[
-                                    route().current('services.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('services.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -301,7 +345,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('quotes.index')"
                                 :class="[
-                                    route().current('quotes.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('quotes.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -319,7 +365,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('finances.index')"
                                 :class="[
-                                    route().current('finances.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('finances.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -337,7 +385,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('clients.index')"
                                 :class="[
-                                    route().current('clients.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('clients.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -355,7 +405,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('employees.index')"
                                 :class="[
-                                    route().current('employees.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('employees.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -372,7 +424,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('settings.edit')"
                                 :class="[
-                                    route().current('settings.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('settings.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -390,7 +444,9 @@ onMounted(() => {
                             <Link 
                                 :href="route('signature-templates.index')"
                                 :class="[
-                                    route().current('signature-templates.*') ? 'bg-blue-50 text-[#264ab3] font-semibold' : 'text-gray-600 hover:bg-gray-50 hover:text-[#264ab3]',
+                                    route().current('signature-templates.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
                                     'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
                                     isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
                                 ]"
@@ -408,9 +464,9 @@ onMounted(() => {
             </aside>
 
             <!-- Main Content Area -->
-            <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 relative z-10">
+            <div class="flex-1 flex flex-col overflow-hidden bg-gray-50 dark:bg-zinc-950 relative z-10">
                 <!-- Page Header -->
-                <div class="bg-white px-4 py-6 sm:px-6 lg:px-8 border-b border-gray-200" v-if="$slots.header">
+                <div class="bg-white dark:bg-zinc-900 px-4 py-6 sm:px-6 lg:px-8 border-b border-gray-200 dark:border-zinc-800" v-if="$slots.header">
                     <slot name="header" />
                 </div>
 

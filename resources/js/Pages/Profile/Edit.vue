@@ -28,7 +28,7 @@ defineProps({
     <AuthenticatedLayout>
         <template #header>
             <h2
-                class="text-xl font-semibold leading-tight text-gray-800"
+                class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100"
             >
                 Mi Perfil
             </h2>
@@ -37,7 +37,7 @@ defineProps({
         <div class="py-12">
             <div class="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
                 <!-- Mandatory 2FA Warning for All Users -->
-                <div v-if="!twoFactorEnabled" class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg shadow-sm">
+                <div v-if="!twoFactorEnabled" class="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded-lg shadow-sm">
                     <div class="flex">
                         <div class="flex-shrink-0">
                             <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
@@ -45,8 +45,8 @@ defineProps({
                             </svg>
                         </div>
                         <div class="ml-3">
-                            <h3 class="text-sm font-medium text-amber-800">Acción Requerida: Autenticación de Dos Factores Obligatoria</h3>
-                            <div class="mt-2 text-sm text-amber-700">
+                            <h3 class="text-sm font-medium text-amber-800 dark:text-amber-200">Acción Requerida: Autenticación de Dos Factores Obligatoria</h3>
+                            <div class="mt-2 text-sm text-amber-700 dark:text-amber-300">
                                 <p>Para garantizar la seguridad de su cuenta y cumplir con nuestras políticas de protección de datos, es obligatorio activar la autenticación de dos factores (2FA) antes de poder acceder a las herramientas de su panel.</p>
                                 <p class="mt-1 font-semibold">Deslice hacia abajo hasta la sección de "Autenticación de Dos Factores" para comenzar.</p>
                             </div>
@@ -55,7 +55,7 @@ defineProps({
                 </div>
 
                 <div
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                    class="bg-white dark:bg-zinc-900 p-4 shadow sm:rounded-lg sm:p-8 border border-gray-200 dark:border-zinc-800"
                 >
                     <UpdateProfileInformationForm
                         :must-verify-email="mustVerifyEmail"
@@ -64,24 +64,24 @@ defineProps({
                     />
                 </div>
 
-                <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                <div class="bg-white dark:bg-zinc-900 p-4 shadow sm:rounded-lg sm:p-8 border border-gray-200 dark:border-zinc-800">
                     <UpdatePasswordForm class="max-w-xl" />
                 </div>
 
-                <div class="bg-white p-4 shadow sm:rounded-lg sm:p-8 border-l-4 border-[#264ab3]">
+                <div class="bg-white dark:bg-zinc-900 p-4 shadow sm:rounded-lg sm:p-8 border-y border-r border-gray-200 dark:border-zinc-800 border-l-4 border-[#264ab3]">
                     <TwoFactorAuthenticationForm :enabled="twoFactorEnabled" class="max-w-xl" />
                 </div>
 
                 <div
                     v-if="!isClient"
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                    class="bg-white dark:bg-zinc-900 p-4 shadow sm:rounded-lg sm:p-8 border border-gray-200 dark:border-zinc-800"
                 >
                     <UpdateVaultForm class="w-full" />
                 </div>
 
                 <div
                     v-if="!isClient"
-                    class="bg-white p-4 shadow sm:rounded-lg sm:p-8"
+                    class="bg-white dark:bg-zinc-900 p-4 shadow sm:rounded-lg sm:p-8 border border-gray-200 dark:border-zinc-800"
                 >
                     <DeleteUserForm class="max-w-xl" />
                 </div>

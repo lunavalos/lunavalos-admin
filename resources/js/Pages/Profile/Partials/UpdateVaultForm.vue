@@ -64,19 +64,19 @@ const updateVault = () => {
 <template>
     <section>
         <header>
-            <h2 class="text-lg font-medium text-gray-900">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
                 Mi Bóveda de Accesos Personales
             </h2>
 
-            <p class="mt-1 text-sm text-gray-600">
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 Guarda aquí de forma segura tus contraseñas, pasafrases y notas de acceso a otras plataformas. Esta información solo es visible para ti.
             </p>
         </header>
 
         <form @submit.prevent="updateVault" class="mt-6 space-y-6">
-            <div class="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <div class="mt-6 p-4 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg">
                 <div class="flex justify-between items-center mb-2">
-                    <InputLabel for="vault_credentials" value="Bóveda de Accesos (Plataformas, Contraseñas, etc.)" class="font-bold text-gray-800" />
+                    <InputLabel for="vault_credentials" value="Bóveda de Accesos (Plataformas, Contraseñas, etc.)" class="font-bold text-gray-800 dark:text-gray-200" />
                     <button type="button" @click="toggleCredentials" class="text-sm text-blue-600 hover:text-blue-800 flex items-center font-semibold">
                         <template v-if="!showCredentials">
                             <EyeIcon class="h-4 w-4 mr-1" /> Mostrar Contraseñas
@@ -89,8 +89,8 @@ const updateVault = () => {
                 <!-- Fake password font when hidden -->
                 <textarea
                     id="vault_credentials"
-                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md shadow-sm font-mono text-sm transition-all"
-                    :class="{'text-transparent bg-gray-200 select-none' : !showCredentials, 'bg-white text-gray-800' : showCredentials}"
+                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 transition-all focus:border-indigo-500 rounded-md shadow-sm font-mono text-sm"
+                    :class="{'text-transparent bg-gray-200 dark:bg-zinc-900 select-none' : !showCredentials, 'bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-100' : showCredentials}"
                     v-model="form.vault_credentials"
                     rows="8"
                     placeholder="Escribe aquí los usuarios y contraseñas..."
@@ -109,7 +109,7 @@ const updateVault = () => {
                 >
                     <p
                         v-if="form.recentlySuccessful"
-                        class="text-sm text-gray-600"
+                        class="text-sm text-gray-600 dark:text-gray-400"
                     >
                         Guardado exitosamente.
                     </p>
@@ -118,12 +118,11 @@ const updateVault = () => {
         </form>
 
         <Modal :show="confirmingPassword" @close="closeModal">
-            <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900">
+            <div class="p-6 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
                     Confirmación de Seguridad
                 </h2>
-
-                <p class="mt-1 text-sm text-gray-600">
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
                     Por favor, ingresa tu contraseña de inicio de sesión para desbloquear la bóveda.
                 </p>
 

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
+use App\Models\Client;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,7 @@ class TicketController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $query = Ticket::with(['creator', 'assigned', 'messages.user']);
+        $query = Ticket::with(['creator.client', 'assigned', 'messages.user', 'client']);
 
         if ($user->hasRole('Cliente')) {
             $tickets = Ticket::where('creator_id', $user->id)
@@ -32,16 +33,20 @@ class TicketController extends Controller
 
         $tickets = $query->latest()->get();
 
-        // Prepare users who can be assigned (Admins, Employees, and Clients for Admins to filter/assign)
+        // Prepare users who can be assigned
         $rolesToShow = ['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'];
         if ($user->hasAnyRole(['Administrador', 'Administrador Master'])) {
             $rolesToShow[] = 'Cliente';
         }
         $assignableUsers = User::role($rolesToShow)->orderBy('name')->get();
 
+        // Fetch clients for the dropdown
+        $clients = Client::orderBy('business_name')->get();
+
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
             'assignableUsers' => $assignableUsers,
+            'clients' => $clients,
         ]);
     }
 
@@ -53,8 +58,14 @@ class TicketController extends Controller
             'content' => 'nullable|string',
             'assigned_id' => 'nullable|exists:users,id',
             'due_date' => 'nullable|date',
+            'client_id' => 'nullable|exists:clients,id',
             'files.*' => 'nullable|file|max:10240', // 10MB per file
         ]);
+
+        $clientId = $request->client_id;
+        if (!$clientId && Auth::user()->hasRole('Cliente')) {
+            $clientId = Auth::user()->client?->id;
+        }
 
         $ticket = Ticket::create([
             'title' => $request->title,
@@ -62,6 +73,7 @@ class TicketController extends Controller
             'content' => $request->input('content'),
             'creator_id' => Auth::id(),
             'assigned_id' => $request->assigned_id,
+            'client_id' => $clientId,
             'due_date' => $request->due_date,
             'status' => $request->assigned_id ? 'En Proceso' : 'Nuevos',
         ]);
@@ -214,7 +226,7 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket)
     {
-        $ticket->load(['creator.client', 'assigned', 'messages.user', 'attachments']);
+        $ticket->load(['creator.client', 'assigned', 'messages.user', 'attachments', 'client']);
 
         $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get();
 

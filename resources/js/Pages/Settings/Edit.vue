@@ -74,10 +74,10 @@ const isTab = (tabName) => {
 
 
                 <!-- Tab: Empresa -->
-                <div v-if="isTab('empresa')" class="card bg-white shadow-sm sm:rounded-lg mb-6">
-                    <div class="border-b border-gray-200 pb-4 mb-6">
-                        <h3 class="text-lg font-bold text-[#264ab3]">Plantilla del Contrato Legal</h3>
-                        <p class="text-sm text-gray-500 mt-1">Configura el texto y la estructura legal para cuando un cliente acepte una cotización.</p>
+                <div v-if="isTab('empresa')" class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg mb-6 border border-gray-100 dark:border-zinc-800">
+                    <div class="border-b border-gray-200 dark:border-zinc-800 pb-4 mb-6 p-4 lg:p-6 pb-0">
+                        <h3 class="text-lg font-bold text-[#264ab3] dark:text-blue-400">Plantilla del Contrato Legal</h3>
+                        <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Configura el texto y la estructura legal para cuando un cliente acepte una cotización.</p>
                     </div>
 
                     <!-- Usage variables infobox (moved to Contrato tab) -->
@@ -86,13 +86,13 @@ const isTab = (tabName) => {
                         <div>
                             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <!-- Columna Izquierda: Logo y Básicos -->
-                                <div class="lg:col-span-1 border-r pr-6 space-y-6">
-                                    <h4 class="text-md font-bold mb-4 text-gray-800 border-b pb-2">Identidad y Logo</h4>
+                                <div class="lg:col-span-1 border-r dark:border-zinc-800 pr-6 space-y-6">
+                                    <h4 class="text-md font-bold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-zinc-800 pb-2">Identidad y Logo</h4>
                                     
                                     <div class="flex flex-col items-center">
-                                        <div class="w-full h-40 bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center overflow-hidden mb-4 group relative">
+                                        <div class="w-full h-40 bg-gray-50 dark:bg-zinc-950 border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-center overflow-hidden mb-4 group relative">
                                             <img v-if="logoPreview" :src="logoPreview" class="max-w-full max-h-full object-contain p-2" />
-                                            <div v-else class="text-gray-400 text-sm p-4 text-center">Sin logotipo seleccionado</div>
+                                            <div v-else class="text-gray-400 dark:text-zinc-500 text-sm p-4 text-center">Sin logotipo seleccionado</div>
                                             
                                             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                 <label class="cursor-pointer text-white font-bold text-xs bg-white/20 px-4 py-2 rounded-lg backdrop-blur-md">
@@ -101,31 +101,31 @@ const isTab = (tabName) => {
                                                 </label>
                                             </div>
                                         </div>
-                                        <p class="text-[10px] text-gray-400 text-center">Sube el logotipo de tu empresa (recomendado PNG transparente 512x512)</p>
+                                        <p class="text-[10px] text-gray-400 dark:text-zinc-500 text-center">Sube el logotipo de tu empresa (recomendado PNG transparente 512x512)</p>
                                     </div>
 
                                     <div>
                                         <InputLabel for="company_commercial_name" value="Nombre Comercial" />
-                                        <input type="text" id="company_commercial_name" v-model="form.company_commercial_name" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Ej: LunAvalos Digital House">
+                                        <input type="text" id="company_commercial_name" v-model="form.company_commercial_name" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Ej: LunAvalos Digital House">
                                         <InputError :message="form.errors.company_commercial_name" />
                                     </div>
 
                                     <div class="space-y-4">
-                                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">Horario Laboral</h4>
+                                        <h4 class="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">Horario Laboral</h4>
                                         <div>
                                             <InputLabel for="company_work_days" value="Días de Trabajo" />
-                                            <input type="text" id="company_work_days" v-model="form.company_work_days" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Ej: Lunes a Viernes">
+                                            <input type="text" id="company_work_days" v-model="form.company_work_days" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Ej: Lunes a Viernes">
                                             <InputError :message="form.errors.company_work_days" />
                                         </div>
                                         <div class="grid grid-cols-2 gap-2">
                                             <div>
                                                 <InputLabel for="company_work_start" value="Hora Entrada" />
-                                                <input type="time" id="company_work_start" v-model="form.company_work_start" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
+                                                <input type="time" id="company_work_start" v-model="form.company_work_start" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
                                                 <InputError :message="form.errors.company_work_start" />
                                             </div>
                                             <div>
                                                 <InputLabel for="company_work_end" value="Hora Salida" />
-                                                <input type="time" id="company_work_end" v-model="form.company_work_end" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
+                                                <input type="time" id="company_work_end" v-model="form.company_work_end" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
                                                 <InputError :message="form.errors.company_work_end" />
                                             </div>
                                         </div>
@@ -134,90 +134,90 @@ const isTab = (tabName) => {
 
                                 <!-- Columna Central: Datos Fiscales y Contacto -->
                                 <div class="lg:col-span-2 space-y-6">
-                                    <h4 class="text-md font-bold mb-4 text-gray-800 border-b pb-2">Datos Legales y Contacto</h4>
+                                    <h4 class="text-md font-bold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-zinc-800 pb-2">Datos Legales y Contacto</h4>
                                     
                                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <InputLabel for="company_legal_name" value="Razón Social Legal (Para Contratos)" />
-                                            <input type="text" id="company_legal_name" v-model="form.company_legal_name" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
+                                            <input type="text" id="company_legal_name" v-model="form.company_legal_name" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
                                             <InputError :message="form.errors.company_legal_name" />
                                         </div>
                                         <div>
                                             <InputLabel for="company_rfc" value="RFC" />
-                                            <input type="text" id="company_rfc" v-model="form.company_rfc" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm text-center font-mono uppercase">
+                                            <input type="text" id="company_rfc" v-model="form.company_rfc" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm text-center font-mono uppercase">
                                             <InputError :message="form.errors.company_rfc" />
                                         </div>
                                         <div class="md:col-span-2">
                                             <InputLabel for="company_address" value="Dirección Legal / Fiscal" />
-                                            <input type="text" id="company_address" v-model="form.company_address" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
+                                            <input type="text" id="company_address" v-model="form.company_address" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
                                             <InputError :message="form.errors.company_address" />
                                         </div>
                                         <div class="md:col-span-2">
                                             <InputLabel for="company_commercial_address" value="Dirección Comercial (Física / Oficinas)" />
-                                            <input type="text" id="company_commercial_address" v-model="form.company_commercial_address" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
+                                            <input type="text" id="company_commercial_address" v-model="form.company_commercial_address" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
                                             <InputError :message="form.errors.company_commercial_address" />
                                         </div>
                                         <div>
                                             <InputLabel for="company_email" value="Email Principal" />
-                                            <input type="email" id="company_email" v-model="form.company_email" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
+                                            <input type="email" id="company_email" v-model="form.company_email" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
                                             <InputError :message="form.errors.company_email" />
                                         </div>
                                         <div>
                                             <InputLabel for="company_phone" value="Teléfono Principal" />
-                                            <input type="text" id="company_phone" v-model="form.company_phone" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
+                                            <input type="text" id="company_phone" v-model="form.company_phone" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm">
                                             <InputError :message="form.errors.company_phone" />
                                         </div>
                                     </div>
 
-                                    <h4 class="text-md font-bold mb-4 text-gray-800 border-b pb-2 pt-4">Redes Sociales</h4>
+                                    <h4 class="text-md font-bold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-zinc-800 pb-2 pt-4">Redes Sociales</h4>
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div>
                                             <InputLabel value="Facebook" />
                                             <div class="mt-1 flex rounded-md shadow-sm">
-                                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs">fb.com/</span>
-                                                <input type="text" v-model="form.company_fb" class="flex-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-none rounded-r-md text-sm">
+                                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 text-gray-500 dark:text-zinc-400 text-xs">fb.com/</span>
+                                                <input type="text" v-model="form.company_fb" class="flex-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-none rounded-r-md text-sm">
                                             </div>
                                         </div>
                                         <div>
                                             <InputLabel value="Instagram" />
                                             <div class="mt-1 flex rounded-md shadow-sm">
-                                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-xs text-[10px]">@</span>
-                                                <input type="text" v-model="form.company_ig" class="flex-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-none rounded-r-md text-sm">
+                                                <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900 text-gray-500 dark:text-zinc-400 text-xs text-[10px]">@</span>
+                                                <input type="text" v-model="form.company_ig" class="flex-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-none rounded-r-md text-sm">
                                             </div>
                                         </div>
                                         <div>
                                             <InputLabel value="LinkedIn" />
-                                            <input type="text" v-model="form.company_linkedin" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="URL completa">
+                                            <input type="text" v-model="form.company_linkedin" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="URL completa">
                                         </div>
                                         <div>
                                             <InputLabel value="Tik Tok" />
-                                            <input type="text" v-model="form.company_tiktok" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="@usuario">
+                                            <input type="text" v-model="form.company_tiktok" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="@usuario">
                                         </div>
                                         <div>
                                             <InputLabel value="YouTube" />
-                                            <input type="text" v-model="form.company_yt" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Canal">
+                                            <input type="text" v-model="form.company_yt" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Canal">
                                         </div>
                                         <div>
                                             <InputLabel value="X (Twitter)" />
-                                            <input type="text" v-model="form.company_x" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="@usuario">
+                                            <input type="text" v-model="form.company_x" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="@usuario">
                                         </div>
                                     </div>
 
-                                    <h4 class="text-md font-bold mb-4 text-gray-800 border-b pb-2 pt-4">Conexión SMTP de Correos (Integración Google Workspace)</h4>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                    <h4 class="text-md font-bold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-zinc-800 pb-2 pt-4">Conexión SMTP de Correos (Integración Google Workspace)</h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg p-4">
                                         <div class="md:col-span-2">
                                             <InputLabel value="Correo Emisor Real (Gmail / Workspace)" />
-                                            <input type="email" v-model="form.smtp_username" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="ejemplo@tu-agencia.com">
+                                            <input type="email" v-model="form.smtp_username" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="ejemplo@tu-agencia.com">
                                         </div>
                                         <div>
                                             <InputLabel value="Contraseña de Aplicación" />
-                                            <input type="password" v-model="form.smtp_password" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Las 16 letras generadas por Google">
+                                            <input type="password" v-model="form.smtp_password" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="Las 16 letras generadas por Google">
                                         </div>
                                         <div>
                                             <InputLabel value="Alias Remitente (Opcional)" />
-                                            <input type="email" v-model="form.smtp_from_address" class="mt-1 block w-full border-gray-300 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="finanzas@tu-agencia.com">
+                                            <input type="email" v-model="form.smtp_from_address" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-100 focus:border-[#264ab3] rounded-md shadow-sm text-sm" placeholder="finanzas@tu-agencia.com">
                                         </div>
-                                        <div class="col-span-2 text-xs text-gray-500 mt-2">
+                                        <div class="col-span-2 text-xs text-gray-500 dark:text-zinc-400 mt-2">
                                             ⚠️ Al llenar esto, el sistema enviará los recibos (y cualquier otro correo del sistema) usando tu propia cuenta corporativa de Google automáticamente. Si tienes un Alias configurado en Google, puedes agregarlo a la derecha.
                                         </div>
                                     </div>
@@ -225,7 +225,7 @@ const isTab = (tabName) => {
                             </div>
                         </div>
 
-                        <div class="flex justify-end pt-4 border-t mt-6">
+                        <div class="flex justify-end pt-4 border-t dark:border-zinc-800 mt-6 lg:p-6 p-4 pt-0">
                             <button
                                 type="submit"
                                 class="bg-[#264ab3] hover:bg-[#193074] text-white px-8 py-3 rounded-lg font-bold shadow-md transition"
@@ -239,14 +239,14 @@ const isTab = (tabName) => {
                 </div>
 
                 <!-- Tab: Contrato -->
-                <div v-if="isTab('contrato')" class="card bg-white shadow-sm sm:rounded-lg">
-                    <div class="border-b border-gray-200 pb-4 mb-6">
-                        <h3 class="text-lg font-bold text-[#264ab3]">Plantilla del Contrato Legal</h3>
-                        <p class="text-sm text-gray-500 mt-1">Configura el texto y la estructura legal para cuando un cliente acepte una cotización.</p>
+                <div v-if="isTab('contrato')" class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800">
+                    <div class="border-b border-gray-200 dark:border-zinc-800 pb-4 mb-6 p-4 lg:p-6 pb-0">
+                        <h3 class="text-lg font-bold text-[#264ab3] dark:text-blue-400">Plantilla del Contrato Legal</h3>
+                        <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Configura el texto y la estructura legal para cuando un cliente acepte una cotización.</p>
                     </div>
 
                     <!-- Usage variables infobox -->
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-800">
+                    <div class="mx-4 lg:mx-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-lg p-4 mb-6 text-sm text-blue-800 dark:text-blue-400">
                         <p class="font-bold mb-2">Variables Especiales Mágicas:</p>
                         <p class="mb-1">Cualquier palabra dentro de corchetes <code>[ ]</code> será reemplazada automáticamente con los datos del cliente:</p>
                         <ul class="list-disc pl-5 mt-2 font-mono text-xs space-y-1">
@@ -272,19 +272,19 @@ const isTab = (tabName) => {
                     </div>
 
                     <form @submit.prevent="submit" class="space-y-6 lg:p-6 p-4">
-                        <div class="mt-8 pt-4 border-t">
-                            <InputLabel for="contract_template" value="Cuerpo del Contrato" class="font-bold text-gray-700 block mb-2" />
+                        <div class="mt-8 pt-4 border-t dark:border-zinc-800">
+                            <InputLabel for="contract_template" value="Cuerpo del Contrato" class="font-bold text-gray-700 dark:text-gray-300 block mb-2" />
                             <textarea
                                 id="contract_template"
                                 v-model="form.contract_template"
                                 rows="25"
-                                class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm font-serif text-sm leading-relaxed"
+                                class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm font-serif text-sm leading-relaxed"
                                 placeholder="..."
                             ></textarea>
                             <InputError class="mt-2" :message="form.errors.contract_template" />
                         </div>
 
-                        <div class="flex justify-end pt-4 border-t">
+                        <div class="flex justify-end pt-4 border-t dark:border-zinc-800">
                             <button
                                 type="submit"
                                 class="bg-[#264ab3] hover:bg-[#193074] text-white px-8 py-3 rounded-lg font-bold shadow-md transition"

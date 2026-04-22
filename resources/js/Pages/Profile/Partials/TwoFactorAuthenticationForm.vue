@@ -78,8 +78,8 @@ const cancelConfirmation = () => {
 <template>
     <section>
         <header>
-            <h2 class="text-lg font-medium text-gray-900">Autenticación de dos pasos</h2>
-            <p class="mt-1 text-sm text-gray-600">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Autenticación de dos pasos</h2>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
                 Añade seguridad adicional a tu cuenta mediante la autenticación de dos pasos (TOTP).
             </p>
         </header>
@@ -91,24 +91,24 @@ const cancelConfirmation = () => {
             <div v-else-if="confirming" class="text-sm font-medium text-blue-600 mb-4">
                 ⚠️ Finaliza la configuración escaneando el código QR.
             </div>
-            <div v-else class="text-sm text-gray-600 mb-4">
+            <div v-else class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 La autenticación de dos pasos no está habilitada.
             </div>
 
-            <div class="max-w-xl text-sm text-gray-600 space-y-4">
+            <div class="max-w-xl text-sm text-gray-600 dark:text-gray-400 space-y-4">
                 <p>
                     Cuando la autenticación de dos pasos está habilitada, se pedirá un token seguro durante el inicio de sesión. Puedes usar aplicaciones como Google Authenticator, Authy o Apple Keychain.
-                    <br>Descargar Google Authenticator <a target="_blank" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=es&pli=1">Google Play</a> o <a target="_blank" href="https://apps.apple.com/us/app/google-authenticator/id388497605">App Store</a>
+                    <br>Descargar Google Authenticator <a target="_blank" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=es&pli=1" class="text-blue-500 hover:underline">Google Play</a> o <a target="_blank" href="https://apps.apple.com/us/app/google-authenticator/id388497605" class="text-blue-500 hover:underline">App Store</a>
                 </p>
             </div>
 
-            <div v-if="confirming" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <p class="text-sm font-bold text-gray-800 mb-4">
+            <div v-if="confirming" class="mt-6 p-4 bg-gray-50 dark:bg-zinc-950 rounded-lg border border-gray-200 dark:border-zinc-800">
+                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4">
                     1. Escanea este código QR con tu aplicación:
                 </p>
                 <div class="p-2 bg-white inline-block rounded shadow-sm mb-4" v-html="qrCode"></div>
                 
-                <p class="text-sm font-bold text-gray-800 mb-2">
+                <p class="text-sm font-bold text-gray-800 dark:text-gray-200 mb-2">
                     2. Ingresa el código de 6 dígitos que aparece en tu app:
                 </p>
                 <div class="max-w-xs">
@@ -124,15 +124,15 @@ const cancelConfirmation = () => {
             </div>
 
             <div v-if="recoveryCodes.length > 0" class="mt-6">
-                <div class="p-4 bg-red-50 border border-red-100 rounded-lg">
-                    <p class="text-sm font-bold text-red-800 mb-2">
+                <div class="p-4 bg-red-50 dark:bg-rose-900/20 border border-red-100 dark:border-rose-900/30 rounded-lg">
+                    <p class="text-sm font-bold text-red-800 dark:text-rose-300 mb-2">
                         Códigos de Recuperación
                     </p>
-                    <p class="text-xs text-red-600 mb-4">
+                    <p class="text-xs text-red-600 dark:text-rose-400 mb-4">
                         Guarda estos códigos en un lugar seguro. Solo se mostrarán una vez.
                     </p>
-                    <div class="grid grid-cols-2 gap-2 font-mono text-xs text-red-900">
-                        <div v-for="code in recoveryCodes" :key="code.code || code" class="bg-white/50 p-1 rounded">
+                    <div class="grid grid-cols-2 gap-2 font-mono text-xs text-red-900 dark:text-rose-200">
+                        <div v-for="code in recoveryCodes" :key="code.code || code" class="bg-white/50 dark:bg-zinc-900/50 p-1 rounded">
                             {{ typeof code === 'object' ? code.code : code }}
                         </div>
                     </div>
@@ -167,11 +167,11 @@ const cancelConfirmation = () => {
         </div>
 
         <Modal :show="disabling" @close="disabling = false">
-            <div class="p-6">
-                <h2 class="text-lg font-medium text-gray-900">
+            <div class="p-6 bg-white dark:bg-zinc-900 rounded-2xl">
+                <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
                     ¿Desactivar autenticación de dos pasos?
                 </h2>
-                <p class="mt-1 text-sm text-gray-600">
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
                     Para confirmar, ingresa tu contraseña actual.
                 </p>
                 <div class="mt-6">

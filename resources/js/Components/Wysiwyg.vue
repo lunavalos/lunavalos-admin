@@ -64,8 +64,8 @@ watch(() => props.modelValue, (newVal) => {
 </script>
 
 <template>
-    <div class="wysiwyg-container bg-white rounded-xl overflow-hidden border border-gray-300 focus-within:border-[#264ab3] transition-all">
-        <div ref="editor" class="min-h-[150px] text-gray-700"></div>
+    <div class="wysiwyg-container bg-white dark:bg-zinc-950 rounded-xl overflow-hidden border border-gray-300 dark:border-zinc-800 focus-within:border-[#264ab3] transition-all">
+        <div ref="editor" class="min-h-[150px] text-gray-700 dark:text-gray-200"></div>
     </div>
 </template>
 
@@ -75,6 +75,19 @@ watch(() => props.modelValue, (newVal) => {
     border-bottom: 1px solid #f3f4f6 !important;
     background-color: #f9fafb !important;
     padding: 8px !important;
+}
+.dark .ql-toolbar.ql-snow {
+    border-bottom: 1px solid #334155 !important;
+    background-color: #1e293b !important;
+}
+.dark .ql-toolbar.ql-snow .ql-stroke {
+    stroke: #94a3b8 !important;
+}
+.dark .ql-toolbar.ql-snow .ql-fill {
+    fill: #94a3b8 !important;
+}
+.dark .ql-toolbar.ql-snow .ql-picker {
+    color: #94a3b8 !important;
 }
 .ql-container.ql-snow {
     border: none !important;
@@ -88,5 +101,11 @@ watch(() => props.modelValue, (newVal) => {
 .ql-editor.ql-blank::before {
     color: #9ca3af !important;
     font-style: normal !important;
+}
+.dark .ql-editor.ql-blank::before {
+    color: #64748b !important;
+}
+.dark .ql-editor {
+    color: #e2e8f0 !important;
 }
 </style>
