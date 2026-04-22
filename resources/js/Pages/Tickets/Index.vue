@@ -460,6 +460,14 @@ const deleteTicket = (ticketId) => {
     background: #cbd5e1;
 }
 
+/* Dark Mode Scroller */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #52525b;
+}
+
 /* Glassmorphism subtle effect for column headers */
 .backdrop-blur-sm {
     backdrop-filter: blur(4px);
