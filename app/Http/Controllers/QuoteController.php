@@ -35,6 +35,7 @@ class QuoteController extends Controller
     public function store(Request $request)
     {
         $request->validate([
+            'client_id' => 'nullable|exists:clients,id',
             'client_name' => 'required|string|max:255',
             'contact_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
@@ -61,6 +62,7 @@ class QuoteController extends Controller
 
         $quote = DB::transaction(function () use ($request) {
             $quote = Quote::create([
+                'client_id' => $request->client_id,
                 'client_name' => $request->client_name,
                 'contact_name' => $request->contact_name,
                 'phone' => $request->phone,
@@ -127,6 +129,7 @@ class QuoteController extends Controller
     public function update(Request $request, Quote $quote)
     {
         $request->validate([
+            'client_id' => 'nullable|exists:clients,id',
             'client_name' => 'required|string|max:255',
             'contact_name' => 'nullable|string|max:255',
             'phone' => 'nullable|string|max:50',
@@ -154,6 +157,7 @@ class QuoteController extends Controller
 
         DB::transaction(function () use ($request, $quote) {
             $quote->update([
+                'client_id' => $request->client_id,
                 'client_name' => $request->client_name,
                 'contact_name' => $request->contact_name,
                 'phone' => $request->phone,
@@ -229,6 +233,23 @@ class QuoteController extends Controller
         ]);
 
         $quote->update(['status' => $request->status]);
+
+        // Si se completa y tiene un cliente asociado, agregar servicios al expediente del cliente
+        if ($request->status === 'Completada' && $quote->client_id) {
+            $client = Client::find($quote->client_id);
+            if ($client) {
+                foreach ($quote->items as $item) {
+                    $client->services()->create([
+                        'service_id' => $item->service_id,
+                        'service_name' => $item->concept,
+                        'renewal_date' => now()->addYear(), // Default renewal date
+                        'renewal_amount' => $item->unit_price,
+                        'billing_type' => $item->billing_type === 'unique' ? 'once' : ($item->billing_type === 'monthly' ? 'monthly' : 'annual'),
+                        'status' => 'active',
+                    ]);
+                }
+            }
+        }
 
         return redirect()->back()->with('message', 'Estado de la cotización actualizado.');
     }

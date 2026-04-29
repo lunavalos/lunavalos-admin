@@ -22,121 +22,133 @@ class FinanceController extends Controller implements HasMiddleware
         ];
     }
 
+    /**
+     * Para servicios mensuales, la renewal_date almacena la fecha límite anual del contrato.
+     * El cobro ocurre cada mes en el mismo día (día de renewal_date), hasta llegar a esa fecha.
+     * Este helper calcula la próxima fecha de cobro mensual a partir de hoy.
+     */
+    private function getNextMonthlyOccurrence(\Carbon\Carbon $renewalDate): ?\Carbon\Carbon
+    {
+        $today       = Carbon::today();
+        $dayOfMonth  = (int) $renewalDate->format('d');
+
+        // Si el contrato anual ya venció, no hay próxima ocurrencia
+        if ($renewalDate->lt($today)) {
+            return null;
+        }
+
+        // Intentar en el mes actual
+        $candidate = Carbon::today()->startOfMonth()->addDays($dayOfMonth - 1);
+        // Si ya pasó en este mes, saltar al próximo
+        if ($candidate->lt($today)) {
+            $candidate->addMonth();
+        }
+        // Asegurarse de que la ocurrencia no supere la fecha de renovación anual
+        if ($candidate->gt($renewalDate)) {
+            return $renewalDate;
+        }
+
+        return $candidate;
+    }
+
     public function index(Request $request)
     {
         $range = $request->query('range', 'default');
+        $today = Carbon::today();
 
-        $query = Client::whereNotNull('next_renewal_date');
+        // Cargar todos los servicios activos con renewal_date para procesarlos en PHP
+        // (los mensuales necesitan cálculo de próxima ocurrencia, no filtro SQL directo)
+        $allActiveServices = \App\Models\ClientService::
+            with('client')
+            ->whereNotNull('renewal_date')
+            ->where('status', 'active')
+            ->get();
 
-        if ($range === 'this_month') {
-            $query->whereMonth('next_renewal_date', Carbon::now()->month)
-                  ->whereYear('next_renewal_date', Carbon::now()->year);
-        } elseif ($range === 'next_30_days') {
-            $query->whereBetween('next_renewal_date', [Carbon::today(), Carbon::today()->addDays(30)]);
-        } elseif ($range === 'next_month') {
-            $query->whereMonth('next_renewal_date', Carbon::now()->addMonth()->month)
-                  ->whereYear('next_renewal_date', Carbon::now()->addMonth()->year);
-        } elseif ($range === 'all') {
-            // No additional date filters
-        } else {
-            $query->whereBetween('next_renewal_date', [Carbon::today()->subDays(15), Carbon::today()->addDays(45)]);
-        }
-
-        $upcomingRenewals = $query->orderBy('next_renewal_date', 'asc')->get();
-
-        $splitRenewals = [];
-
-        foreach ($upcomingRenewals as $client) {
-            if ($client->package_services) {
-                $servicesList = array_map('trim', explode('+', $client->package_services));
-
-                foreach ($servicesList as $sName) {
-                    $srv = \App\Models\Service::where('name', $sName)->first();
-
-                    $rowAmount = 0;
-                    if ($srv) {
-                        $rowAmount = ($srv->billing_type === 'monthly') ? $srv->price : $srv->renewal_price;
-                    } else {
-                        $rowAmount = count($servicesList) == 1 ? $client->renewal_amount : 0;
-                    }
-
-                    $splitRenewals[] = [
-                        'client_id'        => $client->id,
-                        'business_name'    => $client->business_name,
-                        'contact_name'     => $client->contact_name,
-                        'email'            => $client->email,
-                        'service_name'     => collect([$sName])->filter()->first() ?: 'Servicio General',
-                        'next_renewal_date'=> $client->next_renewal_date,
-                        'renewal_amount'   => $rowAmount,
-                        'billing_type'     => $srv ? $srv->billing_type : 'unique',
-                    ];
-                }
+        // Enriquecer cada servicio con su próxima fecha de cobro efectiva
+        $enriched = $allActiveServices->map(function ($cs) {
+            $next = null;
+            if ($cs->billing_type === 'monthly') {
+                $next = $this->getNextMonthlyOccurrence($cs->renewal_date);
             } else {
-                $splitRenewals[] = [
-                    'client_id'        => $client->id,
-                    'business_name'    => $client->business_name,
-                    'contact_name'     => $client->contact_name,
-                    'email'            => $client->email,
-                    'service_name'     => 'Renovación de Cuenta',
-                    'next_renewal_date'=> $client->next_renewal_date,
-                    'renewal_amount'   => $client->renewal_amount,
-                    'billing_type'     => 'unique',
-                ];
+                $next = $cs->renewal_date;
             }
+            $cs->next_billing_date = $next; // propiedad virtual
+            return $cs;
+        })->filter(fn($cs) => $cs->next_billing_date !== null);
+
+        // Filtrar según el rango solicitado
+        if ($range === 'this_month') {
+            $start = Carbon::now()->startOfMonth();
+            $end   = Carbon::now()->endOfMonth();
+            $filtered = $enriched->filter(fn($cs) => $cs->next_billing_date->between($start, $end));
+        } elseif ($range === 'next_30_days') {
+            $filtered = $enriched->filter(fn($cs) => $cs->next_billing_date->between($today, $today->copy()->addDays(30)));
+        } elseif ($range === 'next_month') {
+            $start = Carbon::now()->addMonth()->startOfMonth();
+            $end   = Carbon::now()->addMonth()->endOfMonth();
+            $filtered = $enriched->filter(fn($cs) => $cs->next_billing_date->between($start, $end));
+        } elseif ($range === 'all') {
+            $filtered = $enriched;
+        } else {
+            // Default: -15 días a +45 días
+            $filtered = $enriched->filter(fn($cs) => $cs->next_billing_date->between($today->copy()->subDays(15), $today->copy()->addDays(45)));
         }
 
-        usort($splitRenewals, function ($a, $b) {
-            return Carbon::parse($a['next_renewal_date'])->diffInDays(Carbon::parse($b['next_renewal_date']), false);
-        });
+        $upcomingServices = $filtered->sortBy(fn($cs) => $cs->next_billing_date)->values();
+
+        $splitRenewals = $upcomingServices->map(function ($cs) {
+            return [
+                'client_id'        => $cs->client_id,
+                'business_name'    => $cs->client->business_name ?? 'N/A',
+                'contact_name'     => $cs->client->contact_name ?? 'N/A',
+                'email'            => $cs->client->email ?? 'N/A',
+                'service_name'     => $cs->service_name,
+                'next_renewal_date'=> $cs->next_billing_date,
+                'renewal_amount'   => (float)$cs->renewal_amount,
+                'billing_type'     => $cs->billing_type ?? 'renewable',
+            ];
+        })->toArray();
 
         // ─── KPIs ────────────────────────────────────────────────────────────────
-        $allClients = Client::whereNotNull('next_renewal_date')->get();
+        // Reutilizamos $enriched que ya tiene next_billing_date calculado
+        $allServices  = $enriched; // colección ya enriquecida con next_billing_date
 
-        $today        = Carbon::today();
         $startOfMonth = Carbon::now()->startOfMonth();
         $endOfMonth   = Carbon::now()->endOfMonth();
 
-        // Ingresos del mes en curso
-        $incomeThisMonth = $allClients->filter(function ($c) use ($startOfMonth, $endOfMonth) {
-            $d = Carbon::parse($c->next_renewal_date);
-            return $d->between($startOfMonth, $endOfMonth);
+        // Ingresos del mes en curso (usando próxima fecha de cobro efectiva)
+        $incomeThisMonth = $allServices->filter(function ($s) use ($startOfMonth, $endOfMonth) {
+            return $s->next_billing_date->between($startOfMonth, $endOfMonth);
         })->sum('renewal_amount');
 
         // Ingresos próximos 30 días
-        $incomeNext30 = $allClients->filter(function ($c) use ($today) {
-            $d = Carbon::parse($c->next_renewal_date);
-            return $d->between($today, $today->copy()->addDays(30));
+        $incomeNext30 = $allServices->filter(function ($s) use ($today) {
+            return $s->next_billing_date->between($today, $today->copy()->addDays(30));
         })->sum('renewal_amount');
 
-        // Clientes activos (renovación futura o presente)
-        $activeClients = $allClients->filter(function ($c) use ($today) {
-            return Carbon::parse($c->next_renewal_date)->gte($today);
+        // Servicios activos (próxima fecha de cobro futura o presente)
+        $activeServicesCount = $allServices->filter(function ($s) use ($today) {
+            return $s->next_billing_date->gte($today);
         })->count();
 
-        // Clientes vencidos
-        $overdueClients = $allClients->filter(function ($c) use ($today) {
-            return Carbon::parse($c->next_renewal_date)->lt($today);
-        })->count();
+        // Servicios vencidos (aquellos cuya renewal_date original ya pasó y no son mensuales)
+        $overdueServicesCount = \App\Models\ClientService::whereNotNull('renewal_date')
+            ->where('status', 'active')
+            ->where('billing_type', '!=', 'monthly')
+            ->where('renewal_date', '<', $today)
+            ->count();
 
-        // Ingreso anual proyectado (anualizar mensuales x12, únicos x1)
-        $annualProjected = 0;
-        foreach ($allClients as $client) {
-            if ($client->package_services) {
-                $servicesList = array_map('trim', explode('+', $client->package_services));
-                foreach ($servicesList as $sName) {
-                    $srv = \App\Models\Service::where('name', $sName)->first();
-                    if ($srv) {
-                        $annualProjected += ($srv->billing_type === 'monthly')
-                            ? $srv->price * 12
-                            : $srv->renewal_price;
-                    }
-                }
-            } else {
-                $annualProjected += $client->renewal_amount ?? 0;
-            }
-        }
+        // Ingreso anual proyectado basado en frecuencia
+        $annualProjected = $allServices->sum(function ($s) {
+            return match ($s->billing_type) {
+                'monthly' => (float)$s->renewal_amount * 12,
+                'annual'  => (float)$s->renewal_amount,
+                'once'    => 0, // Pagos únicos no son recurrentes proyectados
+                default   => (float)$s->renewal_amount,
+            };
+        });
 
-        // Costos internos totales anualizados (servicios contratados por cliente)
+        // Costos internos totales anualizados
         $allCosts = ClientCost::all();
         $totalServiceCostsAnnual = $allCosts->sum(function ($cost) {
             return match ($cost->billing_frequency) {
@@ -155,6 +167,12 @@ class FinanceController extends Controller implements HasMiddleware
         $netProfitEstimated = $annualProjected - $totalCostsAnnual;
 
         // ─── GRÁFICA 1: Ingresos mensuales (últimos 12 meses + próximos 6) ──────
+        // Para la gráfica necesitamos considerar que los servicios mensuales
+        // tienen un cobro por cada mes dentro del rango (hasta renewal_date)
+        $allRawServices = \App\Models\ClientService::whereNotNull('renewal_date')
+            ->where('status', 'active')
+            ->get();
+
         $monthlyIncome = [];
         for ($i = -11; $i <= 5; $i++) {
             $month        = Carbon::now()->addMonths($i);
@@ -162,38 +180,39 @@ class FinanceController extends Controller implements HasMiddleware
             $monthStart   = $month->copy()->startOfMonth();
             $monthEnd     = $month->copy()->endOfMonth();
 
-            $income = $allClients->filter(function ($c) use ($monthStart, $monthEnd) {
-                $d = Carbon::parse($c->next_renewal_date);
-                return $d->between($monthStart, $monthEnd);
-            })->sum('renewal_amount');
+            $income = $allRawServices->sum(function ($s) use ($monthStart, $monthEnd) {
+                if ($s->billing_type === 'monthly') {
+                    // El servicio mensual cobra este mes si:
+                    // 1. El contrato (renewal_date) aún no ha vencido al inicio del mes
+                    // 2. El mes está dentro del periodo del contrato
+                    $dayOfMonth = (int) $s->renewal_date->format('d');
+                    $billingDay = $monthStart->copy()->addDays($dayOfMonth - 1);
+                    // Ajustar si el día no existe en ese mes
+                    if ($billingDay->month !== $monthStart->month) {
+                        $billingDay = $monthEnd->copy();
+                    }
+                    if ($billingDay->between($monthStart, $monthEnd) && $billingDay->lte($s->renewal_date)) {
+                        return (float) $s->renewal_amount;
+                    }
+                    return 0;
+                }
+                // Para servicios no mensuales, usar renewal_date directamente
+                return $s->renewal_date->between($monthStart, $monthEnd) ? (float) $s->renewal_amount : 0;
+            });
 
             $monthlyIncome[] = [
-                'label'  => $label,
-                'income' => round((float) $income, 2),
-                'isPast' => $i < 0,
+                'label'     => $label,
+                'income'    => round((float) $income, 2),
+                'isPast'    => $i < 0,
                 'isCurrent' => $i === 0,
             ];
         }
 
         // ─── GRÁFICA 2: Distribución por servicio ────────────────────────────────
-        $serviceDistribution = [];
-        foreach ($allClients as $client) {
-            if ($client->package_services) {
-                $servicesList = array_map('trim', explode('+', $client->package_services));
-                foreach ($servicesList as $sName) {
-                    $srv       = \App\Models\Service::where('name', $sName)->first();
-                    $amount    = 0;
-                    if ($srv) {
-                        $amount = ($srv->billing_type === 'monthly') ? $srv->price : $srv->renewal_price;
-                    }
-                    $key = trim($sName) ?: 'Sin servicio';
-                    $serviceDistribution[$key] = ($serviceDistribution[$key] ?? 0) + $amount;
-                }
-            } else {
-                $key = 'Renovación General';
-                $serviceDistribution[$key] = ($serviceDistribution[$key] ?? 0) + ($client->renewal_amount ?? 0);
-            }
-        }
+        $serviceDistribution = $allServices->groupBy('service_name')
+            ->map(function ($group) {
+                return $group->sum('renewal_amount');
+            })->toArray();
         arsort($serviceDistribution);
 
         // ─── GRÁFICA 3: Ingresos vs Costos por mes (últimos 12 meses) ────────────
@@ -204,12 +223,21 @@ class FinanceController extends Controller implements HasMiddleware
             $monthStart = $month->copy()->startOfMonth();
             $monthEnd   = $month->copy()->endOfMonth();
 
-            $income = $allClients->filter(function ($c) use ($monthStart, $monthEnd) {
-                $d = Carbon::parse($c->next_renewal_date);
-                return $d->between($monthStart, $monthEnd);
-            })->sum('renewal_amount');
+            $income = $allRawServices->sum(function ($s) use ($monthStart, $monthEnd) {
+                if ($s->billing_type === 'monthly') {
+                    $dayOfMonth = (int) $s->renewal_date->format('d');
+                    $billingDay = $monthStart->copy()->addDays($dayOfMonth - 1);
+                    if ($billingDay->month !== $monthStart->month) {
+                        $billingDay = $monthEnd->copy();
+                    }
+                    if ($billingDay->between($monthStart, $monthEnd) && $billingDay->lte($s->renewal_date)) {
+                        return (float) $s->renewal_amount;
+                    }
+                    return 0;
+                }
+                return $s->renewal_date->between($monthStart, $monthEnd) ? (float) $s->renewal_amount : 0;
+            });
 
-            // Costos de servicios internos mensualizados
             $costsServices = $allCosts->sum(function ($cost) {
                 return match ($cost->billing_frequency) {
                     'monthly'  => $cost->amount,
@@ -230,12 +258,12 @@ class FinanceController extends Controller implements HasMiddleware
             ];
         }
 
-        // ─── GRÁFICA 4: Estado de clientes ───────────────────────────────────────
+        // ─── GRÁFICA 4: Estado de servicios ───────────────────────────────────────
         $soonThreshold = Carbon::today()->addDays(30);
         $clientStatus  = [
-            'Al corriente'       => $allClients->filter(fn($c) => Carbon::parse($c->next_renewal_date)->gt($soonThreshold))->count(),
-            'Por vencer (30d)'   => $allClients->filter(fn($c) => Carbon::parse($c->next_renewal_date)->between($today, $soonThreshold))->count(),
-            'Vencidos'           => $overdueClients,
+            'Al corriente'       => $allServices->filter(fn($s) => $s->next_billing_date->gt($soonThreshold))->count(),
+            'Por vencer (30d)'   => $allServices->filter(fn($s) => $s->next_billing_date->between($today, $soonThreshold))->count(),
+            'Vencidos'           => $overdueServicesCount,
         ];
 
         return Inertia::render('Finances/Index', [
@@ -245,8 +273,8 @@ class FinanceController extends Controller implements HasMiddleware
                 'income_this_month'    => round((float) $incomeThisMonth, 2),
                 'income_next_30'       => round((float) $incomeNext30, 2),
                 'annual_projected'     => round((float) $annualProjected, 2),
-                'active_clients'       => $activeClients,
-                'overdue_clients'      => $overdueClients,
+                'active_clients'       => $activeServicesCount, // Keep the key name for frontend compatibility
+                'overdue_clients'      => $overdueServicesCount,
                 'net_profit_estimated' => round((float) $netProfitEstimated, 2),
                 'monthly_payroll'      => round((float) $monthlyPayroll, 2),
             ],

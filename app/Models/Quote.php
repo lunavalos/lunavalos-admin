@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Quote extends Model
 {
     protected $fillable = [
+        'client_id',
         'client_name',
         'contact_name',
         'phone',
@@ -62,6 +63,6 @@ class Quote extends Model
 
     public function client()
     {
-        return $this->hasOne(Client::class);
+        return $this->belongsTo(Client::class);
     }
 }

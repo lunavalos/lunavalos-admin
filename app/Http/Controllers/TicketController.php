@@ -6,23 +6,23 @@ use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
 use App\Models\Client;
+use App\Models\ClientService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Notifications\TicketNotification;
-use Illuminate\Support\Facades\Notification;
 
 class TicketController extends Controller
 {
     public function index()
     {
         $user = Auth::user();
-        $query = Ticket::with(['creator.client', 'assigned', 'messages.user', 'client']);
+        $query = Ticket::with(['creator.client', 'assigned', 'messages.user', 'client', 'clientService']);
 
         if ($user->hasRole('Cliente')) {
             $tickets = Ticket::where('creator_id', $user->id)
-                ->with(['assigned', 'messages'])
+                ->with(['assigned', 'messages', 'clientService'])
                 ->latest()
                 ->get();
 
@@ -33,33 +33,34 @@ class TicketController extends Controller
 
         $tickets = $query->latest()->get();
 
-        // Prepare users who can be assigned
-        $rolesToShow = ['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'];
-        if ($user->hasAnyRole(['Administrador', 'Administrador Master'])) {
-            $rolesToShow[] = 'Cliente';
-        }
-        $assignableUsers = User::role($rolesToShow)->orderBy('name')->get();
+        // Solo usuarios internos pueden ser asignados — los clientes usan ClientIndex.vue
+        $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])
+            ->orderBy('name')
+            ->get();
 
-        // Fetch clients for the dropdown
-        $clients = Client::orderBy('business_name')->get();
+        // Fetch clients with their active services for the dropdown
+        $clients = Client::with(['services' => function ($q) {
+            $q->where('status', 'active')->orderBy('service_name');
+        }])->orderBy('business_name')->get();
 
         return Inertia::render('Tickets/Index', [
-            'tickets' => $tickets,
+            'tickets'         => $tickets,
             'assignableUsers' => $assignableUsers,
-            'clients' => $clients,
+            'clients'         => $clients,
         ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required|string|max:255',
-            'priority' => 'required|string',
-            'content' => 'nullable|string',
-            'assigned_id' => 'nullable|exists:users,id',
-            'due_date' => 'nullable|date',
-            'client_id' => 'nullable|exists:clients,id',
-            'files.*' => 'nullable|file|max:10240', // 10MB per file
+            'title'             => 'required|string|max:255',
+            'priority'          => 'required|string',
+            'content'           => 'nullable|string',
+            'assigned_id'       => 'nullable|exists:users,id',
+            'due_date'          => 'nullable|date',
+            'client_id'         => 'nullable|exists:clients,id',
+            'client_service_id' => 'nullable|exists:client_services,id',
+            'files.*'           => 'nullable|file|max:10240',
         ]);
 
         $clientId = $request->client_id;
@@ -68,14 +69,15 @@ class TicketController extends Controller
         }
 
         $ticket = Ticket::create([
-            'title' => $request->title,
-            'priority' => $request->priority,
-            'content' => $request->input('content'),
-            'creator_id' => Auth::id(),
-            'assigned_id' => $request->assigned_id,
-            'client_id' => $clientId,
-            'due_date' => $request->due_date,
-            'status' => $request->assigned_id ? 'En Proceso' : 'Nuevos',
+            'title'             => $request->title,
+            'priority'          => $request->priority,
+            'content'           => $request->input('content'),
+            'creator_id'        => Auth::id(),
+            'assigned_id'       => $request->assigned_id,
+            'client_id'         => $clientId,
+            'client_service_id' => $request->client_service_id,
+            'due_date'          => $request->due_date,
+            'status'            => $request->assigned_id ? 'En Proceso' : 'Nuevos',
         ]);
 
         if ($request->hasFile('files')) {
@@ -88,13 +90,13 @@ class TicketController extends Controller
             }
         }
 
-        // Notify Admins
-        $admins = User::role(['Administrador', 'Administrador Master'])->get();
-        Notification::send($admins, new TicketNotification($ticket, 'created', 'Se ha creado un nuevo ticket: ' . $ticket->title));
-
-        // Notify Assigned User
+        // Notificar solo al usuario asignado (si existe y es distinto al creador)
         if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id()) {
-            $ticket->assigned->notify(new TicketNotification($ticket, 'assigned', 'Te han asignado un nuevo ticket: ' . $ticket->title));
+            $ticket->assigned->notify(new TicketNotification(
+                $ticket,
+                'assigned',
+                'Te han asignado un nuevo ticket: ' . $ticket->title
+            ));
         }
 
         return redirect()->back()->with('success', 'Ticket creado correctamente.');
@@ -118,10 +120,31 @@ class TicketController extends Controller
             $ticket->assigned_id = $ticket->creator_id;
         }
 
+        // Automatically record work_finished_at when moving to "Completados"
+        if ($ticket->status === 'Completados' && $oldStatus !== 'Completados') {
+            if ($ticket->work_started_at && !$ticket->work_finished_at) {
+                $ticket->work_finished_at = now();
+            }
+        }
+
         $ticket->save();
 
         if ($oldStatus !== $ticket->status) {
             $message = "El ticket #{$ticket->id} cambió a: {$ticket->status}";
+
+            // Log system message in the conversation
+            $statusEmojis = [
+                'Nuevos'      => '📥',
+                'En Proceso'  => '⚡',
+                'En Revisión' => '🔍',
+                'Ajustes'     => '🔧',
+                'Completados' => '✅',
+            ];
+            $emoji = $statusEmojis[$ticket->status] ?? '🔄';
+            $ticket->messages()->create([
+                'user_id' => null,
+                'message' => "{$emoji} " . Auth::user()->name . " cambió el estatus a: <strong>{$ticket->status}</strong>",
+            ]);
 
             // Notify participants
             if ($ticket->creator_id !== Auth::id()) {
@@ -197,7 +220,28 @@ class TicketController extends Controller
                 $ticket->assigned_id = $ticket->creator_id;
             }
 
+            // Automatically record work_finished_at when moving to "Completados"
+            if ($ticket->status === 'Completados' && $oldStatus !== 'Completados') {
+                if ($ticket->work_started_at && !$ticket->work_finished_at) {
+                    $ticket->work_finished_at = now();
+                }
+            }
+
             $ticket->save();
+
+            // Log system message in the conversation for the status change
+            $statusEmojis = [
+                'Nuevos'      => '📥',
+                'En Proceso'  => '⚡',
+                'En Revisión' => '🔍',
+                'Ajustes'     => '🔧',
+                'Completados' => '✅',
+            ];
+            $emoji = $statusEmojis[$ticket->status] ?? '🔄';
+            $ticket->messages()->create([
+                'user_id' => null,
+                'message' => "{$emoji} " . Auth::user()->name . " cambió el estatus a: <strong>{$ticket->status}</strong>",
+            ]);
 
             // Notify status change separately
             $statusMsg = "El ticket #{$ticket->id} cambió a: {$ticket->status}";
@@ -226,7 +270,7 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket)
     {
-        $ticket->load(['creator.client', 'assigned', 'messages.user', 'attachments', 'client']);
+        $ticket->load(['creator.client', 'assigned', 'messages.user', 'attachments', 'client.services', 'clientService']);
 
         $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get();
 
@@ -235,9 +279,19 @@ class TicketController extends Controller
             $assignableUsers->push($ticket->creator);
         }
 
+        // Servicios activos del cliente vinculado (para el selector inline)
+        $clientServices = [];
+        if ($ticket->client) {
+            $clientServices = $ticket->client->services()
+                ->where('status', 'active')
+                ->orderBy('service_name')
+                ->get();
+        }
+
         return Inertia::render('Tickets/Show', [
-            'ticket' => $ticket,
+            'ticket'          => $ticket,
             'assignableUsers' => $assignableUsers,
+            'clientServices'  => $clientServices,
         ]);
     }
 
@@ -245,7 +299,7 @@ class TicketController extends Controller
     {
         $user = Auth::user();
 
-        // Admin can delete anytime
+        // Admin can soft-delete anytime
         $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
 
         // Client can only delete their own tickets AND if not assigned yet
@@ -253,10 +307,97 @@ class TicketController extends Controller
         $isNotAssigned = is_null($ticket->assigned_id);
 
         if ($isAdmin || ($isOwner && $isNotAssigned)) {
-            $ticket->delete();
-            return redirect()->route('tickets.index')->with('success', 'Ticket eliminado correctamente.');
+            $ticket->delete(); // SoftDelete: moves to trash
+            return redirect()->route('tickets.index')->with('success', 'Ticket movido a la papelera.');
         }
 
         return redirect()->back()->with('error', 'No tienes permisos para eliminar este ticket o ya ha sido asignado.');
     }
+
+    public function startWork(Ticket $ticket)
+    {
+        $user = Auth::user();
+
+        // Only the assigned user can start the work timer
+        if ($ticket->assigned_id !== $user->id) {
+            return redirect()->back()->with('error', 'Solo el usuario asignado puede iniciar el temporizador de trabajo.');
+        }
+
+        // Only set once — don't allow resetting if already started
+        if ($ticket->work_started_at) {
+            return redirect()->back()->with('error', 'El trabajo ya fue iniciado previamente.');
+        }
+
+        $ticket->work_started_at = now();
+        $ticket->saveQuietly(); // avoid triggering status_updated_at observer
+
+        // Log a system message in the conversation
+        $ticket->messages()->create([
+            'user_id' => null,
+            'message' => '⏱️ ' . $user->name . ' inició el trabajo en este ticket.',
+        ]);
+
+        return redirect()->back()->with('success', 'Trabajo iniciado.');
+    }
+
+    public function updateService(Request $request, Ticket $ticket)
+    {
+        $request->validate([
+            'client_service_id' => 'nullable|exists:client_services,id',
+        ]);
+
+        $ticket->client_service_id = $request->client_service_id;
+        $ticket->save();
+
+        return redirect()->back()->with('success', 'Servicio vinculado correctamente.');
+    }
+
+    public function trash()
+    {
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+
+        if (!$isAdmin) {
+            return redirect()->route('tickets.index')->with('error', 'No tienes permisos para ver la papelera.');
+        }
+
+        $trashedTickets = Ticket::onlyTrashed()
+            ->with(['creator.client', 'assigned', 'client'])
+            ->latest('deleted_at')
+            ->get();
+
+        return Inertia::render('Tickets/Trash', [
+            'trashedTickets' => $trashedTickets,
+        ]);
+    }
+
+    public function restore($id)
+    {
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+
+        if (!$isAdmin) {
+            return redirect()->back()->with('error', 'No tienes permisos para restaurar tickets.');
+        }
+
+        $ticket = Ticket::onlyTrashed()->findOrFail($id);
+        $ticket->restore();
+
+        return redirect()->back()->with('success', 'Ticket restaurado correctamente.');
+    }
+
+    public function emptyTrash()
+    {
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+
+        if (!$isAdmin) {
+            return redirect()->back()->with('error', 'No tienes permisos para vaciar la papelera.');
+        }
+
+        Ticket::onlyTrashed()->forceDelete();
+
+        return redirect()->back()->with('success', 'Papelera vaciada correctamente.');
+    }
 }
+

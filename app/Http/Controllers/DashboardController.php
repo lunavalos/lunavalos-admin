@@ -19,8 +19,9 @@ class DashboardController extends Controller
         if ($isAdmin) {
             // Stats for Admin
             $clientsCount = Client::count();
-            $monthlyRevenue = Client::whereMonth('next_renewal_date', Carbon::now()->month)
-                ->whereYear('next_renewal_date', Carbon::now()->year)
+            $monthlyRevenue = \App\Models\ClientService::whereMonth('renewal_date', Carbon::now()->month)
+                ->whereYear('renewal_date', Carbon::now()->year)
+                ->where('status', 'active')
                 ->sum('renewal_amount');
 
             // Proyección Cotizaciones (Únicos y Mensuales)
@@ -96,29 +97,26 @@ class DashboardController extends Controller
                         ];
                     } else {
                         // Fallback: Try to find a service that matches the package_services name
-                        $fallbackDescription = $client->notes;
-                        if (empty($fallbackDescription) && !empty($client->package_services)) {
-                            $matchingService = \App\Models\Service::where('name', $client->package_services)->first();
-                            if ($matchingService) {
-                                $fallbackDescription = $matchingService->description;
-                            }
-                        }
+                        $client->load('services.service');
+                        
+                        $servicesItems = $client->services->map(function($cs) {
+                            return [
+                                'id' => $cs->id,
+                                'concept' => $cs->service_name,
+                                'description' => $cs->service->description ?? 'Servicio contratado.',
+                                'is_fallback' => false,
+                                'initial_price' => 0, // We focus on renewal here
+                                'renewal_price' => $cs->renewal_amount,
+                                'renewal_date' => $cs->renewal_date
+                            ];
+                        });
 
                         $planDetails = [
-                            'items' => [
-                                [
-                                    'id' => 'fallback',
-                                    'concept' => 'Plan de Servicios: ' . ($client->package_services ?: 'Servicios Contratados'),
-                                    'description' => $fallbackDescription ?: 'Servicios incluidos según contrato firmado.',
-                                    'is_fallback' => true,
-                                    'initial_price' => $client->initial_price,
-                                    'renewal_price' => $client->renewal_amount
-                                ]
-                            ],
+                            'items' => $servicesItems->toArray(),
                             'business_name' => $client->business_name,
                             'total_initial' => $client->initial_price,
-                            'total_renewal' => $client->renewal_amount,
-                            'next_renewal_date' => $client->next_renewal_date
+                            'total_renewal' => $client->services->sum('renewal_amount'),
+                            'next_renewal_date' => $client->services->sortBy('renewal_date')->first()?->renewal_date ?: $client->next_renewal_date
                         ];
                     }
                 }

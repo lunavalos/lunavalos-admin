@@ -26,6 +26,7 @@ class User extends Authenticatable implements TwoFactorContract
         'password',
         'profile_photo_path',
         'vault_credentials',
+        'client_id',
     ];
 
     /**
@@ -60,9 +61,10 @@ class User extends Authenticatable implements TwoFactorContract
         ];
     }
 
+    /** A client user belongs to a specific client company (one client → many users). */
     public function client()
     {
-        return $this->hasOne(Client::class);
+        return $this->belongsTo(Client::class);
     }
 
     public function employee()

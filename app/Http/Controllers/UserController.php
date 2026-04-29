@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -43,25 +44,27 @@ class UserController extends Controller implements HasMiddleware
 
     public function create()
     {
-        $roles = Role::all();
         return Inertia::render('Users/Create', [
-            'roles' => $roles
+            'roles'   => Role::all(),
+            'clients' => Client::orderBy('business_name')->get(['id', 'business_name']),
         ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
-            'password' => 'required|string|min:8',
-            'roles' => 'array'
+            'name'      => 'required|string|max:255',
+            'email'     => 'required|string|lowercase|email|max:255|unique:' . User::class,
+            'password'  => 'required|string|min:8',
+            'roles'     => 'array',
+            'client_id' => 'nullable|exists:clients,id',
         ]);
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name'      => $request->name,
+            'email'     => $request->email,
+            'password'  => Hash::make($request->password),
+            'client_id' => $request->client_id,
         ]);
 
         if ($request->has('roles')) {
@@ -73,27 +76,29 @@ class UserController extends Controller implements HasMiddleware
 
     public function edit(User $user)
     {
-        $roles = Role::all();
-        $user->load('roles');
+        $user->load('roles', 'client');
 
         return Inertia::render('Users/Edit', [
-            'user' => $user,
-            'roles' => $roles
+            'user'    => $user,
+            'roles'   => Role::all(),
+            'clients' => Client::orderBy('business_name')->get(['id', 'business_name']),
         ]);
     }
 
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
-            'password' => 'nullable|string|min:8',
-            'roles' => 'array'
+            'name'      => 'required|string|max:255',
+            'email'     => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'password'  => 'nullable|string|min:8',
+            'roles'     => 'array',
+            'client_id' => 'nullable|exists:clients,id',
         ]);
 
         $data = [
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'      => $request->name,
+            'email'     => $request->email,
+            'client_id' => $request->client_id,
         ];
 
         if ($request->filled('password')) {

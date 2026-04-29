@@ -9,7 +9,7 @@ import {
     BriefcaseIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon,
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
-    SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon
+    SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon, DocumentChartBarIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -376,6 +376,26 @@ onMounted(() => {
                                 <BanknotesIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                                 <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
                                     Finanzas
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Reports Link -->
+                        <li v-if="$page.props.auth.user.can.view_reports">
+                            <Link 
+                                :href="route('reports.index')"
+                                :class="[
+                                    route().current('reports.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Reportes' : ''"
+                            >
+                                <DocumentChartBarIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Reportes
                                 </span>
                             </Link>
                         </li>

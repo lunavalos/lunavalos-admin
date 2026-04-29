@@ -11,6 +11,19 @@ export default {
         './resources/js/**/*.vue',
     ],
 
+    safelist: [
+        // Work timer widget colors (emerald)
+        'bg-emerald-500', 'hover:bg-emerald-600',
+        'bg-emerald-50', 'dark:bg-emerald-900/20',
+        'border-emerald-100', 'dark:border-emerald-900/40',
+        'bg-emerald-400', 'bg-emerald-300',
+        'text-emerald-700', 'dark:text-emerald-300',
+        'text-emerald-600', 'dark:text-emerald-400',
+        'text-emerald-400',
+        // Work timer in-progress time color
+        'text-yellow-500', 'dark:text-yellow-400',
+    ],
+
     theme: {
         extend: {
             fontFamily: {

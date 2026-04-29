@@ -30,26 +30,46 @@ const addServiceToPackage = () => {
     if (!selectedServiceId.value) return;
     const service = props.services.find(s => s.id === parseInt(selectedServiceId.value));
     if (service) {
+        // For monthly billing, the recurring charge is the base price, not the renewal_price (annuity)
+        const billingType = service.billing_type || 'annual';
+        const serviceAmount = billingType === 'monthly'
+            ? parseFloat(service.price || 0)
+            : parseFloat(service.renewal_price || 0);
+
+        form.services.push({
+            service_id: service.id,
+            service_name: service.name,
+            renewal_date: '',
+            renewal_amount: serviceAmount,
+            billing_type: billingType,
+            initial_payment: parseFloat(service.price || 0), // pre-fill with service setup price
+            initial_cost: 0,
+        });
+
         if (form.package_services) {
             form.package_services += ' + ' + service.name;
         } else {
             form.package_services = service.name;
         }
-        
-        if (!isCustomRenewal.value && service.renewal_price) {
-            if (form.package_services === service.name) {
-                form.renewal_amount = parseFloat(service.renewal_price);
-            } else {
-                form.renewal_amount = parseFloat(form.renewal_amount || 0) + parseFloat(service.renewal_price);
-            }
-        }
-
-        if (service.price) {
-            form.initial_price = parseFloat(form.initial_price || 0) + parseFloat(service.price);
-        }
 
         selectedServiceId.value = '';
     }
+};
+
+const addManualService = () => {
+    form.services.push({
+        service_id: null,
+        service_name: '',
+        renewal_date: '',
+        renewal_amount: 0,
+        billing_type: 'annual',
+        initial_payment: 0,
+        initial_cost: 0,
+    });
+};
+
+const removeService = (index) => {
+    form.services.splice(index, 1);
 };
 
 const form = useForm({
@@ -61,10 +81,6 @@ const form = useForm({
     agency_source: props.client.agency_source || '',
     contract_date: props.client.contract_date ? props.client.contract_date.split('T')[0] : '', // format from datetime casting
     initial_price: props.client.initial_price || '',
-    next_renewal_date: props.client.next_renewal_date ? props.client.next_renewal_date.split('T')[0] : '', // format from datetime casting
-    renewal_amount: props.client.renewal_amount || '',
-    package_services: props.client.package_services || '',
-    auto_renew_notice: props.client.auto_renew_notice === 1 || props.client.auto_renew_notice === true,
     domain_names: props.client.domain_names || '',
     domain_provider: props.client.domain_provider || '',
     hosting_provider: props.client.hosting_provider || '',
@@ -90,6 +106,16 @@ const form = useForm({
     smtp_port: props.client.smtp_port || '465',
     smtp_tls: props.client.smtp_tls === 1 || props.client.smtp_tls === true,
     has_custom_email_config: props.client.has_custom_email_config === 1 || props.client.has_custom_email_config === true,
+    services: props.client.services ? props.client.services.map(s => ({
+        id: s.id,
+        service_id: s.service_id,
+        service_name: s.service_name,
+        renewal_date: s.renewal_date ? s.renewal_date.split('T')[0] : '',
+        renewal_amount: s.renewal_amount,
+        billing_type: s.billing_type || 'annual',
+        initial_payment: parseFloat(s.initial_payment || 0),
+        initial_cost: parseFloat(s.initial_cost || 0),
+    })) : [],
 });
 
 const fileInput = ref(null);
@@ -205,10 +231,17 @@ const formatCurrency = (value) => {
 };
 
 const totalMonthlyCosts = computed(() => {
-    if (!props.client.costs) return 0;
-    return props.client.costs
+    // Costos del módulo de costos internos con frecuencia mensual
+    const fromCostsTable = (props.client.costs || [])
         .filter(c => c.billing_frequency === 'monthly')
-        .reduce((sum, c) => sum + parseFloat(c.amount), 0);
+        .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
+
+    // Costo inicial de servicios mensuales (también es un costo recurrente mensual)
+    const fromMonthlyServices = form.services
+        .filter(s => s.billing_type === 'monthly')
+        .reduce((sum, s) => sum + parseFloat(s.initial_cost || 0), 0);
+
+    return fromCostsTable + fromMonthlyServices;
 });
 
 const totalAnnualCosts = computed(() => {
@@ -224,6 +257,36 @@ const totalUniqueCosts = computed(() => {
         .filter(c => c.billing_frequency === 'unique')
         .reduce((sum, c) => sum + parseFloat(c.amount), 0);
 });
+
+// Income totals — reactive from form.services (updates live as user edits)
+const totalMonthlyIncome = computed(() =>
+    form.services
+        .filter(s => s.billing_type === 'monthly')
+        .reduce((sum, s) => sum + parseFloat(s.renewal_amount || 0), 0)
+);
+
+const totalAnnualIncome = computed(() =>
+    form.services
+        .filter(s => s.billing_type === 'annual')
+        .reduce((sum, s) => sum + parseFloat(s.renewal_amount || 0), 0)
+);
+
+const totalUniqueIncome = computed(() =>
+    form.services
+        .filter(s => s.billing_type === 'once')
+        .reduce((sum, s) => sum + parseFloat(s.renewal_amount || 0), 0)
+);
+
+// Per-service initial fields — also reactive
+const totalInitialPayment = computed(() =>
+    form.services.reduce((sum, s) => sum + parseFloat(s.initial_payment || 0), 0)
+);
+
+const totalInitialCost = computed(() =>
+    form.services.reduce((sum, s) => sum + parseFloat(s.initial_cost || 0), 0)
+);
+
+const monthlyNetMargin = computed(() => totalMonthlyIncome.value - totalMonthlyCosts.value);
 
 </script>
 
@@ -429,11 +492,19 @@ const totalUniqueCosts = computed(() => {
                                 <h4 class="text-xs font-bold uppercase text-gray-500 dark:text-zinc-500 mb-2 tracking-wider">Métrica de Ingresos</h4>
                                 <div class="text-sm flex justify-between mb-1">
                                     <span class="text-gray-600 dark:text-zinc-400">Cobro Inicial:</span>
-                                    <span class="font-bold text-gray-800 dark:text-gray-200">{{ formatCurrency(client.initial_price) }}</span>
+                                    <span class="font-bold text-gray-800 dark:text-gray-200">{{ formatCurrency(totalInitialPayment) }}</span>
+                                </div>
+                                <div class="text-sm flex justify-between mb-1">
+                                    <span class="text-gray-600 dark:text-zinc-400">Únicos (servicios):</span>
+                                    <span class="font-bold text-green-700 dark:text-emerald-400">{{ formatCurrency(totalUniqueIncome) }}</span>
+                                </div>
+                                <div class="text-sm flex justify-between pb-1 mb-1 border-b border-gray-200 dark:border-zinc-800">
+                                    <span class="text-gray-600 dark:text-zinc-400">Anuales:</span>
+                                    <span class="font-bold text-green-700 dark:text-emerald-400">{{ formatCurrency(totalAnnualIncome) }}</span>
                                 </div>
                                 <div class="text-sm flex justify-between">
-                                    <span class="text-gray-600 dark:text-zinc-400">Renovación:</span>
-                                    <span class="font-bold text-green-700 dark:text-emerald-400">{{ formatCurrency(client.renewal_amount) }}</span>
+                                    <span class="text-gray-600 dark:text-zinc-400">Mensuales:</span>
+                                    <span class="font-bold text-green-700 dark:text-emerald-400">{{ formatCurrency(totalMonthlyIncome) }}</span>
                                 </div>
                             </div>
 
@@ -441,7 +512,11 @@ const totalUniqueCosts = computed(() => {
                             <div>
                                 <h4 class="text-xs font-bold uppercase text-gray-500 dark:text-zinc-500 mb-2 tracking-wider">Totales de Costos</h4>
                                 <div class="text-sm flex justify-between mb-1">
-                                    <span class="text-gray-600 dark:text-zinc-400">Únicos:</span>
+                                    <span class="text-gray-600 dark:text-zinc-400">Costo Inicial:</span>
+                                    <span class="font-bold text-red-600 dark:text-rose-400">{{ formatCurrency(totalInitialCost) }}</span>
+                                </div>
+                                <div class="text-sm flex justify-between mb-1">
+                                    <span class="text-gray-600 dark:text-zinc-400">Costos Únicos:</span>
                                     <span class="font-bold text-red-600 dark:text-rose-400">{{ formatCurrency(totalUniqueCosts) }}</span>
                                 </div>
                                 <div class="text-sm flex justify-between pb-1 mb-1 border-b border-gray-200 dark:border-zinc-800">
@@ -454,13 +529,16 @@ const totalUniqueCosts = computed(() => {
                                 </div>
                             </div>
 
-                            <!-- Utilidad Aparente (Simplificada) -->
+                            <!-- Utilidad Mensual Neta -->
                             <div class="bg-white dark:bg-zinc-900 p-4 rounded-md shadow-sm border border-gray-100 dark:border-zinc-800 flex flex-col justify-center">
-                                <h4 class="text-xs font-bold uppercase text-gray-500 dark:text-zinc-500 tracking-wider">Margen Inicial Aproximado (Utilidad)</h4>
-                                <div class="mt-2 text-xl font-black" :class="(client.initial_price - totalUniqueCosts) > 0 ? 'text-green-600 dark:text-emerald-400' : ((client.initial_price - totalUniqueCosts) === 0 ? 'text-gray-600 dark:text-zinc-400' : 'text-red-600 dark:text-rose-400')">
-                                    {{ formatCurrency(client.initial_price - totalUniqueCosts) }}
+                                <h4 class="text-xs font-bold uppercase text-gray-500 dark:text-zinc-500 tracking-wider">Margen Mensual Neto</h4>
+                                <div
+                                    class="mt-2 text-xl font-black"
+                                    :class="monthlyNetMargin > 0 ? 'text-green-600 dark:text-emerald-400' : (monthlyNetMargin === 0 ? 'text-gray-600 dark:text-zinc-400' : 'text-red-600 dark:text-rose-400')"
+                                >
+                                    {{ formatCurrency(monthlyNetMargin) }}
                                 </div>
-                                <div class="text-xs text-gray-400 dark:text-zinc-500 mt-1">Calculado: Cobro Inicial menos Costos Únicos.</div>
+                                <div class="text-xs text-gray-400 dark:text-zinc-500 mt-1">Ingresos mensuales menos costos mensuales.</div>
                             </div>
                         </div>
                     </div>
@@ -468,8 +546,8 @@ const totalUniqueCosts = computed(() => {
                     <!-- 2. Contrato y Renovaciones -->
                     <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800 p-6">
                         <div class="border-b border-gray-200 dark:border-zinc-800 pb-4 mb-6">
-                            <h3 class="text-lg font-bold text-green-700 dark:text-emerald-400">2. Fechas y Renovaciones (Automatización)</h3>
-                            <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Configura aquí las fechas para que el sistema te recuerde cobrar a tiempo.</p>
+                            <h3 class="text-lg font-bold text-green-700 dark:text-emerald-400">2. Servicios y Renovaciones</h3>
+                            <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Gestiona los servicios y fechas de pago del cliente.</p>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -478,83 +556,28 @@ const totalUniqueCosts = computed(() => {
                                 <TextInput
                                     id="contract_date"
                                     type="date"
-                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md"
+                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md shadow-sm dark:bg-zinc-950 dark:text-gray-100 placeholder-gray-400"
                                     v-model="form.contract_date"
                                 />
                                 <InputError class="mt-2" :message="form.errors.contract_date" />
                             </div>
 
-                            <div>
-                                <InputLabel for="initial_price" value="Pago Inicial ($ MXN)" class="font-bold text-gray-700" />
-                                <div class="relative mt-1">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-gray-500 sm:text-sm">$</span>
-                                    </div>
-                                    <TextInput
-                                        id="initial_price"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="block w-full pl-7 border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md shadow-sm dark:bg-zinc-950 dark:text-gray-100"
-                                        v-model="form.initial_price"
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                                <InputError class="mt-2" :message="form.errors.initial_price" />
-                            </div>
-                            <div class="bg-green-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-green-200 dark:border-emerald-800" v-if="$page.props.auth.user.is_admin">
-                                <InputLabel for="next_renewal_date" value="Día Exacto de Próxima Renovación" class="font-bold text-green-800 dark:text-emerald-400" />
-                                <TextInput
-                                    id="next_renewal_date"
-                                    type="date"
-                                    class="mt-1 block w-full border-green-300 dark:border-emerald-800 focus:border-green-500 focus:ring-green-500 rounded-md shadow-sm bg-white dark:bg-zinc-950 dark:text-gray-100 transition-colors"
-                                    v-model="form.next_renewal_date"
-                                />
-                                <InputError class="mt-2" :message="form.errors.next_renewal_date" />
-                                <div class="mt-2">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" v-model="form.auto_renew_notice" class="rounded border-gray-300 dark:border-zinc-800 text-green-600 dark:text-emerald-500 shadow-sm focus:ring-green-500">
-                                        <span class="ml-2 text-xs text-green-800 dark:text-emerald-400 font-medium">Lanzar alertas para esta fecha</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                             <div class="bg-green-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-green-200 dark:border-emerald-800" v-if="$page.props.auth.user.is_admin">
-                                <div class="flex justify-between items-center h-[24px]">
-                                    <InputLabel for="renewal_amount" value="Monto de Renovación" class="font-bold text-green-800 dark:text-emerald-400" />
-                                </div>
-                                <div class="relative mt-1">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-green-800 dark:text-emerald-400 sm:text-sm">$</span>
-                                    </div>
-                                    <TextInput
-                                        id="renewal_amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="block w-full pl-7 border-green-300 dark:border-emerald-800 focus:border-green-500 focus:ring-green-500 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 shadow-sm font-bold disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-zinc-900 transition-colors"
-                                        v-model="form.renewal_amount"
-                                        placeholder="0.00"
-                                        :disabled="!isCustomRenewal"
-                                    />
-                                </div>
-                                <InputError class="mt-2" :message="form.errors.renewal_amount" />
-                                <div class="mt-2 text-right">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" v-model="isCustomRenewal" class="rounded border-gray-300 dark:border-zinc-800 text-green-600 dark:text-emerald-500 shadow-sm focus:ring-green-500">
-                                        <span class="ml-2 text-xs text-green-800 dark:text-emerald-400">Agregar precio de renovación personalizado</span>
-                                    </label>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="mt-6">
                             <div class="flex items-center justify-between mb-2">
-                                <InputLabel for="package_services" value="Paquete / Servicios Contratados" class="font-bold text-gray-700" />
-                                <div class="flex items-center">
+                                <InputLabel value="Servicios Contratados" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <div class="flex items-center gap-2">
+                                    <button 
+                                        type="button" 
+                                        @click="addManualService"
+                                        class="text-xs font-bold py-1.5 px-3 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+                                    >
+                                        + Manual
+                                    </button>
                                     <select 
                                         v-model="selectedServiceId"
-                                        class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm text-sm py-1 pl-2 pr-8 text-gray-600 bg-gray-50"
+                                        class="border-gray-300 dark:border-zinc-800 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm text-sm py-1 pl-2 pr-8 text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-zinc-950 transition-colors"
                                         @change="addServiceToPackage"
                                     >
                                         <option value="" disabled selected>Añadir del catálogo...</option>
@@ -564,13 +587,51 @@ const totalUniqueCosts = computed(() => {
                                     </select>
                                 </div>
                             </div>
-                            <TextInput
-                                id="package_services"
-                                type="text"
-                                class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md"
-                                v-model="form.package_services"
-                            />
-                            <InputError class="mt-2" :message="form.errors.package_services" />
+
+                            <!-- Listado de servicios con fechas individuales -->
+                            <div v-if="form.services.length > 0" class="mt-4 space-y-3">
+                                <p class="text-sm font-bold text-gray-600 dark:text-zinc-400">Desglose de Servicios y Renovaciones Individuales:</p>
+                                <div v-for="(s, index) in form.services" :key="index" class="p-3 bg-gray-50 dark:bg-zinc-950/50 border border-gray-200 dark:border-zinc-800 rounded-lg space-y-2">
+                                    <!-- Row 1: nombre, monto recurrente, fecha, tipo -->
+                                    <div class="flex flex-wrap items-end gap-3">
+                                        <div class="flex-1 min-w-[200px]">
+                                            <InputLabel :value="'Servicio ' + (index + 1)" class="text-xs" />
+                                            <TextInput type="text" v-model="s.service_name" class="w-full text-sm py-1" />
+                                        </div>
+                                        <div class="w-32">
+                                            <InputLabel value="Monto recurrente ($)" class="text-xs" />
+                                            <TextInput type="number" step="0.01" v-model="s.renewal_amount" class="w-full text-sm py-1" />
+                                        </div>
+                                        <div class="w-40">
+                                            <InputLabel :value="s.billing_type === 'once' ? 'Fecha de Pago' : 'Fecha Renovación'" class="text-xs" />
+                                            <TextInput type="date" v-model="s.renewal_date" class="w-full text-sm py-1" />
+                                        </div>
+                                        <div class="w-32">
+                                            <InputLabel value="Tipo Pago" class="text-xs" />
+                                            <select v-model="s.billing_type" class="w-full text-sm py-1 border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950">
+                                                <option value="once">Único</option>
+                                                <option value="monthly">Mensual</option>
+                                                <option value="annual">Anual</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" @click="removeService(index)" class="p-2 text-red-500 hover:text-red-700 transition-colors">
+                                            <TrashIcon class="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                    <!-- Row 2: pago inicial y costo inicial -->
+                                    <div class="flex flex-wrap items-end gap-3 pt-2 border-t border-gray-200 dark:border-zinc-700">
+                                        <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 self-center">Financiero inicial:</div>
+                                        <div class="w-44">
+                                            <InputLabel value="Pago Inicial del cliente ($)" class="text-xs text-green-700 dark:text-emerald-400 font-semibold" />
+                                            <TextInput type="number" step="0.01" min="0" v-model="s.initial_payment" class="w-full text-sm py-1 border-green-300 dark:border-emerald-800 focus:border-green-500" placeholder="0.00" />
+                                        </div>
+                                        <div class="w-44">
+                                            <InputLabel value="Costo Inicial interno ($)" class="text-xs text-red-600 dark:text-rose-400 font-semibold" />
+                                            <TextInput type="number" step="0.01" min="0" v-model="s.initial_cost" class="w-full text-sm py-1 border-red-300 dark:border-rose-800 focus:border-red-500" placeholder="0.00" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

@@ -121,8 +121,8 @@ onMounted(() => {
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-gray-800 flex items-center gap-2">
-                <SwatchIcon class="h-6 w-6 text-gray-500" />
+            <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                <SwatchIcon class="h-6 w-6 text-gray-500 dark:text-zinc-400" />
                 Generador de Firma de Correo
             </h2>
         </template>
@@ -133,8 +133,8 @@ onMounted(() => {
                     
                     <!-- Left Column: Form -->
                     <div class="lg:col-span-5 space-y-6">
-                        <div class="bg-white p-6 shadow-sm sm:rounded-lg border border-gray-200">
-                            <h3 class="text-lg font-bold text-gray-800 mb-6 flex items-center">
+                        <div class="bg-white dark:bg-zinc-900 p-6 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800">
+                            <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center">
                                 <SwatchIcon class="h-5 w-5 mr-2 text-[#264ab3]" />
                                 Tus Datos
                             </h3>
@@ -142,81 +142,81 @@ onMounted(() => {
                             <div class="space-y-4">
                                 <!-- Template Selection -->
                                 <div v-if="templates.length > 1">
-                                    <InputLabel value="Selecciona una Plantilla" />
-                                    <select v-model="formData.template_id" class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md shadow-sm">
+                                    <InputLabel value="Selecciona una Plantilla" class="dark:text-zinc-300" />
+                                    <select v-model="formData.template_id" class="mt-1 block w-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 focus:border-indigo-500 rounded-md shadow-sm">
                                         <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                                     </select>
                                 </div>
 
                                 <div>
-                                    <InputLabel for="name" value="Nombre Completo" />
+                                    <InputLabel for="name" value="Nombre Completo" class="dark:text-zinc-300" />
                                     <div class="mt-1 relative rounded-md shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <UserIcon class="h-4 w-4 text-gray-400" />
+                                            <UserIcon class="h-4 w-4 text-gray-400 dark:text-zinc-500" />
                                         </div>
-                                        <TextInput id="name" type="text" v-model="formData.name" class="block w-full pl-10 sm:text-sm" />
+                                        <TextInput id="name" type="text" v-model="formData.name" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <InputLabel for="position" value="Puesto o Cargo" />
+                                    <InputLabel for="position" value="Puesto o Cargo" class="dark:text-zinc-300" />
                                     <div class="mt-1 relative rounded-md shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <BriefcaseIcon class="h-4 w-4 text-gray-400" />
+                                            <BriefcaseIcon class="h-4 w-4 text-gray-400 dark:text-zinc-500" />
                                         </div>
-                                        <TextInput id="position" type="text" v-model="formData.position" placeholder="Ej. Gerente de Ventas" class="block w-full pl-10 sm:text-sm" />
+                                        <TextInput id="position" type="text" v-model="formData.position" placeholder="Ej. Gerente de Ventas" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <InputLabel for="email" value="Correo Electrónico" />
+                                        <InputLabel for="email" value="Correo Electrónico" class="dark:text-zinc-300" />
                                         <div class="mt-1 relative rounded-md shadow-sm">
                                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <AtSymbolIcon class="h-4 w-4 text-gray-400" />
+                                                <AtSymbolIcon class="h-4 w-4 text-gray-400 dark:text-zinc-500" />
                                             </div>
-                                            <TextInput id="email" type="email" v-model="formData.email" class="block w-full pl-10 sm:text-sm" />
+                                            <TextInput id="email" type="email" v-model="formData.email" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
                                         </div>
                                     </div>
                                     <div>
-                                        <InputLabel for="phone" value="Teléfono" />
+                                        <InputLabel for="phone" value="Teléfono" class="dark:text-zinc-300" />
                                         <div class="mt-1 relative rounded-md shadow-sm">
                                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <PhoneIcon class="h-4 w-4 text-gray-400" />
+                                                <PhoneIcon class="h-4 w-4 text-gray-400 dark:text-zinc-500" />
                                             </div>
-                                            <TextInput id="phone" type="text" v-model="formData.phone" placeholder="123 456 7890" class="block w-full pl-10 sm:text-sm" />
+                                            <TextInput id="phone" type="text" v-model="formData.phone" placeholder="123 456 7890" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
                                         </div>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <InputLabel for="website" value="Sitio Web" />
+                                    <InputLabel for="website" value="Sitio Web" class="dark:text-zinc-300" />
                                     <div class="mt-1 relative rounded-md shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <GlobeAltIcon class="h-4 w-4 text-gray-400" />
+                                            <GlobeAltIcon class="h-4 w-4 text-gray-400 dark:text-zinc-500" />
                                         </div>
-                                        <TextInput id="website" type="text" v-model="formData.website" placeholder="www.absolutegroup.com" class="block w-full pl-10 sm:text-sm" />
+                                        <TextInput id="website" type="text" v-model="formData.website" placeholder="www.absolutegroup.com" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-4">
                                     <div>
-                                        <InputLabel value="Logo Empresa" />
+                                        <InputLabel value="Logo Empresa" class="dark:text-zinc-300" />
                                         <div class="mt-1 flex items-center space-x-2">
-                                            <label class="cursor-pointer bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100">
-                                                <PhotoIcon class="h-4 w-4 mr-1 text-gray-500" />
+                                            <label class="cursor-pointer bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100 dark:hover:bg-zinc-700 dark:text-zinc-300">
+                                                <PhotoIcon class="h-4 w-4 mr-1 text-gray-500 dark:text-zinc-400" />
                                                 Subir
                                                 <input type="file" @change="handleFileUpload($event, 'logo')" class="hidden" accept="image/*" />
                                             </label>
-                                            <div class="h-8 w-8 bg-gray-100 rounded border border-gray-200 p-1">
+                                            <div class="h-8 w-8 bg-gray-100 dark:bg-zinc-800 rounded border border-gray-200 dark:border-zinc-700 p-1">
                                                 <img :src="formData.logo" class="h-full w-full object-contain" />
                                             </div>
                                         </div>
                                     </div>
                                     <div>
-                                        <InputLabel value="Foto Perfil" />
+                                        <InputLabel value="Foto de Perfil" class="dark:text-zinc-300" />
                                         <div class="mt-1 flex items-center space-x-2">
-                                            <label class="cursor-pointer bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100">
+                                            <label class="cursor-pointer bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100 dark:hover:bg-zinc-700 dark:text-zinc-300">
                                                 <PhotoIcon class="h-4 w-4 mr-1 text-gray-500" />
                                                 Subir
                                                 <input type="file" @change="handleFileUpload($event, 'photo')" class="hidden" accept="image/*" />
@@ -228,26 +228,26 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <div class="border-t pt-4 mt-6">
-                                    <h4 class="text-sm font-bold text-gray-700 mb-3">Colores de Marca</h4>
+                                <div class="border-t dark:border-zinc-700 pt-4 mt-6">
+                                    <h4 class="text-sm font-bold text-gray-700 dark:text-zinc-300 mb-3">Colores de Marca</h4>
                                     <div class="grid grid-cols-2 gap-4">
                                         <div>
-                                            <InputLabel value="Color Principal" />
+                                            <InputLabel value="Color Principal" class="dark:text-zinc-400" />
                                             <div class="mt-1 flex items-center">
-                                                <input type="color" v-model="formData.primary_color" class="h-10 w-full rounded border border-gray-300 p-1 bg-white cursor-pointer" />
+                                                <input type="color" v-model="formData.primary_color" class="h-10 w-full rounded border border-gray-300 dark:border-zinc-700 p-1 bg-white dark:bg-zinc-800 cursor-pointer" />
                                             </div>
                                         </div>
                                         <div>
-                                            <InputLabel value="Color Secundario" />
+                                            <InputLabel value="Color Secundario" class="dark:text-zinc-400" />
                                             <div class="mt-1 flex items-center">
-                                                <input type="color" v-model="formData.secondary_color" class="h-10 w-full rounded border border-gray-300 p-1 bg-white cursor-pointer" />
+                                                <input type="color" v-model="formData.secondary_color" class="h-10 w-full rounded border border-gray-300 dark:border-zinc-700 p-1 bg-white dark:bg-zinc-800 cursor-pointer" />
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div class="border-t pt-4 mt-6">
-                                    <h4 class="text-sm font-bold text-gray-700 mb-3">Redes Sociales (URLs opcionales)</h4>
+                                <div class="border-t dark:border-zinc-700 pt-4 mt-6">
+                                    <h4 class="text-sm font-bold text-gray-700 dark:text-zinc-300 mb-3">Redes Sociales (URLs opcionales)</h4>
                                     <div class="grid grid-cols-2 gap-3">
                                         <TextInput v-model="formData.facebook" placeholder="Facebook URL" class="text-xs" />
                                         <TextInput v-model="formData.instagram" placeholder="Instagram URL" class="text-xs" />
@@ -261,9 +261,9 @@ onMounted(() => {
 
                     <!-- Right Column: Preview & Action -->
                     <div class="lg:col-span-7 space-y-6">
-                        <div class="bg-white p-6 shadow-sm sm:rounded-lg border border-gray-200 h-full">
+                        <div class="bg-white dark:bg-zinc-900 p-6 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800 h-full">
                             <div class="flex justify-between items-center mb-6">
-                                <h3 class="text-lg font-bold text-gray-800">Vista Previa</h3>
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Vista Previa</h3>
                                 <button @click="copySignature" class="bg-[#264ab3] text-white px-6 py-2 rounded-full font-bold text-sm flex items-center hover:bg-blue-800 transition-colors shadow-lg">
                                     <CheckIcon v-if="copied" class="h-4 w-4 mr-2" />
                                     <ClipboardIcon v-else class="h-4 w-4 mr-2" />
@@ -276,8 +276,8 @@ onMounted(() => {
                             </div>
                             
                             <div class="mt-6">
-                                <h4 class="text-xs font-bold text-gray-500 uppercase mb-3">Instrucciones:</h4>
-                                <ul class="text-xs text-gray-600 space-y-2 list-disc pl-4">
+                                <h4 class="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase mb-3">Instrucciones:</h4>
+                                <ul class="text-xs text-gray-600 dark:text-zinc-400 space-y-2 list-disc pl-4">
                                     <li>Llene los datos en el formulario de la izquierda.</li>
                                     <li>Revise que la vista previa sea correcta.</li>
                                     <li>Haga clic en <b>"Copiar Firma"</b>.</li>

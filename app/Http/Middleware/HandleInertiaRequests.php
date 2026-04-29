@@ -44,11 +44,12 @@ class HandleInertiaRequests extends Middleware
                     'is_admin' => $request->user()->hasAnyRole(['Administrador', 'Administrador Master']),
                     'permissions' => $request->user()->getAllPermissions()->pluck('name'),
                     'can' => [
-                        'view_roles' => $request->user()->can('Ver Roles'),
-                        'view_users' => $request->user()->can('Ver Usuarios'),
+                        'view_roles'    => $request->user()->can('Ver Roles'),
+                        'view_users'    => $request->user()->can('Ver Usuarios'),
                         'view_services' => $request->user()->can('Ver Servicios'),
-                        'view_clients' => $request->user()->can('Ver Clientes'),
-                        'view_quotes' => $request->user()->can('Ver Cotizaciones') ?? true, // optional since quotes might not have perm
+                        'view_clients'  => $request->user()->can('Ver Clientes'),
+                        'view_quotes'   => $request->user()->can('Ver Cotizaciones') ?? true,
+                        'view_reports'  => $request->user()->can('Ver Reportes'),
                         // 'view_tasks' => $request->user()->can('Ver Tareas'),
                     ],
                     'has_custom_email_config' => $request->user()->client ? $request->user()->client->has_custom_email_config : false,

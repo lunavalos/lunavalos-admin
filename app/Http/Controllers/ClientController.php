@@ -26,9 +26,20 @@ class ClientController extends Controller implements HasMiddleware
 
     public function index()
     {
-        $clients = Client::orderBy('created_at', 'desc')->get();
+        $clients = Client::select([
+            'id', 'business_name', 'contact_name', 'email', 'domain_names', 'domain_provider', 'is_historical', 'created_at'
+            ])->withCount(['services as active_services_count' => function ($query) {
+            $query->where('status', 'active');
+        }])->orderBy('created_at', 'desc')->get();
+
+        $activeServices = \App\Models\ClientService::with('client:id,business_name')
+            ->where('status', 'active')
+            ->orderBy('renewal_date', 'asc')
+            ->get();
+
         return \Inertia\Inertia::render('Clients/Index', [
-            'clients' => $clients
+            'clients' => $clients,
+            'activeServices' => $activeServices
         ]);
     }
 
@@ -238,6 +249,14 @@ class ClientController extends Controller implements HasMiddleware
             'costs.*.concept' => 'required|string',
             'costs.*.amount' => 'required|numeric',
             'costs.*.billing_frequency' => 'required|in:monthly,annual,unique',
+            'services' => 'nullable|array',
+            'services.*.service_id' => 'nullable|exists:services,id',
+            'services.*.service_name' => 'required|string|max:255',
+            'services.*.renewal_date' => 'nullable|date',
+            'services.*.renewal_amount' => 'nullable|numeric|min:0',
+            'services.*.initial_payment' => 'nullable|numeric|min:0',
+            'services.*.initial_cost' => 'nullable|numeric|min:0',
+            'services.*.billing_type' => 'nullable|in:monthly,annual,once',
             'quote_id' => 'nullable|exists:quotes,id',
             'quote_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
             'contract_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
@@ -294,9 +313,24 @@ class ClientController extends Controller implements HasMiddleware
         }
 
         // Clean up from validated array to avoid fillable issues if they aren't fillable
-        unset($validated['quote_file'], $validated['contract_file'], $validated['branding_file'], $validated['receipt_file'], $validated['costs']);
+        unset($validated['quote_file'], $validated['contract_file'], $validated['branding_file'], $validated['receipt_file'], $validated['costs'], $validated['services']);
 
         $client = Client::create($validated);
+
+        if ($request->has('services') && is_array($request->services)) {
+            foreach ($request->services as $service) {
+                $client->services()->create([
+                    'service_id' => $service['service_id'] ?? null,
+                    'service_name' => $service['service_name'],
+                    'renewal_date' => $service['renewal_date'] ?? null,
+                    'renewal_amount' => $service['renewal_amount'] ?? 0,
+                    'initial_payment' => $service['initial_payment'] ?? 0,
+                    'initial_cost' => $service['initial_cost'] ?? 0,
+                    'billing_type' => $service['billing_type'] ?? 'annual',
+                    'status' => 'active',
+                ]);
+            }
+        }
 
         if (!empty($validated['quote_id'])) {
             $quote = \App\Models\Quote::with('items.costs')->find($validated['quote_id']);
@@ -337,7 +371,7 @@ class ClientController extends Controller implements HasMiddleware
 
     public function show(Client $client)
     {
-        $client->load('costs');
+        $client->load(['costs', 'services']);
         return \Inertia\Inertia::render('Clients/Show', [
             'client' => $client
         ]);
@@ -345,7 +379,7 @@ class ClientController extends Controller implements HasMiddleware
 
     public function edit(Client $client)
     {
-        $client->load('costs');
+        $client->load(['costs', 'services']);
         return \Inertia\Inertia::render('Clients/Edit', [
             'client' => $client,
             'services' => \App\Models\Service::all(),
@@ -388,6 +422,14 @@ class ClientController extends Controller implements HasMiddleware
             'login_password' => 'nullable|string|min:6',
             'email_accounts' => 'nullable|array',
             'vault_credentials' => 'nullable|array',
+            'services' => 'nullable|array',
+            'services.*.service_id' => 'nullable|exists:services,id',
+            'services.*.service_name' => 'required|string|max:255',
+            'services.*.renewal_date' => 'nullable|date',
+            'services.*.renewal_amount' => 'nullable|numeric|min:0',
+            'services.*.initial_payment' => 'nullable|numeric|min:0',
+            'services.*.initial_cost' => 'nullable|numeric|min:0',
+            'services.*.billing_type' => 'nullable|in:monthly,annual,once',
             'quote_id' => 'nullable|exists:quotes,id',
             'quote_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
             'contract_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
@@ -431,9 +473,25 @@ class ClientController extends Controller implements HasMiddleware
             $validated['receipt_file_path'] = $request->file('receipt_file')->store('client-files', 'public');
         }
 
-        unset($validated['quote_file'], $validated['contract_file'], $validated['branding_file'], $validated['receipt_file']);
+        unset($validated['quote_file'], $validated['contract_file'], $validated['branding_file'], $validated['receipt_file'], $validated['services']);
 
         $client->update($validated);
+
+        if ($request->has('services') && is_array($request->services)) {
+            $client->services()->delete();
+            foreach ($request->services as $service) {
+                $client->services()->create([
+                    'service_id' => $service['service_id'] ?? null,
+                    'service_name' => $service['service_name'],
+                    'renewal_date' => $service['renewal_date'] ?? null,
+                    'renewal_amount' => $service['renewal_amount'] ?? 0,
+                    'initial_payment' => $service['initial_payment'] ?? 0,
+                    'initial_cost' => $service['initial_cost'] ?? 0,
+                    'billing_type' => $service['billing_type'] ?? 'annual',
+                    'status' => 'active',
+                ]);
+            }
+        }
 
         return redirect()->route('clients.index')->with('message', 'Cliente actualizado exitosamente.');
     }

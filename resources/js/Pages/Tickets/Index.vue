@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
+import { ref, computed, watch } from 'vue';
 import draggable from 'vuedraggable';
 import { 
     PlusIcon, 
@@ -16,7 +16,9 @@ import {
     XMarkIcon,
     PaperClipIcon,
     TrashIcon,
-    BuildingOfficeIcon
+    BuildingOfficeIcon,
+    BriefcaseIcon,
+    ArchiveBoxXMarkIcon
 } from '@heroicons/vue/24/outline';
 import Modal from '@/Components/Modal.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -88,8 +90,21 @@ const createForm = useForm({
     content: '',
     assigned_id: null,
     client_id: null,
+    client_service_id: null,
     due_date: '',
     files: [],
+});
+
+// Servicios del cliente seleccionado
+const selectedClientServices = computed(() => {
+    if (!createForm.client_id) return [];
+    const client = props.clients?.find(c => c.id === createForm.client_id);
+    return client?.services ?? [];
+});
+
+// Resetear el servicio cuando cambia el cliente
+watch(() => createForm.client_id, () => {
+    createForm.client_service_id = null;
 });
 
 const openCreateModal = () => {
@@ -139,7 +154,7 @@ const formatDate = (dateString) => {
 };
 
 const deleteTicket = (ticketId) => {
-    if (confirm('¿Estás seguro de que deseas eliminar este ticket?')) {
+    if (confirm('¿Mover este ticket a la papelera?')) {
         router.delete(route('tickets.destroy', ticketId));
     }
 };
@@ -159,7 +174,7 @@ const deleteTicket = (ticketId) => {
                     </h2>
                     <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Gestión visual de tareas y solicitudes de clientes.</p>
                 </div>
-                <div class="flex items-center space-x-6">
+                <div class="flex items-center space-x-3">
                     <!-- Checkbox for normal users -->
                     <div v-if="!isAdmin" class="flex items-center bg-white dark:bg-zinc-900 px-4 py-2 border border-gray-200 dark:border-zinc-800 rounded-xl">
                         <input id="only-my-tickets" type="checkbox" v-model="showOnlyMyTickets" class="rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-950 text-[#264ab3] shadow-sm focus:ring-[#264ab3]">
@@ -176,6 +191,16 @@ const deleteTicket = (ticketId) => {
                         </select>
                     </div>
 
+                    <!-- Trash link for admins -->
+                    <Link
+                        v-if="isAdmin"
+                        :href="route('tickets.trash')"
+                        class="flex items-center gap-1.5 bg-white dark:bg-zinc-900 hover:bg-red-50 dark:hover:bg-rose-900/20 border border-gray-200 dark:border-zinc-800 hover:border-red-200 dark:hover:border-rose-800 text-gray-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-rose-400 px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
+                    >
+                        <ArchiveBoxXMarkIcon class="h-5 w-5" />
+                        Papelera
+                    </Link>
+
                     <button 
                         @click="openCreateModal"
                         class="bg-[#264ab3] dark:bg-blue-600 hover:bg-[#193074] dark:hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl transition-all font-bold flex items-center group"
@@ -185,6 +210,7 @@ const deleteTicket = (ticketId) => {
                     </button>
                 </div>
             </div>
+
         </template>
 
         <div class="py-6 h-[calc(100vh-160px)]">
@@ -263,13 +289,19 @@ const deleteTicket = (ticketId) => {
                                 <!-- Ticket Meta -->
                                 <div class="mt-4 pt-3 border-t border-gray-50 dark:border-zinc-800">
                                     <!-- Client Label if exists (Linked Client or Creator's Client) -->
-                                    <div v-if="ticket.client_id || (ticket.creator && ticket.creator.client)" class="flex items-center text-[10px] font-extrabold text-[#264ab3] dark:text-blue-400 uppercase tracking-tight mb-2 truncate bg-blue-50/50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md border border-blue-100/50 dark:border-blue-800/30">
+                                    <div v-if="ticket.client_id || (ticket.creator && ticket.creator.client)" class="flex items-center text-[10px] font-extrabold text-[#264ab3] dark:text-blue-400 uppercase tracking-tight mb-1 truncate bg-blue-50/50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md border border-blue-100/50 dark:border-blue-800/30">
                                         <BuildingOfficeIcon class="h-3 w-3 mr-1 shrink-0" />
                                         <span class="truncate">
                                             {{ ticket.client?.business_name || ticket.creator?.client?.business_name || 'Sin nombre de empresa' }}
                                         </span>
                                     </div>
-                                    
+
+                                    <!-- Service Badge -->
+                                    <div v-if="ticket.client_service_id && ticket.clientService" class="flex items-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400 truncate bg-indigo-50/50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-md border border-indigo-100/50 dark:border-indigo-800/30 mb-2">
+                                        <BriefcaseIcon class="h-3 w-3 mr-1 shrink-0" />
+                                        <span class="truncate">{{ ticket.clientService.service_name }}</span>
+                                    </div>
+
                                     <div class="flex items-center justify-between text-[11px] text-gray-400 dark:text-zinc-500 font-medium">
                                         <div class="flex items-center space-x-3">
                                             <div class="flex items-center">
@@ -369,6 +401,31 @@ const deleteTicket = (ticketId) => {
                                 </option>
                             </select>
                             <InputError class="mt-2" :message="createForm.errors.client_id" />
+                        </div>
+
+                        <!-- Servicio del cliente (aparece dinámicamente si el cliente tiene servicios) -->
+                        <div v-if="!$page.props.auth.user.is_client && createForm.client_id">
+                            <InputLabel for="client_service_id" value="Servicio Relacionado" />
+                            <select
+                                id="client_service_id"
+                                class="mt-1 block w-full border-gray-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl shadow-sm"
+                                v-model="createForm.client_service_id"
+                            >
+                                <option :value="null">Sin servicio específico</option>
+                                <option
+                                    v-for="svc in selectedClientServices"
+                                    :key="svc.id"
+                                    :value="svc.id"
+                                >
+                                    {{ svc.service_name }}
+                                    <template v-if="svc.billing_type === 'monthly'"> · Mensual</template>
+                                    <template v-else-if="svc.billing_type === 'annual'"> · Anual</template>
+                                </option>
+                                <option v-if="selectedClientServices.length === 0" disabled>
+                                    Este cliente no tiene servicios activos
+                                </option>
+                            </select>
+                            <InputError class="mt-2" :message="createForm.errors.client_service_id" />
                         </div>
 
                         <div v-if="isAdmin">

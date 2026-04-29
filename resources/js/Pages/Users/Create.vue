@@ -5,16 +5,23 @@ import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 
-defineProps({
-    roles: Array,
+import { computed } from 'vue';
+import { BuildingOfficeIcon } from '@heroicons/vue/24/outline';
+
+const props = defineProps({
+    roles:   Array,
+    clients: Array,
 });
 
 const form = useForm({
-    name: '',
-    email: '',
-    password: '',
-    roles: [],
+    name:      '',
+    email:     '',
+    password:  '',
+    roles:     [],
+    client_id: null,
 });
+
+const isClientRole = computed(() => form.roles.includes('Cliente'));
 
 const submit = () => {
     form.post(route('users.store'));
@@ -91,9 +98,9 @@ const submit = () => {
                                 </h2>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <label v-for="role in roles" :key="role.id" class="flex items-center space-x-2 bg-gray-50 dark:bg-zinc-950 rounded-xl p-3 hover:bg-gray-100 dark:hover:bg-zinc-800 transition border border-gray-200 dark:border-zinc-800 mb-1 cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            :value="role.name" 
+                                        <input
+                                            type="checkbox"
+                                            :value="role.name"
                                             v-model="form.roles"
                                             class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-900 text-primary shadow-sm focus:ring-primary"
                                         >
@@ -102,6 +109,34 @@ const submit = () => {
                                 </div>
                                 <InputError class="mt-2" :message="form.errors.roles" />
                             </div>
+
+                            <!-- Client selector — visible only when 'Cliente' role is checked -->
+                            <transition
+                                enter-active-class="transition-all duration-300 ease-out"
+                                enter-from-class="opacity-0 -translate-y-2"
+                                enter-to-class="opacity-100 translate-y-0"
+                                leave-active-class="transition-all duration-200 ease-in"
+                                leave-from-class="opacity-100 translate-y-0"
+                                leave-to-class="opacity-0 -translate-y-2"
+                            >
+                                <div v-if="isClientRole" class="rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/10 p-5">
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <BuildingOfficeIcon class="h-5 w-5 text-[#264ab3] dark:text-blue-400" />
+                                        <h3 class="text-sm font-bold text-[#264ab3] dark:text-blue-400">Vincular a un Cliente</h3>
+                                    </div>
+                                    <p class="text-xs text-blue-600 dark:text-blue-400 mb-3">
+                                        Selecciona la empresa a la que pertenece este usuario. Un cliente puede tener múltiples usuarios vinculados.
+                                    </p>
+                                    <select
+                                        v-model="form.client_id"
+                                        class="w-full border-blue-200 dark:border-blue-900/40 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 rounded-xl shadow-sm focus:border-[#264ab3] focus:ring-[#264ab3]"
+                                    >
+                                        <option :value="null">Sin vincular (usuario independiente)</option>
+                                        <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.business_name }}</option>
+                                    </select>
+                                    <InputError class="mt-2" :message="form.errors.client_id" />
+                                </div>
+                            </transition>
 
                             <div class="flex items-center justify-end mt-4">
                                 <button class="btn ml-4" :class="{ 'opacity-25': form.processing }" :disabled="form.processing">

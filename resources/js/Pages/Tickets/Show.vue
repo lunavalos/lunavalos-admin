@@ -18,7 +18,10 @@ import {
     XMarkIcon,
     PlusIcon,
     TrashIcon,
-    BuildingOfficeIcon
+    BuildingOfficeIcon,
+    BriefcaseIcon,
+    PlayIcon,
+    StopCircleIcon,
 } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -29,6 +32,7 @@ import Wysiwyg from '@/Components/Wysiwyg.vue';
 const props = defineProps({
     ticket: Object,
     assignableUsers: Array,
+    clientServices: Array,
 });
 
 const page = usePage();
@@ -109,6 +113,16 @@ const updateStatus = (newStatus) => {
 const assignForm = useForm({
     assigned_id: props.ticket.assigned_id,
 });
+
+const serviceForm = useForm({
+    client_service_id: props.ticket.client_service_id ?? null,
+});
+
+const updateService = () => {
+    serviceForm.post(route('tickets.updateService', props.ticket.id), {
+        preserveScroll: true,
+    });
+};
 
 const updateAssignee = () => {
     assignForm.post(route('tickets.assign', props.ticket.id), {
@@ -201,10 +215,42 @@ const canDelete = computed(() => {
 });
 
 const deleteTicket = () => {
-    if (confirm('¿Estás seguro de que deseas eliminar este ticket? Esta acción no se puede deshacer.')) {
+    if (confirm('¿Mover este ticket a la papelera?')) {
         router.delete(route('tickets.destroy', props.ticket.id));
     }
 };
+
+// Work timer
+const startWorkForm = useForm({});
+
+const startWork = () => {
+    startWorkForm.post(route('tickets.startWork', props.ticket.id));
+};
+
+const isAssignedToMe = computed(() => {
+    return props.ticket?.assigned_id === page.props.auth?.user?.id;
+});
+
+// Compute elapsed/total work time
+const formatDuration = (start, end) => {
+    if (!start) return null;
+    const from = new Date(start);
+    const to = end ? new Date(end) : new Date();
+    const diffMs = to - from;
+    const totalMinutes = Math.floor(diffMs / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours === 0) return `${minutes}m`;
+    return `${hours}h ${minutes}m`;
+};
+
+// System messages that represent status changes (logged in conversation)
+const statusLogMessages = computed(() => {
+    if (!props.ticket?.messages) return [];
+    return props.ticket.messages
+        .filter(m => m.user_id === null)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+});
 
 </script>
 
@@ -476,11 +522,11 @@ const deleteTicket = () => {
                         </div>
                     </form>
                 </div>
-                <div v-else class="p-8 bg-gray-50 border-t border-gray-100 text-center">
-                    <p v-if="ticket.status === 'Completados'" class="text-sm text-gray-500 italic font-bold">
+                <div v-else class="p-8 bg-gray-50 dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800 text-center">
+                    <p v-if="ticket.status === 'Completados'" class="text-sm text-gray-500 dark:text-zinc-400 italic font-bold">
                         Esta conversación ha finalizado.
                     </p>
-                    <p v-else class="text-sm text-gray-500 italic">
+                    <p v-else class="text-sm text-gray-500 dark:text-zinc-400 italic">
                         Solo el administrador y el usuario asignado pueden participar en esta conversación.
                     </p>
                 </div>
@@ -584,6 +630,88 @@ const deleteTicket = () => {
                     </div>
                 </div>
 
+                <!-- Work Timer Widget (only for assigned user, only if ticket is not completed) -->
+                <div v-if="isAssignedToMe && ticket.status !== 'Completados'" class="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-6">
+                    <h3 class="font-bold border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-emerald-600 dark:text-emerald-400">
+                        <ClockIcon class="h-4 w-4 mr-2" />
+                        Tiempo de Trabajo
+                    </h3>
+
+                    <!-- Not started yet -->
+                    <button
+                        v-if="!ticket.work_started_at"
+                        @click="startWork"
+                        :disabled="startWorkForm.processing"
+                        class="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-bold py-3 px-4 rounded-xl transition-all shadow-sm"
+                    >
+                        <PlayIcon class="h-4 w-4" />
+                        Iniciar Trabajo
+                    </button>
+
+                    <!-- Work in progress (started, not finished) -->
+                    <div v-else-if="!ticket.work_finished_at" class="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/40 rounded-xl px-4 py-3">
+                        <span class="relative flex h-3 w-3 shrink-0">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                        </span>
+                        <div>
+                            <p class="text-xs font-bold text-emerald-700 dark:text-emerald-300">En progreso</p>
+                            <p class="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">
+                                Iniciado: {{ formatDate(ticket.work_started_at, true) }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Metrics Card (visible to all non-clients when work was tracked) -->
+                <div v-if="!isClient && ticket.work_started_at" class="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-6">
+                    <h3 class="font-bold border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-emerald-600 dark:text-emerald-400">
+                        <ClockIcon class="h-4 w-4 mr-2" />
+                        Métricas de Trabajo
+                    </h3>
+                    <div class="space-y-3">
+                        <!-- Start / finish timestamps -->
+                        <div>
+                            <span class="text-xs text-gray-400 dark:text-zinc-500 block mb-1">Inicio del trabajo:</span>
+                            <p class="text-sm font-bold text-gray-700 dark:text-gray-200">{{ formatDate(ticket.work_started_at, true) }}</p>
+                        </div>
+                        <div v-if="ticket.work_finished_at">
+                            <span class="text-xs text-gray-400 dark:text-zinc-500 block mb-1">Completado el:</span>
+                            <p class="text-sm font-bold text-gray-700 dark:text-gray-200">{{ formatDate(ticket.work_finished_at, true) }}</p>
+                        </div>
+                        <div class="pt-3 border-t border-gray-50 dark:border-zinc-800">
+                            <span class="text-xs text-gray-400 dark:text-zinc-500 block mb-1">
+                                {{ ticket.work_finished_at ? 'Tiempo total (inicio → completado):' : 'Tiempo en curso desde inicio:' }}
+                            </span>
+                            <p class="text-2xl font-black"
+                                :class="ticket.work_finished_at
+                                    ? 'text-emerald-600 dark:text-emerald-400'
+                                    : 'text-yellow-500 dark:text-yellow-400'"
+                            >
+                                {{ formatDuration(ticket.work_started_at, ticket.work_finished_at) }}
+                            </p>
+                        </div>
+
+                        <!-- Status change timeline -->
+                        <div v-if="statusLogMessages.length > 0" class="pt-3 border-t border-gray-50 dark:border-zinc-800">
+                            <span class="text-xs text-gray-400 dark:text-zinc-500 font-bold uppercase block mb-3">Historial de cambios</span>
+                            <ol class="relative border-l border-gray-200 dark:border-zinc-700 ml-2 space-y-3">
+                                <li
+                                    v-for="msg in statusLogMessages"
+                                    :key="msg.id"
+                                    class="ml-4"
+                                >
+                                    <span class="absolute -left-[7px] mt-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-gray-100 dark:bg-zinc-800 ring-2 ring-white dark:ring-zinc-900">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-gray-400 dark:bg-zinc-500"></span>
+                                    </span>
+                                    <p class="text-[11px] text-gray-700 dark:text-gray-300 leading-snug" v-html="msg.message"></p>
+                                    <time class="text-[10px] text-gray-400 dark:text-zinc-600">{{ formatDate(msg.created_at, true) }}</time>
+                                </li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Client Info Card (Only for Staff/Admin when linked to a Client) -->
                 <div v-if="!isClient && (ticket.client || ticket.creator?.client)" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 rounded-3xl p-6 shadow-sm">
                     <h3 class="font-bold text-gray-900 dark:text-gray-100 border-b border-blue-200/50 dark:border-blue-800/30 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-[#264ab3] dark:text-blue-400">
@@ -603,6 +731,54 @@ const deleteTicket = () => {
                             <p class="text-[11px] text-gray-500 dark:text-zinc-400">{{ ticket.client?.email || ticket.creator?.client?.email || '' }}</p>
                         </div>
 
+                            <!-- Servicio vinculado -->
+                            <div>
+                                <span class="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase block mb-1">Servicio Relacionado:</span>
+
+                                <!-- Servicio ya vinculado -->
+                                <div v-if="ticket.clientService" class="flex items-center gap-2 mt-1">
+                                    <BriefcaseIcon class="h-4 w-4 text-[#264ab3] dark:text-blue-400 shrink-0" />
+                                    <span class="text-sm font-bold text-gray-700 dark:text-gray-200">{{ ticket.clientService.service_name }}</span>
+                                    <span v-if="ticket.clientService.billing_type === 'monthly'" class="text-[10px] bg-green-100 dark:bg-emerald-900/40 text-green-700 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold">Mensual</span>
+                                    <span v-else-if="ticket.clientService.billing_type === 'annual'" class="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-bold">Anual</span>
+                                    <span v-else-if="ticket.clientService.billing_type === 'once'" class="text-[10px] bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded font-bold">Único</span>
+                                </div>
+
+                                <!-- Sin servicio: mostrar selector inline (solo para staff/admin) -->
+                                <div v-else-if="!isClient && clientServices && clientServices.length > 0" class="mt-1 space-y-2">
+                                    <select
+                                        v-model="serviceForm.client_service_id"
+                                        class="w-full text-sm border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl shadow-sm py-1.5"
+                                    >
+                                        <option :value="null">Sin servicio específico</option>
+                                        <option
+                                            v-for="svc in clientServices"
+                                            :key="svc.id"
+                                            :value="svc.id"
+                                        >
+                                            {{ svc.service_name }}
+                                            <template v-if="svc.billing_type === 'monthly'"> · Mensual</template>
+                                            <template v-else-if="svc.billing_type === 'annual'"> · Anual</template>
+                                        </option>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        @click="updateService"
+                                        :disabled="serviceForm.processing || serviceForm.client_service_id === null"
+                                        class="w-full flex items-center justify-center gap-1.5 bg-[#264ab3] hover:bg-[#193074] disabled:opacity-40 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition-all"
+                                    >
+                                        <BriefcaseIcon class="h-3.5 w-3.5" />
+                                        Vincular Servicio
+                                    </button>
+                                </div>
+
+                                <!-- Sin servicio y sin servicios disponibles -->
+                                <div v-else class="flex items-center gap-2 mt-1 text-gray-400 dark:text-zinc-500 italic text-sm">
+                                    <BriefcaseIcon class="h-4 w-4 shrink-0" />
+                                    Sin servicio específico
+                                </div>
+                            </div>
+
                         <div class="pt-2">
                             <Link 
                                 v-if="ticket.client_id || ticket.creator?.client?.id"
@@ -617,10 +793,10 @@ const deleteTicket = () => {
                 </div>
 
                 <!-- Action Card for Client -->
-                <div v-if="isClient && ticket.status === 'Completados'" class="bg-green-50 border border-green-100 rounded-3xl p-6 text-center">
-                    <CheckCircleIcon class="h-10 w-10 text-green-500 mx-auto mb-3" />
-                    <h4 class="font-bold text-green-900 text-lg">Ticket Finalizado</h4>
-                    <p class="text-sm text-green-700 mt-2">Este ticket ha sido resuelto y aceptado satisfactoriamente.</p>
+                <div v-if="isClient && ticket.status === 'Completados'" class="bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-900/40 rounded-3xl p-6 text-center">
+                    <CheckCircleIcon class="h-10 w-10 text-green-500 dark:text-green-400 mx-auto mb-3" />
+                    <h4 class="font-bold text-green-900 dark:text-green-300 text-lg">Ticket Finalizado</h4>
+                    <p class="text-sm text-green-700 dark:text-green-400 mt-2">Este ticket ha sido resuelto y aceptado satisfactoriamente.</p>
                 </div>
             </div>
         </div>

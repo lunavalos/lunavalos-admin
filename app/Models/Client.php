@@ -16,11 +16,7 @@ class Client extends Model
         'agency_source',
         'contract_date',
         'initial_price',
-        'next_renewal_date',
         'is_historical',
-        'renewal_amount',
-        'package_services',
-        'auto_renew_notice',
         'domain_names',
         'domain_provider',
         'hosting_provider',
@@ -54,9 +50,7 @@ class Client extends Model
 
     protected $casts = [
         'contract_date' => 'date',
-        'next_renewal_date' => 'date',
         'is_historical' => 'boolean',
-        'auto_renew_notice' => 'boolean',
         'initial_price' => 'decimal:2',
         'renewal_amount' => 'decimal:2',
         'imap_tls' => 'boolean',
@@ -67,9 +61,16 @@ class Client extends Model
         'vault_credentials' => 'array',
     ];
 
+    /** The primary (legacy) single user linked to this client via clients.user_id */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /** All platform users linked to this client via users.client_id */
+    public function users()
+    {
+        return $this->hasMany(User::class);
     }
 
     public function quote()
@@ -80,5 +81,10 @@ class Client extends Model
     public function costs()
     {
         return $this->hasMany(ClientCost::class);
+    }
+
+    public function services()
+    {
+        return $this->hasMany(ClientService::class);
     }
 }

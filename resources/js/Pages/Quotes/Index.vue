@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { EyeIcon, PencilSquareIcon, TrashIcon, DocumentTextIcon, LinkIcon, CheckCircleIcon, UserPlusIcon } from '@heroicons/vue/24/outline';
+import { EyeIcon, PencilSquareIcon, TrashIcon, DocumentTextIcon, LinkIcon, CheckCircleIcon, UserPlusIcon, CheckBadgeIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     quotes: Array,
@@ -127,7 +127,15 @@ const changeStatus = (id, newStatus, quote) => {
                             <tbody>
                                 <tr v-for="quote in quotes" :key="quote.id" class="border-b border-gray-100 dark:border-zinc-800/50 hover:bg-gray-50 dark:hover:bg-zinc-800/30 transition">
                                     <td class="p-3 font-semibold text-gray-500 dark:text-gray-400">#{{ quote.id }}</td>
-                                    <td class="p-3 font-semibold text-primary dark:text-blue-400">{{ quote.client_name }}</td>
+                                    <td class="p-3">
+                                        <div class="flex flex-col">
+                                            <span class="font-semibold text-primary dark:text-blue-400">{{ quote.client_name }}</span>
+                                            <span v-if="quote.client_id" class="text-[10px] text-green-600 dark:text-emerald-500 font-bold uppercase flex items-center">
+                                                <CheckBadgeIcon class="h-3 w-3 mr-1" />
+                                                Cliente Registrado
+                                            </span>
+                                        </div>
+                                    </td>
                                     <td class="p-3">
                                         <span v-if="quote.status === 'Aceptada'" class="bg-green-100 dark:bg-emerald-900/40 text-green-800 dark:text-emerald-300 text-xs font-semibold px-2 py-1 rounded">Aceptada</span>
                                         <span v-else-if="quote.status === 'Contrato Firmado'" class="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 text-xs font-semibold px-2 py-1 rounded">Contrato Firmado</span>
@@ -214,7 +222,18 @@ const changeStatus = (id, newStatus, quote) => {
                                                 >
                                                     <CheckCircleIcon class="w-5 h-5" />
                                                 </button>
-                                                <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Forzar Aceptación</span>
+                                                <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Marcar Aceptada</span>
+                                            </div>
+
+                                            <!-- Nuevo Botón: Aplicar Servicios (si es cliente existente) -->
+                                            <div v-if="quote.client_id && quote.status !== 'Completada'" class="group relative inline-block">
+                                                <button
+                                                    @click="changeStatus(quote.id, 'Completada', quote)"
+                                                    class="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 p-2 rounded-full transition-colors inline-flex items-center font-bold"
+                                                >
+                                                    <CheckBadgeIcon class="w-5 h-5" />
+                                                </button>
+                                                <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Completar y Aplicar Servicios al Cliente</span>
                                             </div>
                                             <div v-else-if="(quote.status === 'Aceptada' || quote.status === 'Contrato Firmado' || (quote.contract && quote.contract.status === 'signed')) && !quote.client" class="group relative inline-block">
                                                 <Link

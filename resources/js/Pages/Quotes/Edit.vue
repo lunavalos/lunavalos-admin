@@ -17,6 +17,7 @@ const props = defineProps({
 const today = new Date().toISOString().split('T')[0];
 
 const form = useForm({
+    client_id: props.quote.client_id || null,
     client_name: props.quote.client_name,
     contact_name: props.quote.contact_name || '',
     email: props.quote.email || '',
@@ -62,6 +63,7 @@ const onClientSelect = () => {
     if (!selectedClientId.value) return;
     const client = props.clients.find(c => c.id === parseInt(selectedClientId.value));
     if (client) {
+        form.client_id = client.id;
         form.client_name = client.business_name;
         form.contact_name = client.contact_name || '';
         form.email = client.email || '';
@@ -132,6 +134,12 @@ const uniqueTotal = computed(() => {
 const monthlyTotal = computed(() => {
     return form.items
         .filter(item => item.billing_type === 'monthly')
+        .reduce((sum, item) => sum + (parseFloat(item.unit_price) * parseInt(item.quantity)), 0);
+});
+
+const annualTotal = computed(() => {
+    return form.items
+        .filter(item => item.billing_type === 'annual')
         .reduce((sum, item) => sum + (parseFloat(item.unit_price) * parseInt(item.quantity)), 0);
 });
 
@@ -540,6 +548,12 @@ const submit = () => {
                                     <span class="font-medium text-green-800 dark:text-emerald-400">Inversión Mensual / Iguala:</span>
                                     <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ formatCurrency(monthlyTotal) }}</span>
                                     <span v-else class="text-sm font-semibold text-green-600 dark:text-emerald-300 uppercase italic">Ver opciones en lista</span>
+                                </div>
+
+                                <div class="flex justify-between items-center text-gray-600 dark:text-zinc-400 bg-white dark:bg-zinc-900 p-3 rounded shadow-sm border border-orange-100 dark:border-orange-900/30 transition-colors">
+                                    <span class="font-medium text-orange-800 dark:text-orange-400">Inversión Anual:</span>
+                                    <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ formatCurrency(annualTotal) }}</span>
+                                    <span v-else class="text-sm font-semibold text-orange-600 dark:text-orange-300 uppercase italic">Ver opciones en lista</span>
                                 </div>
 
                                 <div v-if="form.is_multiple_choice" class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded text-xs text-blue-700 dark:text-blue-300">

@@ -77,10 +77,19 @@ Route::middleware('auth')->group(function () {
     Route::post('employees/{employee}/payroll', [\App\Http\Controllers\EmployeeController::class, 'storePayroll'])->name('employees.storePayroll');
     Route::get('payroll/{receipt}/print', [\App\Http\Controllers\EmployeeController::class, 'printPayroll'])->name('payroll.print');
     // Tickets
+    Route::get('tickets/trash', [\App\Http\Controllers\TicketController::class, 'trash'])->name('tickets.trash');
+    Route::post('tickets/{id}/restore', [\App\Http\Controllers\TicketController::class, 'restore'])->name('tickets.restore');
+    Route::delete('tickets/empty-trash', [\App\Http\Controllers\TicketController::class, 'emptyTrash'])->name('tickets.emptyTrash');
     Route::resource('tickets', \App\Http\Controllers\TicketController::class);
     Route::post('tickets/{ticket}/message', [\App\Http\Controllers\TicketController::class, 'addMessage'])->name('tickets.addMessage');
     Route::post('tickets/{ticket}/status', [\App\Http\Controllers\TicketController::class, 'updateStatus'])->name('tickets.updateStatus');
     Route::post('tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assign'])->name('tickets.assign');
+    Route::post('tickets/{ticket}/service', [\App\Http\Controllers\TicketController::class, 'updateService'])->name('tickets.updateService');
+    Route::post('tickets/{ticket}/start-work', [\App\Http\Controllers\TicketController::class, 'startWork'])->name('tickets.startWork');
+    // Reportes
+    Route::resource('reports', \App\Http\Controllers\ReportController::class);
+    Route::get('clients/{client}/tickets-json', [\App\Http\Controllers\ReportController::class, 'clientTickets'])->name('clients.tickets-json');
+    Route::get('reports/{report}/pdf', [\App\Http\Controllers\ReportController::class, 'pdf'])->name('reports.pdf');
     Route::post('notifications/mark-as-read', [\App\Http\Controllers\DashboardController::class, 'markNotificationsAsRead'])->name('notifications.markAsRead');
 
     // Finanzas

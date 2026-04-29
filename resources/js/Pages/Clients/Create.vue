@@ -32,27 +32,46 @@ const addServiceToPackage = () => {
     if (!selectedServiceId.value) return;
     const service = props.services.find(s => s.id === parseInt(selectedServiceId.value));
     if (service) {
+        // For monthly billing, the recurring charge is the base price, not the renewal_price (annuity)
+        const billingType = service.billing_type || 'annual';
+        const serviceAmount = billingType === 'monthly'
+            ? parseFloat(service.price || 0)
+            : parseFloat(service.renewal_price || 0);
+
+        form.services.push({
+            service_id: service.id,
+            service_name: service.name,
+            renewal_date: '',
+            renewal_amount: serviceAmount,
+            billing_type: billingType,
+            initial_payment: parseFloat(service.price || 0),
+            initial_cost: 0,
+        });
+
         if (form.package_services) {
             form.package_services += ' + ' + service.name;
         } else {
             form.package_services = service.name;
         }
-        
-        if (!isCustomRenewal.value && service.renewal_price) {
-            if (form.package_services === service.name) {
-                // First service being added, so replace any manually pre-filled amount entirely
-                form.renewal_amount = parseFloat(service.renewal_price);
-            } else {
-                form.renewal_amount = parseFloat(form.renewal_amount || 0) + parseFloat(service.renewal_price);
-            }
-        }
-
-        if (service.price) {
-            form.initial_price = parseFloat(form.initial_price || 0) + parseFloat(service.price);
-        }
 
         selectedServiceId.value = '';
     }
+};
+
+const addManualService = () => {
+    form.services.push({
+        service_id: null,
+        service_name: '',
+        renewal_date: '',
+        renewal_amount: 0,
+        billing_type: 'annual',
+        initial_payment: 0,
+        initial_cost: 0,
+    });
+};
+
+const removeService = (index) => {
+    form.services.splice(index, 1);
 };
 
 const form = useForm({
@@ -64,10 +83,6 @@ const form = useForm({
     agency_source: props.quote_data?.agency_source || '',
     contract_date: props.quote_data?.contract_date || '',
     initial_price: props.quote_data?.initial_price || '',
-    next_renewal_date: props.quote_data?.next_renewal_date || '',
-    renewal_amount: props.quote_data?.renewal_amount || '',
-    package_services: props.quote_data?.package_services || '',
-    auto_renew_notice: true,
     domain_names: '',
     domain_provider: '',
     hosting_provider: '',
@@ -94,6 +109,7 @@ const form = useForm({
     smtp_tls: true,
     has_custom_email_config: false,
     costs: [],
+    services: [],
 });
 
 const showCredentials = ref(false);
@@ -320,8 +336,8 @@ const submit = () => {
                     <!-- 2. Contrato y Renovaciones -->
                     <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800 p-6">
                         <div class="border-b border-gray-200 dark:border-zinc-800 pb-4 mb-6">
-                            <h3 class="text-lg font-bold text-green-700 dark:text-emerald-400">2. Fechas y Renovaciones (Automatización)</h3>
-                            <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Configura aquí las fechas para que el sistema te recuerde cobrar a tiempo.</p>
+                            <h3 class="text-lg font-bold text-green-700 dark:text-emerald-400">2. Servicios y Renovaciones</h3>
+                            <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Gestiona los servicios y fechas de pago del cliente.</p>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -336,75 +352,19 @@ const submit = () => {
                                 <InputError class="mt-2" :message="form.errors.contract_date" />
                             </div>
 
-                            <div>
-                                <InputLabel for="initial_price" value="Pago Inicial ($ MXN)" class="font-bold text-gray-700" />
-                                <div class="relative mt-1">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-gray-500 sm:text-sm">$</span>
-                                    </div>
-                                    <TextInput
-                                        id="initial_price"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="block w-full pl-7 border-gray-300 focus:border-indigo-500 rounded-md shadow-sm"
-                                        v-model="form.initial_price"
-                                        placeholder="0.00"
-                                    />
-                                </div>
-                                <InputError class="mt-2" :message="form.errors.initial_price" />
-                            </div>
-
-                            <div class="bg-green-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-green-200 dark:border-emerald-800" v-if="$page.props.auth.user.is_admin">
-                                <InputLabel for="next_renewal_date" value="Día Exacto de Próxima Renovación" class="font-bold text-green-800 dark:text-emerald-400" />
-                                <TextInput
-                                    id="next_renewal_date"
-                                    type="date"
-                                    class="mt-1 block w-full border-green-300 dark:border-emerald-800 focus:border-green-500 focus:ring-green-500 rounded-md shadow-sm bg-white dark:bg-zinc-950 dark:text-gray-100 placeholder-gray-400 Transition-colors"
-                                    v-model="form.next_renewal_date"
-                                />
-                                <InputError class="mt-2" :message="form.errors.next_renewal_date" />
-                                <div class="mt-2">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" v-model="form.auto_renew_notice" class="rounded border-gray-300 dark:border-zinc-800 text-green-600 dark:text-emerald-500 shadow-sm focus:ring-green-500 dark:bg-zinc-950">
-                                        <span class="ml-2 text-xs text-green-800 dark:text-emerald-300 font-medium">Lanzar alertas para esta fecha</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="bg-green-50 dark:bg-emerald-900/20 rounded-lg p-3 border border-green-200 dark:border-emerald-800" v-if="$page.props.auth.user.is_admin">
-                                <div class="flex justify-between items-center h-[24px]">
-                                    <InputLabel for="renewal_amount" value="Monto de Renovación" class="font-bold text-green-800 dark:text-emerald-400" />
-                                </div>
-                                <div class="relative mt-1">
-                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span class="text-green-800 dark:text-emerald-400 sm:text-sm">$</span>
-                                    </div>
-                                    <TextInput
-                                        id="renewal_amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="block w-full pl-7 border-green-300 dark:border-emerald-800 focus:border-green-500 focus:ring-green-500 rounded-md bg-white dark:bg-zinc-950 dark:text-gray-100 placeholder-gray-400 dark:placeholder-zinc-500 shadow-sm font-bold disabled:opacity-50 disabled:bg-gray-100 dark:disabled:bg-zinc-900 transition-colors"
-                                        v-model="form.renewal_amount"
-                                        placeholder="0.00"
-                                        :disabled="!isCustomRenewal"
-                                    />
-                                </div>
-                                <InputError class="mt-2" :message="form.errors.renewal_amount" />
-                                <div class="mt-2 text-right">
-                                    <label class="inline-flex items-center">
-                                        <input type="checkbox" v-model="isCustomRenewal" class="rounded border-gray-300 dark:border-zinc-800 text-green-600 dark:text-emerald-500 shadow-sm focus:ring-green-500 dark:bg-zinc-950">
-                                        <span class="ml-2 text-xs text-green-800 dark:text-emerald-300">Agregar precio de renovación personalizado</span>
-                                    </label>
-                                </div>
-                            </div>
                         </div>
 
                         <div class="mt-6">
                             <div class="flex items-center justify-between mb-2">
-                                <InputLabel for="package_services" value="Paquete / Servicios Contratados" class="font-bold text-gray-700 dark:text-gray-300" />
-                                <div class="flex items-center">
+                                <InputLabel value="Servicios Contratados" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <div class="flex items-center gap-2">
+                                    <button 
+                                        type="button" 
+                                        @click="addManualService"
+                                        class="text-xs font-bold py-1.5 px-3 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+                                    >
+                                        + Manual
+                                    </button>
                                     <select 
                                         v-model="selectedServiceId"
                                         class="border-gray-300 dark:border-zinc-800 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm text-sm py-1 pl-2 pr-8 text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-zinc-950 transition-colors"
@@ -417,14 +377,51 @@ const submit = () => {
                                     </select>
                                 </div>
                             </div>
-                            <TextInput
-                                id="package_services"
-                                type="text"
-                                class="mt-1 block w-full border-gray-300 focus:border-indigo-500 rounded-md"
-                                v-model="form.package_services"
-                                placeholder="Ej. Diseño Web + Hosting Anual"
-                            />
-                            <InputError class="mt-2" :message="form.errors.package_services" />
+
+                            <!-- Listado de servicios con fechas individuales -->
+                            <div v-if="form.services.length > 0" class="mt-4 space-y-3">
+                                <p class="text-sm font-bold text-gray-600 dark:text-zinc-400">Desglose de Servicios y Renovaciones Individuales:</p>
+                                <div v-for="(s, index) in form.services" :key="index" class="p-3 bg-gray-50 dark:bg-zinc-950/50 border border-gray-200 dark:border-zinc-800 rounded-lg space-y-2">
+                                    <!-- Row 1: nombre, monto recurrente, fecha, tipo -->
+                                    <div class="flex flex-wrap items-end gap-3">
+                                        <div class="flex-1 min-w-[200px]">
+                                            <InputLabel :value="'Servicio ' + (index + 1)" class="text-xs" />
+                                            <TextInput type="text" v-model="s.service_name" class="w-full text-sm py-1" />
+                                        </div>
+                                        <div class="w-32">
+                                            <InputLabel value="Monto recurrente ($)" class="text-xs" />
+                                            <TextInput type="number" step="0.01" v-model="s.renewal_amount" class="w-full text-sm py-1" />
+                                        </div>
+                                        <div class="w-40">
+                                            <InputLabel :value="s.billing_type === 'once' ? 'Fecha de Pago' : 'Fecha Renovación'" class="text-xs" />
+                                            <TextInput type="date" v-model="s.renewal_date" class="w-full text-sm py-1" />
+                                        </div>
+                                        <div class="w-32">
+                                            <InputLabel value="Tipo Pago" class="text-xs" />
+                                            <select v-model="s.billing_type" class="w-full text-sm py-1 border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950">
+                                                <option value="once">Único</option>
+                                                <option value="monthly">Mensual</option>
+                                                <option value="annual">Anual</option>
+                                            </select>
+                                        </div>
+                                        <button type="button" @click="removeService(index)" class="p-2 text-red-500 hover:text-red-700 transition-colors">
+                                            <TrashIcon class="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                    <!-- Row 2: pago inicial y costo inicial -->
+                                    <div class="flex flex-wrap items-end gap-3 pt-2 border-t border-gray-200 dark:border-zinc-700">
+                                        <div class="text-xs font-bold text-indigo-600 dark:text-indigo-400 self-center">Financiero inicial:</div>
+                                        <div class="w-44">
+                                            <InputLabel value="Pago Inicial del cliente ($)" class="text-xs text-green-700 dark:text-emerald-400 font-semibold" />
+                                            <TextInput type="number" step="0.01" min="0" v-model="s.initial_payment" class="w-full text-sm py-1 border-green-300 dark:border-emerald-800 focus:border-green-500" placeholder="0.00" />
+                                        </div>
+                                        <div class="w-44">
+                                            <InputLabel value="Costo Inicial interno ($)" class="text-xs text-red-600 dark:text-rose-400 font-semibold" />
+                                            <TextInput type="number" step="0.01" min="0" v-model="s.initial_cost" class="w-full text-sm py-1 border-red-300 dark:border-rose-800 focus:border-red-500" placeholder="0.00" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
