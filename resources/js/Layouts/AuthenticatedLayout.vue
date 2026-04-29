@@ -318,6 +318,26 @@ onMounted(() => {
                             </Link>
                         </li>
 
+                        <!-- Reports Link (For clients with linked client_id) -->
+                        <li v-if="$page.props.auth.user.is_client && $page.props.auth.user.client_id">
+                            <Link 
+                                :href="route('client.reports.index')"
+                                :class="[
+                                    route().current('client.reports.*') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Mis Reportes' : ''"
+                            >
+                                <DocumentChartBarIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Reportes
+                                </span>
+                            </Link>
+                        </li>
+
                         <!-- ADMIN LINKS EXCLUSIVE -->
                         <template v-if="!$page.props.auth.user.is_client">
 

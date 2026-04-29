@@ -86,10 +86,20 @@ Route::middleware('auth')->group(function () {
     Route::post('tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assign'])->name('tickets.assign');
     Route::post('tickets/{ticket}/service', [\App\Http\Controllers\TicketController::class, 'updateService'])->name('tickets.updateService');
     Route::post('tickets/{ticket}/start-work', [\App\Http\Controllers\TicketController::class, 'startWork'])->name('tickets.startWork');
-    // Reportes
+    // Reportes (admin)
     Route::resource('reports', \App\Http\Controllers\ReportController::class);
     Route::get('clients/{client}/tickets-json', [\App\Http\Controllers\ReportController::class, 'clientTickets'])->name('clients.tickets-json');
     Route::get('reports/{report}/pdf', [\App\Http\Controllers\ReportController::class, 'pdf'])->name('reports.pdf');
+
+    // Reportes (panel de cliente)
+    Route::prefix('client/reports')->name('client.reports.')->group(function () {
+        Route::get('/',          [\App\Http\Controllers\ClientReportController::class, 'index'])  ->name('index');
+        Route::get('/create',    [\App\Http\Controllers\ClientReportController::class, 'create']) ->name('create');
+        Route::post('/',         [\App\Http\Controllers\ClientReportController::class, 'store'])  ->name('store');
+        Route::get('/{report}',  [\App\Http\Controllers\ClientReportController::class, 'show'])   ->name('show');
+        Route::get('/{report}/pdf', [\App\Http\Controllers\ClientReportController::class, 'pdf'])->name('pdf');
+    });
+    Route::get('client/my-tickets', [\App\Http\Controllers\ClientReportController::class, 'myTickets'])->name('client.my-tickets');
     Route::post('notifications/mark-as-read', [\App\Http\Controllers\DashboardController::class, 'markNotificationsAsRead'])->name('notifications.markAsRead');
 
     // Finanzas
