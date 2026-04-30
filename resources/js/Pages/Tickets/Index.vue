@@ -521,8 +521,6 @@ const deleteTicket = (ticketId) => {
                                     :value="svc.id"
                                 >
                                     {{ svc.service_name }}
-                                    <template v-if="svc.billing_type === 'monthly'"> · Mensual</template>
-                                    <template v-else-if="svc.billing_type === 'annual'"> · Anual</template>
                                 </option>
                                 <option v-if="selectedClientServices.length === 0" disabled>
                                     Este cliente no tiene servicios activos
