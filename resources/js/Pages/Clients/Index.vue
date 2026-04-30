@@ -14,7 +14,8 @@ import {
     ArrowRightStartOnRectangleIcon,
     BarsArrowDownIcon,
     BarsArrowUpIcon,
-    ArrowsUpDownIcon
+    ArrowsUpDownIcon,
+    CalendarDaysIcon,
 } from '@heroicons/vue/24/outline';
 import { ref, computed, nextTick } from 'vue';
 import Modal from '@/Components/Modal.vue';
@@ -34,6 +35,22 @@ const searchQuery = ref('');
 const currentTab = ref('servicios'); // 'servicios', 'activos' or 'historicos'
 const sortBy = ref('created_at');
 const sortOrder = ref('desc');
+const selectedMonth = ref(''); // '' = todos, '1'..'12' = mes específico
+
+const months = [
+    { value: '1',  label: 'Enero' },
+    { value: '2',  label: 'Febrero' },
+    { value: '3',  label: 'Marzo' },
+    { value: '4',  label: 'Abril' },
+    { value: '5',  label: 'Mayo' },
+    { value: '6',  label: 'Junio' },
+    { value: '7',  label: 'Julio' },
+    { value: '8',  label: 'Agosto' },
+    { value: '9',  label: 'Septiembre' },
+    { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' },
+    { value: '12', label: 'Diciembre' },
+];
 
 const filteredClients = computed(() => {
     let list = [...(props.clients || [])]; // Create a copy to avoid mutating props
@@ -83,6 +100,16 @@ const filteredClients = computed(() => {
 
 const filteredServices = computed(() => {
     let list = [...(props.activeServices || [])];
+
+    // Filter by month of renewal_date
+    if (selectedMonth.value) {
+        const m = parseInt(selectedMonth.value);
+        list = list.filter(s => {
+            if (!s.renewal_date) return false;
+            const date = new Date(s.renewal_date.split('T')[0] + 'T00:00:00');
+            return date.getMonth() + 1 === m;
+        });
+    }
     
     if (searchQuery.value) {
         const q = searchQuery.value.toLowerCase();
@@ -184,9 +211,9 @@ const getRenewalBadgeClass = (days) => {
         <div class="py-12">
             <div class="container mx-auto">
                 <div class="bg-white dark:bg-zinc-900 overflow-hidden shadow-sm sm:rounded-lg card border border-gray-100 dark:border-zinc-800">
-                    <!-- Search and Tabs -->
-                    <div class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex flex-col xl:flex-row justify-between items-center gap-4 bg-white dark:bg-zinc-900">
-                        <div class="flex space-x-1 p-1 bg-gray-100 dark:bg-zinc-950 rounded-lg shrink-0">
+                    <!-- Toolbar: Row 1 — Tabs -->
+                    <div class="px-6 pt-4 pb-3 border-b border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <div class="flex space-x-1 p-1 bg-gray-100 dark:bg-zinc-950 rounded-lg w-fit">
                             <button 
                                 @click="currentTab = 'servicios'"
                                 :class="['px-4 py-1.5 text-sm font-semibold rounded-md transition-all', currentTab === 'servicios' ? 'bg-white dark:bg-zinc-900 shadow-sm text-[#264ab3] dark:text-blue-400' : 'text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-gray-200']"
@@ -206,42 +233,63 @@ const getRenewalBadgeClass = (days) => {
                                 Históricos
                             </button>
                         </div>
-                        
-                        <div class="flex flex-col md:flex-row items-center gap-3 w-full xl:w-auto">
-                            <!-- Sorting -->
-                            <div class="flex items-center space-x-2 bg-gray-50 dark:bg-zinc-950 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-zinc-800">
-                                <span class="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Ordenar:</span>
-                                <select 
-                                    v-model="sortBy"
-                                    class="bg-transparent border-none text-sm font-bold text-[#264ab3] focus:ring-0 py-0 pl-1 pr-8"
-                                >
-                                    <option value="created_at">Fecha Registro</option>
-                                    <option value="name">Alfabético</option>
-                                    <option value="renewal">Fecha Renovación</option>
-                                    <option value="amount">Monto</option>
-                                </select>
-                                <button 
-                                    @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-                                    class="p-1 hover:bg-white dark:hover:bg-zinc-900 rounded transition-all text-[#264ab3] dark:text-blue-400"
-                                    :title="sortOrder === 'asc' ? 'Ascendente' : 'Descendente'"
-                                >
-                                    <BarsArrowDownIcon v-if="sortOrder === 'desc'" class="h-5 w-5" />
-                                    <BarsArrowUpIcon v-else class="h-5 w-5" />
-                                </button>
-                            </div>
+                    </div>
 
-                            <!-- Search -->
-                            <div class="relative w-full md:w-72">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <MagnifyingGlassIcon class="h-4 w-4 text-gray-400" />
-                                </div>
-                                <input 
-                                    v-model="searchQuery"
-                                    type="text" 
-                                    placeholder="Buscar cliente..." 
-                                    class="w-full pl-9 pr-3 py-2 border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-200 rounded-lg text-sm focus:ring-[#264ab3] focus:border-[#264ab3] shadow-sm"
-                                />
+                    <!-- Toolbar: Row 2 — Filters & Search -->
+                    <div class="px-6 py-3 border-b border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-950/30 flex flex-wrap items-center gap-3">
+                        <!-- Month filter — only visible in Servicios tab -->
+                        <div v-if="currentTab === 'servicios'" class="flex items-center gap-2 bg-white dark:bg-zinc-950 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-zinc-800">
+                            <CalendarDaysIcon class="h-4 w-4 text-gray-400 dark:text-zinc-500 shrink-0" />
+                            <select
+                                v-model="selectedMonth"
+                                class="bg-transparent border-none text-sm font-bold text-[#264ab3] focus:ring-0 py-0 pl-1 pr-8 cursor-pointer"
+                            >
+                                <option value="">Todos los meses</option>
+                                <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
+                            </select>
+                            <button
+                                v-if="selectedMonth"
+                                @click="selectedMonth = ''"
+                                class="ml-1 text-gray-400 hover:text-red-500 transition"
+                                title="Limpiar filtro"
+                            >
+                                <XMarkIcon class="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <!-- Sorting -->
+                        <div class="flex items-center space-x-2 bg-white dark:bg-zinc-950 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-zinc-800">
+                            <span class="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Ordenar:</span>
+                            <select 
+                                v-model="sortBy"
+                                class="bg-transparent border-none text-sm font-bold text-[#264ab3] focus:ring-0 py-0 pl-1 pr-8"
+                            >
+                                <option value="created_at">Fecha Registro</option>
+                                <option value="name">Alfabético</option>
+                                <option value="renewal">Fecha Renovación</option>
+                                <option value="amount">Monto</option>
+                            </select>
+                            <button 
+                                @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
+                                class="p-1 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded transition-all text-[#264ab3] dark:text-blue-400"
+                                :title="sortOrder === 'asc' ? 'Ascendente' : 'Descendente'"
+                            >
+                                <BarsArrowDownIcon v-if="sortOrder === 'desc'" class="h-5 w-5" />
+                                <BarsArrowUpIcon v-else class="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        <!-- Search -->
+                        <div class="relative w-full sm:w-72 ml-auto">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <MagnifyingGlassIcon class="h-4 w-4 text-gray-400" />
                             </div>
+                            <input 
+                                v-model="searchQuery"
+                                type="text" 
+                                placeholder="Buscar cliente..." 
+                                class="w-full pl-9 pr-3 py-2 border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-200 rounded-lg text-sm focus:ring-[#264ab3] focus:border-[#264ab3] shadow-sm"
+                            />
                         </div>
                     </div>
                     

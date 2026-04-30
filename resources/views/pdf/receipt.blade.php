@@ -234,6 +234,9 @@
                     <div class="concept-title">Cuota de Servicio Mensual</div>
                     <div class="concept-desc">
                         Servicio contratado: <strong>{{ $service_name }}</strong><br>
+                        @if(!empty($service_description))
+                            {{ $service_description }}<br>
+                        @endif
                         Correspondiente al mes de: {{ \Carbon\Carbon::parse($client->next_renewal_date)->translatedFormat('F Y') }}
                     </div>
                 </td>
@@ -247,6 +250,9 @@
                     <div class="concept-title">Renovación de Cuenta / Servicios Anuales</div>
                     <div class="concept-desc">
                         Paquete / Servicio contratado: <strong>{{ $service_name }}</strong><br>
+                        @if(!empty($service_description))
+                            {{ $service_description }}<br>
+                        @endif
                         Periodo de renovación a partir del: {{ \Carbon\Carbon::parse($client->next_renewal_date)->format('d M Y') }}
                     </div>
                 </td>

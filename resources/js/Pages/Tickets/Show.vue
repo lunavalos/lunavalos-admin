@@ -327,9 +327,9 @@ const statusLogMessages = computed(() => {
             </div>
         </template>
 
-        <div class="py-6 h-[calc(100vh-160px)] grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[calc(100vh-160px)]">
             <!-- LEFT: CONVERSATION -->
-            <div class="lg:col-span-2 flex flex-col bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 overflow-hidden">
+            <div class="lg:col-span-2 flex flex-col bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 overflow-hidden min-h-[70vh] lg:min-h-0">
                 <!-- Chat Messages -->
                 <div ref="messageContainer" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gray-50/50 dark:bg-zinc-950/50">
                     <!-- Ticket Description as First Message -->

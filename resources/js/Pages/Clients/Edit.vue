@@ -231,17 +231,10 @@ const formatCurrency = (value) => {
 };
 
 const totalMonthlyCosts = computed(() => {
-    // Costos del módulo de costos internos con frecuencia mensual
-    const fromCostsTable = (props.client.costs || [])
+    // Solo costos del módulo de costos internos con frecuencia mensual
+    return (props.client.costs || [])
         .filter(c => c.billing_frequency === 'monthly')
         .reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
-
-    // Costo inicial de servicios mensuales (también es un costo recurrente mensual)
-    const fromMonthlyServices = form.services
-        .filter(s => s.billing_type === 'monthly')
-        .reduce((sum, s) => sum + parseFloat(s.initial_cost || 0), 0);
-
-    return fromCostsTable + fromMonthlyServices;
 });
 
 const totalAnnualCosts = computed(() => {

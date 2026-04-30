@@ -291,11 +291,19 @@ class FinanceController extends Controller implements HasMiddleware
         $serviceAmount = floatval($request->query('amount', $client->renewal_amount));
         $billingType   = $request->query('type', 'unique');
 
+        // Obtener descripción del servicio desde el catálogo
+        $clientService = \App\Models\ClientService::with('service')
+            ->where('client_id', $client->id)
+            ->where('service_name', $serviceName)
+            ->first();
+        $serviceDescription = $clientService?->service?->description ?? null;
+
         $receiptData = [
-            'client'       => $client,
-            'service_name' => $serviceName,
-            'amount'       => $serviceAmount,
-            'billing_type' => $billingType,
+            'client'              => $client,
+            'service_name'        => $serviceName,
+            'amount'              => $serviceAmount,
+            'billing_type'        => $billingType,
+            'service_description' => $serviceDescription,
         ];
 
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
@@ -316,11 +324,19 @@ class FinanceController extends Controller implements HasMiddleware
         $serviceAmount = floatval($request->input('amount', $client->renewal_amount));
         $billingType   = $request->input('type', 'unique');
 
+        // Obtener descripción del servicio desde el catálogo
+        $clientService = \App\Models\ClientService::with('service')
+            ->where('client_id', $client->id)
+            ->where('service_name', $serviceName)
+            ->first();
+        $serviceDescription = $clientService?->service?->description ?? null;
+
         $receiptData = [
-            'client'       => $client,
-            'service_name' => $serviceName,
-            'amount'       => $serviceAmount,
-            'billing_type' => $billingType,
+            'client'              => $client,
+            'service_name'        => $serviceName,
+            'amount'              => $serviceAmount,
+            'billing_type'        => $billingType,
+            'service_description' => $serviceDescription,
         ];
 
         if (!class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {

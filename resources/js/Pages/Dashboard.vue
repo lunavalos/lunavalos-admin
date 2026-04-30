@@ -15,6 +15,14 @@ import {
     Square3Stack3DIcon,
     CheckBadgeIcon,
     ShieldExclamationIcon,
+    ExclamationTriangleIcon,
+    ArrowDownTrayIcon,
+    BellAlertIcon,
+    EnvelopeIcon,
+    WrenchScrewdriverIcon,
+    MapPinIcon,
+    SparklesIcon,
+    InformationCircleIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -315,6 +323,74 @@ const submitCreate = () => {
                         </div>
                     </div>
 
+                    <!-- ── ALERTAS DE RENOVACIÓN ────────────────────────────── -->
+                    <div v-if="lists.upcoming_renewals && lists.upcoming_renewals.length > 0" class="mb-6 space-y-3">
+                        <div class="flex items-center gap-2 mb-3">
+                            <BellAlertIcon class="h-5 w-5 text-orange-500" />
+                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Servicios próximos a vencer</h3>
+                        </div>
+
+                        <div
+                            v-for="svc in lists.upcoming_renewals"
+                            :key="svc.id"
+                            class="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl border transition-all"
+                            :class="{
+                                'bg-red-50 dark:bg-rose-900/20 border-red-200 dark:border-rose-800/50':   svc.days_until <= 7,
+                                'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/50': svc.days_until > 7 && svc.days_until <= 20,
+                                'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/50': svc.days_until > 20,
+                            }"
+                        >
+                            <!-- Left: icon + info -->
+                            <div class="flex items-center gap-4 min-w-0">
+                                <div
+                                    class="p-2.5 rounded-xl shrink-0"
+                                    :class="{
+                                        'bg-red-100 dark:bg-rose-900/40 text-red-600 dark:text-rose-400':     svc.days_until <= 7,
+                                        'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400': svc.days_until > 7 && svc.days_until <= 20,
+                                        'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400': svc.days_until > 20,
+                                    }"
+                                >
+                                    <ExclamationTriangleIcon class="h-5 w-5" />
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{{ svc.service_name }}</p>
+                                    <p class="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
+                                        Vence el {{ formatDate(svc.renewal_date) }}
+                                        <span
+                                            class="ml-2 font-bold"
+                                            :class="{
+                                                'text-red-600 dark:text-rose-400':     svc.days_until <= 7,
+                                                'text-orange-600 dark:text-orange-400': svc.days_until > 7 && svc.days_until <= 20,
+                                                'text-yellow-600 dark:text-yellow-400': svc.days_until > 20,
+                                            }"
+                                        >· {{ svc.days_until === 0 ? 'Hoy' : `en ${svc.days_until} días` }}</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Right: amount + download -->
+                            <div class="flex items-center gap-3 shrink-0">
+                                <span class="text-sm font-extrabold text-gray-800 dark:text-gray-100">
+                                    {{ formatCurrency(svc.renewal_amount) }}
+                                </span>
+                                <a
+                                    :href="route('finances.receipt', { client: svc.client_id, service: svc.service_name, amount: svc.renewal_amount, type: svc.billing_type })"
+                                    target="_blank"
+                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all border"
+                                    :class="{
+                                        'bg-red-600 text-white border-red-600 hover:bg-red-700':         svc.days_until <= 7,
+                                        'bg-orange-500 text-white border-orange-500 hover:bg-orange-600': svc.days_until > 7 && svc.days_until <= 20,
+                                        'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600': svc.days_until > 20,
+                                    }"
+                                    title="Descargar recibo PDF"
+                                >
+                                    <ArrowDownTrayIcon class="h-4 w-4" />
+                                    PDF
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <!-- Bienvenida y Acción Rápida -->
                         <div class="md:col-span-1">
@@ -443,14 +519,6 @@ const submitCreate = () => {
                                             </div>
 
                                             <div class="space-y-3 pt-4 border-t border-gray-100 dark:border-zinc-800">
-                                                <!-- Initial Price / Contract Value -->
-                                                <div class="flex items-center justify-between">
-                                                    <span class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-zinc-500">Inversión Inicial</span>
-                                                    <span class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                                                        {{ formatCurrency(item.unit_price || item.initial_price) }}
-                                                    </span>
-                                                </div>
-
                                                 <!-- Renewal / Annuality -->
                                                 <div v-if="item.renewal_price && item.renewal_price > 0" class="flex flex-col space-y-1 bg-orange-50 dark:bg-orange-900/20 p-2.5 rounded-xl border border-orange-100 dark:border-orange-800/30">
                                                     <div class="flex items-center justify-between">
@@ -484,6 +552,80 @@ const submitCreate = () => {
                         </div>
 
                     </div>
+
+                    <!-- ── WIDGET SOPORTE ────────────────────────────────────── -->
+                    <div class="mt-6 bg-white dark:bg-zinc-900 rounded-3xl border border-gray-100 dark:border-zinc-800 shadow-sm overflow-hidden">
+                        <!-- Header -->
+                        <div class="flex items-center gap-3 px-6 py-4 border-b border-gray-100 dark:border-zinc-800 bg-gradient-to-r from-[#264ab3]/5 to-transparent dark:from-blue-900/20">
+                            <div class="p-2 rounded-xl bg-[#264ab3]/10 dark:bg-blue-900/30">
+                                <InformationCircleIcon class="h-5 w-5 text-[#264ab3] dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">Soporte incluido durante todo el año</h3>
+                                <p class="text-xs text-gray-400 dark:text-zinc-500">Conoce los niveles de atención según tu servicio</p>
+                            </div>
+                        </div>
+
+                        <!-- Items -->
+                        <div class="divide-y divide-gray-50 dark:divide-zinc-800">
+
+                            <!-- Correo en hosting -->
+                            <div class="flex gap-4 px-6 py-5">
+                                <div class="shrink-0 p-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 h-fit mt-0.5">
+                                    <EnvelopeIcon class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Cuentas de correo en hosting</p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte digital con tiempo de respuesta de <span class="font-semibold text-gray-700 dark:text-gray-300">1 a 3 días</span>.</p>
+                                </div>
+                            </div>
+
+                            <!-- Google Workspace -->
+                            <div class="flex gap-4 px-6 py-5">
+                                <div class="shrink-0 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 h-fit mt-0.5">
+                                    <SparklesIcon class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Cuentas de correo con Google Workspace</p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte <span class="font-semibold text-gray-700 dark:text-gray-300">24/7 respuesta inmediata</span>, directo con el equipo de soporte de Google.</p>
+                                </div>
+                            </div>
+
+                            <!-- Sitio web y hosting -->
+                            <div class="flex gap-4 px-6 py-5">
+                                <div class="shrink-0 p-2.5 rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 h-fit mt-0.5">
+                                    <WrenchScrewdriverIcon class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Soporte sitio web y mantenimiento hosting</p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">
+                                        Cambio en contenido y actualización de imágenes moderado
+                                        <span class="font-semibold text-gray-700 dark:text-gray-300">1 cambio mensual</span> en caso de requerirlo,
+                                        monitoreo constante, escaneo y solución a caídas del servidor con
+                                        <span class="font-semibold text-gray-700 dark:text-gray-300">tiempo de respuesta inmediata</span> y
+                                        tiempo de resolución variable dependiendo del problema presentado.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Visita presencial -->
+                            <div class="flex gap-4 px-6 py-5 bg-amber-50/50 dark:bg-amber-900/10">
+                                <div class="shrink-0 p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 h-fit mt-0.5">
+                                    <MapPinIcon class="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Visita de soporte presencial</p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">
+                                        Te visitamos en tu oficina si requieres soporte presencial por
+                                        <span class="font-semibold text-amber-700 dark:text-amber-400">$950 MXN</span>
+                                        en el área metropolitana de Saltillo.
+                                    </p>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
                 </template>
 
                 <!-- Vista para otros roles (Web Dev, Designer, etc) -->

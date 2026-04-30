@@ -134,9 +134,29 @@ class DashboardController extends Controller
 
             return Inertia::render('Dashboard', [
                 'lists' => [
-                    'tickets' => $tickets,
-                    'my_tickets' => $myTickets ?? [],
-                    'plan_details' => $planDetails,
+                    'tickets'           => $tickets,
+                    'my_tickets'        => $myTickets ?? [],
+                    'plan_details'      => $planDetails,
+                    'upcoming_renewals' => $user->hasRole('Cliente') && isset($client) && $client
+                        ? \App\Models\ClientService::with('service')
+                            ->where('client_id', $client->id)
+                            ->where('status', 'active')
+                            ->whereNotNull('renewal_date')
+                            ->where('renewal_date', '>=', Carbon::today())
+                            ->where('renewal_date', '<=', Carbon::today()->addDays(60))
+                            ->orderBy('renewal_date')
+                            ->get()
+                            ->map(fn($cs) => [
+                                'id'             => $cs->id,
+                                'client_id'      => $client->id,
+                                'service_name'   => $cs->service_name,
+                                'renewal_amount' => (float) $cs->renewal_amount,
+                                'renewal_date'   => $cs->renewal_date->toDateString(),
+                                'billing_type'   => $cs->billing_type,
+                                'days_until'     => (int) Carbon::today()->diffInDays($cs->renewal_date),
+                            ])
+                            ->values()
+                        : [],
                 ],
                 'two_factor_notice' => ($user->hasRole('Cliente') && !$user->hasTwoFactorEnabled() && $user->login_count <= 3) 
                     ? "Le quedan " . (4 - $user->login_count) . " inicios de sesión antes de que la configuración de 2FA sea obligatoria. Por favor, actívela en su perfil lo antes posible." 
