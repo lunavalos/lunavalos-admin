@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import draggable from 'vuedraggable';
 import { 
     PlusIcon, 
@@ -106,6 +106,50 @@ const selectedClientServices = computed(() => {
 watch(() => createForm.client_id, () => {
     createForm.client_service_id = null;
 });
+
+// ── Combobox buscador de cliente ──────────────────────────────────────────────
+const clientSearch      = ref('');
+const clientDropdownOpen = ref(false);
+const clientComboRef    = ref(null);
+
+const selectedClientLabel = computed(() => {
+    if (!createForm.client_id) return null;
+    return props.clients?.find(c => c.id === createForm.client_id)?.business_name ?? null;
+});
+
+const filteredClients = computed(() => {
+    const q = clientSearch.value.trim().toLowerCase();
+    if (!q) return props.clients ?? [];
+    return (props.clients ?? []).filter(c =>
+        c.business_name?.toLowerCase().includes(q)
+    );
+});
+
+const openClientDropdown = () => {
+    clientSearch.value = '';
+    clientDropdownOpen.value = true;
+};
+
+const selectClient = (client) => {
+    createForm.client_id = client ? client.id : null;
+    clientSearch.value   = '';
+    clientDropdownOpen.value = false;
+};
+
+const clearClient = () => {
+    createForm.client_id = null;
+    clientSearch.value   = '';
+    clientDropdownOpen.value = false;
+};
+
+const handleClickOutsideClient = (e) => {
+    if (clientComboRef.value && !clientComboRef.value.contains(e.target)) {
+        clientDropdownOpen.value = false;
+    }
+};
+
+onMounted(()  => document.addEventListener('mousedown', handleClickOutsideClient));
+onUnmounted(() => document.removeEventListener('mousedown', handleClickOutsideClient));
 
 const openCreateModal = () => {
     isCreateModalOpen.value = true;
@@ -213,8 +257,8 @@ const deleteTicket = (ticketId) => {
 
         </template>
 
-        <div class="py-6 h-[calc(100vh-160px)]">
-            <div class="h-full overflow-x-auto pb-4 custom-scrollbar">
+        <div class="py-4">
+            <div class="overflow-x-auto pb-2 custom-scrollbar" style="height: calc(100vh - 260px)">
                 <div class="flex space-x-6 min-w-max h-full px-2">
                     <!-- KANBAN COLUMNS -->
                     <div 
@@ -388,18 +432,77 @@ const deleteTicket = (ticketId) => {
                             <InputError class="mt-2" :message="createForm.errors.assigned_id" />
                         </div>
 
-                        <div v-if="!$page.props.auth.user.is_client">
-                            <InputLabel for="client_id" value="Cliente / Empresa Beneficiaria" />
-                            <select
+                        <div v-if="!$page.props.auth.user.is_client" ref="clientComboRef" class="relative">
+                            <InputLabel for="client_search" value="Cliente / Empresa Beneficiaria" />
+
+                            <!-- Trigger button -->
+                            <button
+                                v-if="!clientDropdownOpen"
+                                type="button"
                                 id="client_id"
-                                class="mt-1 block w-full border-gray-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl shadow-sm"
-                                v-model="createForm.client_id"
+                                @click="openClientDropdown"
+                                class="mt-1 w-full flex items-center justify-between border border-gray-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 rounded-xl shadow-sm px-3 py-2 text-sm text-left focus:outline-none focus:border-[#264ab3] focus:ring-1 focus:ring-[#264ab3] transition"
                             >
-                                <option :value="null">Seleccionar Cliente</option>
-                                <option v-for="client in clients" :key="client.id" :value="client.id">
+                                <span :class="!selectedClientLabel ? 'text-gray-400 dark:text-zinc-500' : ''">
+                                    {{ selectedClientLabel ?? 'Seleccionar Cliente' }}
+                                </span>
+                                <svg class="h-4 w-4 text-gray-400 dark:text-zinc-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+
+                            <!-- Search input (visible when open) -->
+                            <div v-if="clientDropdownOpen" class="mt-1 relative">
+                                <input
+                                    id="client_search"
+                                    v-model="clientSearch"
+                                    type="text"
+                                    autofocus
+                                    placeholder="Buscar cliente…"
+                                    class="w-full border border-[#264ab3] dark:border-blue-500 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200 rounded-xl shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#264ab3] transition"
+                                />
+                                <svg class="absolute right-3 top-2.5 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                                </svg>
+                            </div>
+
+                            <!-- Dropdown list -->
+                            <div
+                                v-if="clientDropdownOpen"
+                                class="absolute z-50 mt-1 w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl overflow-y-auto"
+                                style="max-height: 450px;"
+                            >
+                                <!-- Clear option -->
+                                <button
+                                    type="button"
+                                    @click="clearClient"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-400 dark:text-zinc-500 italic hover:bg-gray-50 dark:hover:bg-zinc-800 transition"
+                                >
+                                    Sin asignar cliente
+                                </button>
+                                <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                                <!-- Client options -->
+                                <button
+                                    v-for="client in filteredClients"
+                                    :key="client.id"
+                                    type="button"
+                                    @click="selectClient(client)"
+                                    class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-[#264ab3] dark:hover:text-blue-400 transition flex items-center justify-between group"
+                                    :class="createForm.client_id === client.id ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold' : ''"
+                                >
                                     {{ client.business_name }}
-                                </option>
-                            </select>
+                                    <svg v-if="createForm.client_id === client.id" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+
+                                <!-- Empty state -->
+                                <div v-if="filteredClients.length === 0" class="px-4 py-6 text-center text-sm text-gray-400 dark:text-zinc-500 italic">
+                                    No se encontraron clientes
+                                </div>
+                            </div>
+
                             <InputError class="mt-2" :message="createForm.errors.client_id" />
                         </div>
 
