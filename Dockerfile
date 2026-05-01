@@ -1,4 +1,4 @@
-FROM php:8.3-apache
+FROM php:8.4-apache
 
 ENV APACHE_DOCUMENT_ROOT /var/www/html/public
 
@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install -j$(nproc) pdo pdo_mysql mbstring zip intl gd bcmath pcntl
+    docker-php-ext-install pdo pdo_mysql mbstring zip intl gd bcmath pcntl
 
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 
