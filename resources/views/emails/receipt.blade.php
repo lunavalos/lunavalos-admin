@@ -5,21 +5,39 @@
 </head>
 <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
 @php
-    $logoPath = null;
+    $logoBase64 = null;
     try {
+        // Primero buscar logo configurado en Settings (PNG/JPG desde storage)
         if (\Illuminate\Support\Facades\Schema::hasTable('settings')) {
-            $logoPath = \App\Models\Setting::where('key', 'company_logo')->value('value');
+            $logoStoragePath = \App\Models\Setting::where('key', 'company_logo')->value('value');
+            if ($logoStoragePath) {
+                $fullPath = storage_path('app/public/' . $logoStoragePath);
+                if (file_exists($fullPath)) {
+                    $mime = mime_content_type($fullPath);
+                    // Solo incrustar si es imagen rasterizada (no SVG)
+                    if (in_array($mime, ['image/png', 'image/jpeg', 'image/gif', 'image/webp'])) {
+                        $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fullPath));
+                    }
+                }
+            }
+        }
+        // Fallback: logo PNG de /public
+        if (!$logoBase64) {
+            $fallbackPath = public_path('icon-192x192.png');
+            if (file_exists($fallbackPath)) {
+                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($fallbackPath));
+            }
         }
     } catch (\Exception $e) {}
 @endphp
-    
+
     <div style="text-align: center; margin-bottom: 20px;">
-        @if ($logoPath)
-            <img src="{{ asset('storage/' . $logoPath) }}" alt="LUNAVALOS" style="max-height: 150px; width: auto; max-width: 100%;">
+        @if ($logoBase64)
+            <img src="{{ $logoBase64 }}" alt="LunAvalos" style="max-height: 140px; width: auto; max-width: 360px; display: block; margin: 0 auto;">
         @else
             <h2 style="color: #264ab3; margin: 0;">LUNAVALOS</h2>
         @endif
-        <p style="color: #666; font-size: 14px; margin-top: 5px;">Aviso de Renovación de Servicios</p>
+        <p style="color: #666; font-size: 14px; margin-top: 8px;">Aviso de Renovación de Servicios</p>
     </div>
 
     <p>Hola <strong>{{ $client->contact_name ?: $client->business_name }}</strong>,</p>

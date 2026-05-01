@@ -32,7 +32,7 @@ class ClientController extends Controller implements HasMiddleware
             $query->where('status', 'active');
         }])->orderBy('created_at', 'desc')->get();
 
-        $activeServices = \App\Models\ClientService::with('client:id,business_name')
+        $activeServices = \App\Models\ClientService::with('client:id,business_name,email')
             ->where('status', 'active')
             ->orderBy('renewal_date', 'asc')
             ->get();

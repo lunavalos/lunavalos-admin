@@ -16,6 +16,7 @@ import {
     BarsArrowUpIcon,
     ArrowsUpDownIcon,
     CalendarDaysIcon,
+    PrinterIcon,
 } from '@heroicons/vue/24/outline';
 import { ref, computed, nextTick } from 'vue';
 import Modal from '@/Components/Modal.vue';
@@ -30,6 +31,26 @@ const props = defineProps({
 });
 
 const form = useForm({});
+const receiptForm = useForm({});
+const sendingReceiptFor = ref(null); // tracks which service is being sent
+
+const sendReceipt = (service) => {
+    if (!service.client?.email) {
+        alert('Este cliente no tiene un correo electrónico configurado.');
+        return;
+    }
+    if (!confirm(`¿Enviar el recibo de "${service.service_name}" a ${service.client.email}?`)) return;
+
+    sendingReceiptFor.value = service.id;
+    receiptForm.transform(() => ({
+        service: service.service_name,
+        amount:  service.renewal_amount,
+        type:    service.billing_type,
+    })).post(route('finances.send-receipt', service.client_id), {
+        preserveScroll: true,
+        onFinish: () => { sendingReceiptFor.value = null; },
+    });
+};
 
 const searchQuery = ref('');
 const currentTab = ref('servicios'); // 'servicios', 'activos' or 'historicos'
@@ -395,6 +416,7 @@ const getRenewalBadgeClass = (days) => {
                                     <th class="p-4" style="width: 25%">Servicio</th>
                                     <th class="p-4" style="width: 20%" v-if="$page.props.auth.user.is_admin">Renovación</th>
                                     <th class="p-4 text-center" v-if="$page.props.auth.user.is_admin">Monto</th>
+                                    <th class="p-4 text-center" v-if="$page.props.auth.user.is_admin">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -434,6 +456,46 @@ const getRenewalBadgeClass = (days) => {
                                     </td>
                                     <td class="p-4 text-center font-bold text-gray-700 dark:text-gray-200" v-if="$page.props.auth.user.is_admin">
                                         {{ service.renewal_amount ? formatCurrency(service.renewal_amount) : '---' }}
+                                    </td>
+
+                                    <!-- Acciones: PDF + Enviar -->
+                                    <td class="p-4" v-if="$page.props.auth.user.is_admin">
+                                        <div class="flex items-center justify-center gap-2">
+                                            <!-- PDF -->
+                                            <a
+                                                :href="route('finances.receipt', {
+                                                    client:  service.client_id,
+                                                    service: service.service_name,
+                                                    amount:  service.renewal_amount,
+                                                    type:    service.billing_type,
+                                                })"
+                                                target="_blank"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-200 hover:border-[#264ab3] hover:text-[#264ab3] transition-all"
+                                                title="Descargar PDF"
+                                            >
+                                                <PrinterIcon class="h-4 w-4" />
+                                                PDF
+                                            </a>
+
+                                            <!-- Enviar email -->
+                                            <button
+                                                type="button"
+                                                @click="sendReceipt(service)"
+                                                :disabled="sendingReceiptFor === service.id"
+                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl disabled:opacity-50 transition-all"
+                                                :class="service.renewal_email_sent_at
+                                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                    : 'bg-[#264ab3] hover:bg-[#193074] text-white'"
+                                                :title="service.renewal_email_sent_at
+                                                    ? 'Enviado: ' + formatDate(service.renewal_email_sent_at) + ' — Click para reenviar'
+                                                    : (service.client?.email ? 'Enviar recibo a ' + service.client.email : 'Sin email configurado')"
+                                            >
+                                                <EnvelopeIcon class="h-4 w-4" />
+                                                <template v-if="sendingReceiptFor === service.id">Enviando...</template>
+                                                <template v-else-if="service.renewal_email_sent_at">Reenviar</template>
+                                                <template v-else>Enviar</template>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 <tr v-if="filteredServices.length === 0">

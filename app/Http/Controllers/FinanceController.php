@@ -347,7 +347,13 @@ class FinanceController extends Controller implements HasMiddleware
 
         try {
             \Illuminate\Support\Facades\Mail::to($client->email)
+                ->cc('ventas@lunavalos.com')
                 ->send(new \App\Mail\RenewalReceiptMail($client, $serviceName, $serviceAmount, $billingType, $pdfContent));
+
+            // Stamp the send timestamp on the matching ClientService
+            \App\Models\ClientService::where('client_id', $client->id)
+                ->where('service_name', $serviceName)
+                ->update(['renewal_email_sent_at' => now()]);
 
             return back()->with('message', '¡Recibo de ' . $serviceName . ' enviado a ' . $client->email . ' con éxito!');
         } catch (\Exception $e) {

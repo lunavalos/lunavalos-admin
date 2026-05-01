@@ -16,13 +16,15 @@ class ClientService extends Model
         'initial_cost',
         'status',
         'billing_type',
+        'renewal_email_sent_at',
     ];
 
     protected $casts = [
-        'renewal_date' => 'date',
-        'renewal_amount' => 'decimal:2',
-        'initial_payment' => 'decimal:2',
-        'initial_cost' => 'decimal:2',
+        'renewal_date'           => 'date',
+        'renewal_amount'         => 'decimal:2',
+        'initial_payment'        => 'decimal:2',
+        'initial_cost'           => 'decimal:2',
+        'renewal_email_sent_at'  => 'datetime',
     ];
 
     public function client()
