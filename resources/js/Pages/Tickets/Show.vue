@@ -296,6 +296,22 @@ const isAssignedToMe = computed(() => {
     return props.ticket?.assigned_id === page.props.auth?.user?.id;
 });
 
+/**
+ * Returns the display name for a given user object.
+ * If the current viewer is a Client, internal staff names are masked as "LunAvalos".
+ * Internal users always see real names.
+ */
+const displayName = (user) => {
+    if (!user) return 'Usuario';
+    // If the viewer is a client AND this message author is NOT a client → mask name
+    if (isClient.value && !user.is_client) return 'LunAvalos';
+    return user.name || 'Usuario';
+};
+
+const displayInitial = (user) => {
+    return displayName(user).charAt(0).toUpperCase();
+};
+
 // Compute elapsed/total work time
 const formatDuration = (start, end) => {
     if (!start) return null;
@@ -303,10 +319,14 @@ const formatDuration = (start, end) => {
     const to = end ? new Date(end) : new Date();
     const diffMs = to - from;
     const totalMinutes = Math.floor(diffMs / 60000);
-    const hours = Math.floor(totalMinutes / 60);
+    const days    = Math.floor(totalMinutes / 1440);
+    const hours   = Math.floor((totalMinutes % 1440) / 60);
     const minutes = totalMinutes % 60;
-    if (hours === 0) return `${minutes}m`;
-    return `${hours}h ${minutes}m`;
+
+    if (days > 0 && hours > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (days > 0)              return `${days}d ${minutes}m`;
+    if (hours > 0)             return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
 };
 
 // System messages that represent status changes (logged in conversation)
@@ -440,9 +460,18 @@ const allMessages = computed(() => {
                         class="flex items-start"
                         :class="ticket.creator_id === $page.props.auth.user.id ? 'flex-row-reverse' : ''"
                     >
-                        <img v-if="ticket.creator?.profile_photo_url"
+                        <!-- Anonymous LunAvalos avatar (client viewer + internal author) -->
+                        <img
+                            v-if="isClient && !ticket.creator?.is_client"
+                            src="/favicon.png"
+                            alt="LunAvalos"
+                            class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white dark:border-zinc-900 bg-white p-1"
+                            :class="ticket.creator_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'"
+                        />
+                        <!-- Real photo avatar -->
+                        <img v-else-if="ticket.creator?.profile_photo_url"
                             :src="ticket.creator.profile_photo_url" 
-                            :alt="ticket.creator?.name"
+                            :alt="displayName(ticket.creator)"
                             class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white"
                             :class="[
                                 ticket.creator_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'
@@ -454,7 +483,7 @@ const allMessages = computed(() => {
                                 ticket.creator_id === $page.props.auth.user.id ? 'ml-4 bg-[#264ab3]' : 'mr-4 bg-gray-200 !text-gray-500 dark:bg-zinc-800 dark:!text-zinc-400'
                             ]"
                         >
-                            {{ ticket.creator?.name ? ticket.creator.name.charAt(0) : '?' }}
+                            {{ displayInitial(ticket.creator) }}
                         </div>
                         <div 
                             class="flex-1 max-w-2xl p-5 rounded-2xl border"
@@ -469,7 +498,7 @@ const allMessages = computed(() => {
                                 :class="ticket.creator_id === page.props.auth?.user?.id ? 'flex-row-reverse' : ''"
                             >
                                 <span class="font-bold text-sm" :class="ticket.creator_id === page.props.auth?.user?.id ? 'text-white' : 'text-gray-900 dark:text-gray-100'">
-                                    {{ ticket.creator?.name || 'Usuario' }}
+                                    {{ displayName(ticket.creator) }}
                                 </span>
                                 <span class="text-[10px]" :class="ticket.creator_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400 dark:text-zinc-500'">
                                     {{ formatDate(ticket.created_at, true) }}
@@ -513,9 +542,18 @@ const allMessages = computed(() => {
                         
                         <!-- Regular User Message -->
                         <template v-else>
-                            <img v-if="msg.user?.profile_photo_url"
+                            <!-- Anonymous LunAvalos avatar (client viewer + internal author) -->
+                            <img
+                                v-if="isClient && !msg.user?.is_client"
+                                src="/favicon.png"
+                                alt="LunAvalos"
+                                class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white dark:border-zinc-900 bg-white p-1"
+                                :class="msg.user_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'"
+                            />
+                            <!-- Real photo avatar -->
+                            <img v-else-if="msg.user?.profile_photo_url"
                                 :src="msg.user.profile_photo_url" 
-                                :alt="msg.user?.name"
+                                :alt="displayName(msg.user)"
                                 class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white"
                                 :class="[
                                     msg.user_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'
@@ -527,7 +565,7 @@ const allMessages = computed(() => {
                                     msg.user_id === $page.props.auth.user.id ? 'ml-4 bg-[#264ab3]' : 'mr-4 bg-purple-500'
                                 ]"
                             >
-                                {{ msg.user?.name ? msg.user.name.charAt(0) : '?' }}
+                                {{ displayInitial(msg.user) }}
                             </div>
                             <div 
                                 class="flex-1 max-w-2xl p-5 rounded-2xl border"
@@ -542,7 +580,7 @@ const allMessages = computed(() => {
                                     :class="msg.user_id === page.props.auth?.user?.id ? 'flex-row-reverse' : ''"
                                 >
                                     <span class="font-bold text-sm" :class="msg.user_id === page.props.auth?.user?.id ? 'text-white' : 'text-gray-900 dark:text-gray-100'">
-                                        {{ msg.user?.name || 'Usuario' }}
+                                        {{ displayName(msg.user) }}
                                     </span>
                                     <span class="text-[10px]" :class="msg.user_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400 dark:text-zinc-500'">
                                         {{ formatDate(msg.created_at, true) }}

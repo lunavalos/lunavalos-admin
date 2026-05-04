@@ -36,6 +36,8 @@ class User extends Authenticatable implements TwoFactorContract
      */
     protected $appends = [
         'profile_photo_url',
+        'is_client',
+        'is_admin',
     ];
 
     /**
@@ -70,6 +72,18 @@ class User extends Authenticatable implements TwoFactorContract
     public function employee()
     {
         return $this->hasOne(Employee::class);
+    }
+
+    /** Returns true if this user has the Cliente role. */
+    public function getIsClientAttribute(): bool
+    {
+        return $this->hasRole('Cliente');
+    }
+
+    /** Returns true if this user has an admin role. */
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->hasAnyRole(['Administrador', 'Administrador Master']);
     }
 
     /**
