@@ -7,6 +7,7 @@ use App\Models\TicketMessage;
 use App\Models\User;
 use App\Models\Client;
 use App\Models\ClientService;
+use App\Events\TicketMessageSent;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -141,10 +142,11 @@ class TicketController extends Controller
                 'Completados' => '✅',
             ];
             $emoji = $statusEmojis[$ticket->status] ?? '🔄';
-            $ticket->messages()->create([
+            $systemMsg = $ticket->messages()->create([
                 'user_id' => null,
                 'message' => "{$emoji} " . Auth::user()->name . " cambió el estatus a: <strong>{$ticket->status}</strong>",
             ]);
+            broadcast(new TicketMessageSent($systemMsg))->toOthers();
 
             // Notify participants
             if ($ticket->creator_id !== Auth::id()) {
@@ -205,11 +207,12 @@ class TicketController extends Controller
             $filePath = $request->file('file')->store('tickets/attachments', 'public');
         }
 
-        $ticket->messages()->create([
+        $newMsg = $ticket->messages()->create([
             'user_id' => Auth::id(),
             'message' => $request->message,
             'file_path' => $filePath,
         ]);
+        broadcast(new TicketMessageSent($newMsg))->toOthers();
 
         $oldStatus = $ticket->status;
         if ($request->change_status && $request->change_status !== $oldStatus) {
@@ -238,10 +241,11 @@ class TicketController extends Controller
                 'Completados' => '✅',
             ];
             $emoji = $statusEmojis[$ticket->status] ?? '🔄';
-            $ticket->messages()->create([
+            $sysMsg2 = $ticket->messages()->create([
                 'user_id' => null,
                 'message' => "{$emoji} " . Auth::user()->name . " cambió el estatus a: <strong>{$ticket->status}</strong>",
             ]);
+            broadcast(new TicketMessageSent($sysMsg2))->toOthers();
 
             // Notify status change separately
             $statusMsg = "El ticket #{$ticket->id} cambió a: {$ticket->status}";

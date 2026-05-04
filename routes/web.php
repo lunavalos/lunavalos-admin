@@ -25,6 +25,9 @@ Route::get('/client/briefing', [\App\Http\Controllers\DashboardController::class
 Route::post('/client/briefing', [\App\Http\Controllers\DashboardController::class, 'updateBriefing'])
     ->middleware(['auth', 'verified'])
     ->name('client.briefing.update');
+Route::get('/client/mail-config', [\App\Http\Controllers\DashboardController::class, 'clientMailConfig'])
+    ->middleware(['auth', 'verified'])
+    ->name('client.mail-config');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

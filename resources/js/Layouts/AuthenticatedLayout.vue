@@ -9,7 +9,7 @@ import {
     BriefcaseIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon,
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
-    SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon, DocumentChartBarIcon
+    SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon, DocumentChartBarIcon, ServerIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -317,6 +317,27 @@ onMounted(() => {
                                 </span>
                             </Link>
                         </li>
+
+                        <!-- Mail Config Link (For all clients) -->
+                        <li v-if="$page.props.auth.user.is_client">
+                            <Link 
+                                :href="route('client.mail-config')"
+                                :class="[
+                                    route().current('client.mail-config') 
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm' 
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Config. de Correo' : ''"
+                            >
+                                <ServerIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Config. Correo
+                                </span>
+                            </Link>
+                        </li>
+
 
                         <!-- Reports Link (For clients with linked client_id) -->
                         <li v-if="$page.props.auth.user.is_client && $page.props.auth.user.client_id">

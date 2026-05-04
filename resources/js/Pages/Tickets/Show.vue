@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { 
     ChevronLeftIcon,
     ChevronRightIcon,
@@ -76,8 +76,61 @@ const scrollToBottom = () => {
     }
 };
 
+// ── Live chat ──────────────────────────────────────────────────────────────
+const liveMessages = ref([]); // messages received via WebSocket
+const isConnected = ref(false);
+
+/**
+ * Generates a short "pop" notification sound using the Web Audio API.
+ * No external file needed.
+ */
+const playPop = () => {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.25, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.15);
+    } catch (_) {
+        // AudioContext not available — fail silently
+    }
+};
+
 onMounted(() => {
     scrollToBottom();
+
+    // Subscribe to the public ticket channel via Laravel Echo / Reverb
+    if (window.Echo) {
+        window.Echo.channel(`ticket.${props.ticket.id}`)
+            .subscribed(() => {
+                isConnected.value = true;
+            })
+            .listen('.message.sent', (payload) => {
+                // Avoid duplicating messages the current user just sent
+                const alreadyExists =
+                    props.ticket.messages.some(m => m.id === payload.id) ||
+                    liveMessages.value.some(m => m.id === payload.id);
+
+                if (!alreadyExists) {
+                    liveMessages.value.push(payload);
+                    playPop();
+                    nextTick(() => scrollToBottom());
+                }
+            });
+    }
+});
+
+onUnmounted(() => {
+    if (window.Echo) {
+        window.Echo.leaveChannel(`ticket.${props.ticket.id}`);
+    }
 });
 
 const handleFileChange = (e) => {
@@ -246,9 +299,35 @@ const formatDuration = (start, end) => {
 
 // System messages that represent status changes (logged in conversation)
 const statusLogMessages = computed(() => {
-    if (!props.ticket?.messages) return [];
-    return props.ticket.messages
-        .filter(m => m.user_id === null)
+    const all = [
+        ...(props.ticket?.messages ?? []),
+        ...liveMessages.value,
+    ];
+    // deduplicate by id
+    const seen = new Set();
+    return all
+        .filter(m => {
+            if (m.user_id !== null) return false;
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+        })
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+});
+
+// All messages for the conversation (props + live WebSocket messages, deduped)
+const allMessages = computed(() => {
+    const combined = [
+        ...(props.ticket?.messages ?? []),
+        ...liveMessages.value,
+    ];
+    const seen = new Set();
+    return combined
+        .filter(m => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+        })
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 });
 
@@ -268,6 +347,17 @@ const statusLogMessages = computed(() => {
                     <div>
                         <div class="flex items-center space-x-2 mb-1">
                             <span class="text-xs font-bold text-gray-400 dark:text-zinc-500">TICKET #{{ ticket.id }}</span>
+                            <!-- Live connection indicator -->
+                            <span
+                                v-if="isConnected"
+                                class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50"
+                            >
+                                <span class="relative flex h-1.5 w-1.5">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                </span>
+                                En vivo
+                            </span>
                             <span 
                                 class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter"
                                 :class="priorityColors[ticket.priority]"
@@ -395,7 +485,7 @@ const statusLogMessages = computed(() => {
 
                     <!-- Conversation Messages -->
                     <div 
-                        v-for="msg in ticket.messages" 
+                        v-for="msg in allMessages" 
                         :key="msg.id"
                         class="flex items-start"
                         :class="msg.user_id === $page.props.auth.user.id ? 'flex-row-reverse' : (msg.user_id === null ? 'justify-center my-4' : '')"
@@ -405,7 +495,7 @@ const statusLogMessages = computed(() => {
                             <span class="font-bold mb-1 flex items-center text-gray-700 dark:text-gray-100">
                                 🤖 Sistema
                             </span>
-                            <span>{{ msg.message }}</span>
+                            <span v-html="msg.message"></span>
                             <span class="text-[10px] text-gray-400 dark:text-zinc-500 mt-1 block">{{ formatDate(msg.created_at, true) }}</span>
                         </div>
                         

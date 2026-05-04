@@ -187,8 +187,9 @@ class DashboardController extends Controller
 
     public function clientBriefing(Request $request)
     {
-        $user = $request->user();
-        $client = $user->client;
+        $user   = $request->user();
+        $client = \App\Models\Client::where('user_id', $user->id)->first()
+                ?? $user->client; // fallback por client_id en users
 
         if (!$client) {
             return redirect()->route('dashboard');
@@ -196,36 +197,63 @@ class DashboardController extends Controller
 
         return Inertia::render('ClientPanel/Briefing', [
             'briefing_details' => [
-                'briefing_context' => $client->briefing_context,
+                'briefing_context'         => $client->briefing_context,
                 'briefing_target_audience' => $client->briefing_target_audience,
-                'briefing_competitors' => $client->briefing_competitors,
-                'briefing_references' => $client->briefing_references,
+                'briefing_competitors'     => $client->briefing_competitors,
+                'briefing_references'      => $client->briefing_references,
                 'briefing_contact_methods' => $client->briefing_contact_methods,
-                'briefing_current_emails' => $client->briefing_current_emails,
+                'briefing_current_emails'  => $client->briefing_current_emails,
             ]
         ]);
     }
 
     public function updateBriefing(Request $request)
     {
-        $user = $request->user();
-        $client = $user->client;
+        $user   = $request->user();
+        $client = \App\Models\Client::where('user_id', $user->id)->first()
+                ?? $user->client;
 
         if (!$client) {
             return redirect()->route('dashboard');
         }
 
         $validated = $request->validate([
-            'briefing_context' => 'nullable|string',
+            'briefing_context'         => 'nullable|string',
             'briefing_target_audience' => 'nullable|string',
-            'briefing_competitors' => 'nullable|string',
-            'briefing_references' => 'nullable|string',
+            'briefing_competitors'     => 'nullable|string',
+            'briefing_references'      => 'nullable|string',
             'briefing_contact_methods' => 'nullable|string',
-            'briefing_current_emails' => 'nullable|string',
+            'briefing_current_emails'  => 'nullable|string',
         ]);
 
         $client->update($validated);
 
         return redirect()->back()->with('message', '¡Briefing creativo guardado correctamente!');
     }
+
+    public function clientMailConfig(Request $request)
+    {
+        $user   = $request->user();
+        $client = \App\Models\Client::where('user_id', $user->id)->first()
+                ?? $user->client;
+
+        if (!$client) {
+            return redirect()->route('dashboard');
+        }
+
+        return Inertia::render('ClientPanel/MailConfig', [
+            'mail_config' => [
+                'imap_host' => $client->imap_host,
+                'imap_port' => $client->imap_port,
+                'imap_tls'  => $client->imap_tls,
+                'smtp_host' => $client->smtp_host,
+                'smtp_port' => $client->smtp_port,
+                'smtp_tls'  => $client->smtp_tls,
+                'pop_host'  => $client->pop_host,
+                'pop_port'  => $client->pop_port,
+                'pop_tls'   => $client->pop_tls,
+            ],
+        ]);
+    }
 }
+
