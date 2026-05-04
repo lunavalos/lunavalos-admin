@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { 
     ChevronLeftIcon,
     ChevronRightIcon,
@@ -70,10 +70,15 @@ const messageForm = useForm({
 const fileInput = ref(null);
 const messageContainer = ref(null);
 
-const scrollToBottom = () => {
-    if (messageContainer.value) {
-        messageContainer.value.scrollTop = messageContainer.value.scrollHeight;
-    }
+const scrollToBottom = (behavior = 'instant') => {
+    nextTick(() => {
+        if (messageContainer.value) {
+            messageContainer.value.scrollTo({
+                top: messageContainer.value.scrollHeight,
+                behavior,
+            });
+        }
+    });
 };
 
 // ── Live chat ──────────────────────────────────────────────────────────────
@@ -104,7 +109,8 @@ const playPop = () => {
 };
 
 onMounted(() => {
-    scrollToBottom();
+    // Wait for all messages to be painted before scrolling
+    scrollToBottom('instant');
 
     // Subscribe to the public ticket channel via Laravel Echo / Reverb
     if (window.Echo) {
@@ -121,11 +127,17 @@ onMounted(() => {
                 if (!alreadyExists) {
                     liveMessages.value.push(payload);
                     playPop();
-                    nextTick(() => scrollToBottom());
+                    scrollToBottom('instant');
                 }
             });
     }
 });
+
+// Scroll when Inertia refreshes props.ticket.messages (after sending your own message)
+watch(
+    () => props.ticket.messages?.length,
+    () => scrollToBottom('smooth'),
+);
 
 onUnmounted(() => {
     if (window.Echo) {
@@ -143,7 +155,7 @@ const submitMessage = (statusToChange = '') => {
         onSuccess: () => {
             messageForm.reset();
             if (fileInput.value) fileInput.value.value = '';
-            nextTick(() => scrollToBottom());
+            scrollToBottom('instant');
         },
         preserveScroll: true,
     });
