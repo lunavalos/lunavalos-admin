@@ -22,6 +22,7 @@ import {
     BriefcaseIcon,
     PlayIcon,
     StopCircleIcon,
+    PencilSquareIcon,
 } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -363,6 +364,52 @@ const allMessages = computed(() => {
         .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
 });
 
+// ── Edit message ─────────────────────────────────────────────────────────────
+const editingMessageId = ref(null);
+const editForm = useForm({ message: '' });
+
+/**
+ * The ID of the last real (non-system) message across all combined messages.
+ * Used to gate non-admin staff edit access.
+ */
+const lastUserMessageId = computed(() => {
+    const userMsgs = allMessages.value.filter(m => m.user_id !== null);
+    if (!userMsgs.length) return null;
+    return userMsgs[userMsgs.length - 1].id;
+});
+
+/**
+ * Returns true if the current user is allowed to edit a given message.
+ */
+const canEditMessage = (msg) => {
+    if (!msg.user_id) return false;                        // System messages: never
+    if (isClient.value) return false;                      // Clients: never
+    const authorIsClient = msg.user?.is_client;           // Client messages: nobody can edit
+    if (authorIsClient) return false;
+    if (isAdmin.value) return true;                        // Admins: any non-client message
+    // Staff: only own message AND only if it is the very last one
+    return msg.user_id === page.props.auth?.user?.id && msg.id === lastUserMessageId.value;
+};
+
+const startEdit = (msg) => {
+    editingMessageId.value = msg.id;
+    editForm.message = msg.message;
+};
+
+const cancelEdit = () => {
+    editingMessageId.value = null;
+    editForm.reset();
+};
+
+const saveEdit = (msg) => {
+    editForm.put(route('tickets.messages.update', msg.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            editingMessageId.value = null;
+            editForm.reset();
+        },
+    });
+};
 </script>
 
 <template>
@@ -575,6 +622,7 @@ const allMessages = computed(() => {
                                     : 'bg-white dark:bg-zinc-900 text-gray-700 dark:text-gray-200 border-gray-100 dark:border-zinc-800 rounded-tl-none'
                                 ]"
                             >
+                                <!-- Header: author + date + edit button -->
                                 <div 
                                     class="flex justify-between items-center mb-2"
                                     :class="msg.user_id === page.props.auth?.user?.id ? 'flex-row-reverse' : ''"
@@ -582,25 +630,73 @@ const allMessages = computed(() => {
                                     <span class="font-bold text-sm" :class="msg.user_id === page.props.auth?.user?.id ? 'text-white' : 'text-gray-900 dark:text-gray-100'">
                                         {{ displayName(msg.user) }}
                                     </span>
-                                    <span class="text-[10px]" :class="msg.user_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400 dark:text-zinc-500'">
-                                        {{ formatDate(msg.created_at, true) }}
-                                    </span>
+                                    <div class="flex items-center gap-2" :class="msg.user_id === page.props.auth?.user?.id ? 'flex-row-reverse' : ''">
+                                        <span class="text-[10px]" :class="msg.user_id === page.props.auth?.user?.id ? 'text-blue-200' : 'text-gray-400 dark:text-zinc-500'">
+                                            {{ formatDate(msg.created_at, true) }}
+                                        </span>
+                                        <!-- Edit button (only shown when not already editing this message) -->
+                                        <button
+                                            v-if="canEditMessage(msg) && editingMessageId !== msg.id"
+                                            @click="startEdit(msg)"
+                                            :title="'Editar mensaje'"
+                                            class="p-1 rounded-lg transition-all opacity-60 hover:opacity-100"
+                                            :class="msg.user_id === page.props.auth?.user?.id ? 'hover:bg-blue-500 text-white' : 'hover:bg-gray-100 dark:hover:bg-zinc-700 text-gray-400 dark:text-zinc-400'"
+                                        >
+                                            <PencilSquareIcon class="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div class="text-sm whitespace-pre-wrap leading-relaxed wysiwyg-content" v-html="msg.message">
-                                </div>
-                                
-                                <!-- File Attachment link -->
-                                <div v-if="msg.file_path" class="mt-4 pt-3 border-t overflow-hidden" :class="msg.user_id === $page.props.auth.user.id ? 'border-blue-500' : 'border-gray-50 dark:border-zinc-800'">
-                                    <a 
-                                        :href="'/storage/' + msg.file_path" 
-                                        target="_blank"
-                                        class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
-                                        :class="msg.user_id === $page.props.auth.user.id ? 'bg-blue-500 text-white hover:bg-blue-400' : 'bg-gray-100 dark:bg-zinc-800 text-[#264ab3] dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-zinc-600'"
+
+                                <!-- READ MODE -->
+                                <template v-if="editingMessageId !== msg.id">
+                                    <div class="text-sm whitespace-pre-wrap leading-relaxed wysiwyg-content" v-html="msg.message">
+                                    </div>
+                                    <!-- File Attachment link -->
+                                    <div v-if="msg.file_path" class="mt-4 pt-3 border-t overflow-hidden" :class="msg.user_id === $page.props.auth.user.id ? 'border-blue-500' : 'border-gray-50 dark:border-zinc-800'">
+                                        <a 
+                                            :href="'/storage/' + msg.file_path" 
+                                            target="_blank"
+                                            class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                                            :class="msg.user_id === $page.props.auth.user.id ? 'bg-blue-500 text-white hover:bg-blue-400' : 'bg-gray-100 dark:bg-zinc-800 text-[#264ab3] dark:text-blue-400 hover:bg-gray-200 dark:hover:bg-zinc-600'"
+                                        >
+                                            <PaperClipIcon class="h-4 w-4 mr-2" />
+                                            Descargar Archivo Adjunto
+                                        </a>
+                                    </div>
+                                </template>
+
+                                <!-- EDIT MODE -->
+                                <template v-else>
+                                    <div
+                                        class="rounded-xl overflow-hidden border"
+                                        :class="msg.user_id === $page.props.auth.user.id ? 'border-blue-400 bg-blue-500/30' : 'border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-950'"
                                     >
-                                        <PaperClipIcon class="h-4 w-4 mr-2" />
-                                        Descargar Archivo Adjunto
-                                    </a>
-                                </div>
+                                        <Wysiwyg
+                                            v-model="editForm.message"
+                                            placeholder="Editar mensaje..."
+                                        />
+                                    </div>
+                                    <div class="flex items-center gap-2 mt-3" :class="msg.user_id === $page.props.auth.user.id ? 'justify-end' : 'justify-end'">
+                                        <button
+                                            type="button"
+                                            @click="cancelEdit"
+                                            class="text-xs font-bold px-3 py-1.5 rounded-lg transition-all"
+                                            :class="msg.user_id === $page.props.auth.user.id ? 'bg-blue-500 hover:bg-blue-400 text-white' : 'bg-gray-100 dark:bg-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-600 text-gray-600 dark:text-gray-300'"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            @click="saveEdit(msg)"
+                                            :disabled="editForm.processing || !editForm.message || editForm.message === '<p><br></p>'"
+                                            class="text-xs font-bold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1"
+                                            :class="msg.user_id === $page.props.auth.user.id ? 'bg-white text-blue-700 hover:bg-blue-50' : 'bg-[#264ab3] hover:bg-[#193074] text-white'"
+                                        >
+                                            <CheckCircleIcon class="h-3.5 w-3.5" />
+                                            Guardar
+                                        </button>
+                                    </div>
+                                </template>
                             </div>
                         </template>
                     </div>

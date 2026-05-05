@@ -156,9 +156,39 @@ const openCreateModal = () => {
     isCreateModalOpen.value = true;
 };
 
+/**
+ * Returns true if the user has entered any data in the create form.
+ * Used to decide whether to show the abandon-confirmation dialog.
+ */
+const formIsDirty = computed(() => {
+    return !!createForm.title ||
+        createForm.priority !== 'Media' ||
+        (!!createForm.content && createForm.content !== '<p><br></p>') ||
+        !!createForm.assigned_id ||
+        !!createForm.client_id ||
+        !!createForm.due_date ||
+        createForm.files.length > 0;
+});
+
 const closeCreateModal = () => {
     isCreateModalOpen.value = false;
     createForm.reset();
+    clientSearch.value = '';
+    clientDropdownOpen.value = false;
+};
+
+/**
+ * Called whenever something tries to close the create-ticket modal
+ * (backdrop click, X button, Cancel button).
+ * If the form has any data, asks for confirmation first.
+ */
+const requestCloseCreateModal = () => {
+    if (formIsDirty.value) {
+        if (!confirm('¿Estás seguro de abandonar el formulario? Los datos ingresados se perderán.')) {
+            return;
+        }
+    }
+    closeCreateModal();
 };
 
 const submitCreate = () => {
@@ -410,11 +440,11 @@ const submitReport = () => {
         </div>
 
         <!-- NEW TICKET MODAL -->
-        <Modal :show="isCreateModalOpen" @close="closeCreateModal" max-width="2xl">
+        <Modal :show="isCreateModalOpen" @close="requestCloseCreateModal" max-width="2xl">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-zinc-800 pb-4">
                     <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">Crear Nuevo Ticket</h2>
-                    <button @click="closeCreateModal" class="text-gray-400 hover:text-gray-600 transition">
+                    <button @click="requestCloseCreateModal" class="text-gray-400 hover:text-gray-600 transition">
                         <XMarkIcon class="h-6 w-6" />
                     </button>
                 </div>
@@ -618,7 +648,7 @@ const submitReport = () => {
                     </div>
 
                     <div class="mt-8 flex justify-end space-x-3">
-                        <SecondaryButton @click="closeCreateModal" class="rounded-xl px-6">
+                        <SecondaryButton @click="requestCloseCreateModal" class="rounded-xl px-6">
                             Cancelar
                         </SecondaryButton>
                         <PrimaryButton

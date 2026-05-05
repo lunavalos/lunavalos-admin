@@ -33,46 +33,73 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
 
         if ($user) {
-            $notifications = $user->unreadNotifications;
+            try {
+                $notifications = $user->unreadNotifications;
+            } catch (\Throwable $e) {
+                $notifications = [];
+            }
         }
 
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user() ? array_merge($request->user()->toArray(), [
-                    'is_client' => $request->user()->hasRole('Cliente'),
-                    'is_admin' => $request->user()->hasAnyRole(['Administrador', 'Administrador Master']),
-                    'permissions' => $request->user()->getAllPermissions()->pluck('name'),
-                    'can' => (function () use ($request) {
-                        try {
-                            return [
-                                'view_roles'    => $request->user()->can('Ver Roles'),
-                                'view_users'    => $request->user()->can('Ver Usuarios'),
-                                'view_services' => $request->user()->can('Ver Servicios'),
-                                'view_clients'  => $request->user()->can('Ver Clientes'),
-                                'view_quotes'   => $request->user()->can('Ver Cotizaciones') ?? true,
-                                'view_reports'  => $request->user()->can('Ver Reportes'),
-                                // 'view_tasks' => $request->user()->can('Ver Tareas'),
-                            ];
-                        } catch (\Throwable $e) {
-                            return [
-                                'view_roles'    => false,
-                                'view_users'    => false,
-                                'view_services' => false,
-                                'view_clients'  => false,
-                                'view_quotes'   => true,
-                                'view_reports'  => false,
-                            ];
-                        }
-                    })(),
-                    'has_custom_email_config' => $request->user()->client ? $request->user()->client->has_custom_email_config : false,
-                ]) : null,
+                'user' => $user ? (function () use ($user) {
+                    // Resolve roles/permissions safely — Spatie can throw if permissions
+                    // table doesn't exist yet or cache is stale (common after fresh deploy).
+                    $isClient = false;
+                    $isAdmin  = false;
+                    $permissions = collect();
+
+                    try {
+                        $isClient    = $user->hasRole('Cliente');
+                        $isAdmin     = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+                        $permissions = $user->getAllPermissions()->pluck('name');
+                    } catch (\Throwable $e) {
+                        // Spatie not ready — leave as safe defaults
+                    }
+
+                    // Build `can` map — admins get full access as fallback
+                    $canMap = [];
+                    try {
+                        $canMap = [
+                            'view_roles'    => $user->can('Ver Roles'),
+                            'view_users'    => $user->can('Ver Usuarios'),
+                            'view_services' => $user->can('Ver Servicios'),
+                            'view_clients'  => $user->can('Ver Clientes'),
+                            'view_quotes'   => $user->can('Ver Cotizaciones') ?? true,
+                            'view_reports'  => $user->can('Ver Reportes'),
+                        ];
+                    } catch (\Throwable $e) {
+                        // Spatie permissions missing — grant all to admins, deny to others
+                        $canMap = [
+                            'view_roles'    => $isAdmin,
+                            'view_users'    => $isAdmin,
+                            'view_services' => $isAdmin,
+                            'view_clients'  => $isAdmin,
+                            'view_quotes'   => true,
+                            'view_reports'  => $isAdmin,
+                        ];
+                    }
+
+                    $hasCustomEmail = false;
+                    try {
+                        $hasCustomEmail = $user->client ? $user->client->has_custom_email_config : false;
+                    } catch (\Throwable $e) {}
+
+                    return array_merge($user->toArray(), [
+                        'is_client'               => $isClient,
+                        'is_admin'                => $isAdmin,
+                        'permissions'             => $permissions,
+                        'can'                     => $canMap,
+                        'has_custom_email_config' => $hasCustomEmail,
+                    ]);
+                })() : null,
                 'notifications' => $notifications,
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'message' => $request->session()->get('message'),
-                'error' => $request->session()->get('error'),
+                'error'   => $request->session()->get('error'),
                 'warning' => $request->session()->get('warning'),
             ],
         ];

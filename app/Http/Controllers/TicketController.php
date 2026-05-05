@@ -494,5 +494,64 @@ class TicketController extends Controller
 
         return back()->with('success', "Reporte de tickets de {$teamMember->name} enviado a {$companyEmail}.");
     }
+
+    /**
+     * Edit a ticket message.
+     * Rules:
+     *  - Clients can NEVER edit messages.
+     *  - Non-client staff: can only edit their OWN message IF it is the very last message in the conversation.
+     *  - Admins: can edit ANY message EXCEPT messages sent by clients.
+     */
+    public function updateMessage(Request $request, TicketMessage $message)
+    {
+        $user = Auth::user();
+
+        // Clients cannot edit messages at all
+        if ($user->hasRole('Cliente')) {
+            abort(403, 'Los clientes no pueden editar mensajes.');
+        }
+
+        $request->validate([
+            'message' => 'required|string',
+        ]);
+
+        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+
+        // Check if the message author is a client — nobody can edit client messages
+        $messageAuthor = $message->user;
+        if ($messageAuthor && $messageAuthor->hasRole('Cliente')) {
+            abort(403, 'No se pueden editar mensajes de clientes.');
+        }
+
+        if ($isAdmin) {
+            // Admins can edit any non-client message freely
+            $message->message = $request->message;
+            $message->save();
+
+            return redirect()->back()->with('success', 'Mensaje actualizado.');
+        }
+
+        // Non-admin staff: can only edit their OWN last message
+        if ($message->user_id !== $user->id) {
+            abort(403, 'Solo puedes editar tus propios mensajes.');
+        }
+
+        $ticket = $message->ticket;
+
+        // Determine the last real (non-system) message in the conversation
+        $lastUserMessage = $ticket->messages()
+            ->whereNotNull('user_id')
+            ->latest()
+            ->first();
+
+        if (!$lastUserMessage || $lastUserMessage->id !== $message->id) {
+            abort(403, 'Solo puedes editar el último mensaje de la conversación.');
+        }
+
+        $message->message = $request->message;
+        $message->save();
+
+        return redirect()->back()->with('success', 'Mensaje actualizado.');
+    }
 }
 
