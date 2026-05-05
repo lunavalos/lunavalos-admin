@@ -306,11 +306,24 @@
         <table class="header-table">
             <tr>
                 <td class="header-logo">
-                    @if(!empty($settings['logo_path']))
-                        <img src="{{ public_path('storage/' . $settings['logo_path']) }}" alt="Logo">
+                    @php
+                        $logoBase64 = null;
+                        $logoPath = $settings['company_logo'] ?? null;
+                        if ($logoPath) {
+                            $fullPath = storage_path('app/public/' . $logoPath);
+                            if (file_exists($fullPath)) {
+                                $mime = mime_content_type($fullPath);
+                                if (in_array($mime, ['image/png','image/jpeg','image/gif','image/webp'])) {
+                                    $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($fullPath));
+                                }
+                            }
+                        }
+                    @endphp
+                    @if($logoBase64)
+                        <img src="{{ $logoBase64 }}" alt="Logo">
                         <div class="header-subtitle">Reporte de Actividades Mensual</div>
                     @else
-                        <div class="header-logo-fallback">{{ $settings['company_name'] ?? 'LunAvalos' }}</div>
+                        <div class="header-logo-fallback">{{ $settings['company_commercial_name'] ?? 'LunAvalos' }}</div>
                         <div class="header-subtitle">Reporte de Actividades Mensual</div>
                     @endif
                 </td>
@@ -537,7 +550,7 @@
     <div class="footer">
         <table class="footer-table">
             <tr>
-                <td>{{ $settings['company_name'] ?? 'LunAvalos' }} · Generado el {{ now()->format('d/m/Y H:i') }}</td>
+                <td>{{ $settings['company_commercial_name'] ?? 'LunAvalos' }} · Generado el {{ now()->format('d/m/Y H:i') }}</td>
                 <td class="right">Página <span style="font-weight:700;">{{-- DomPDF page counter --}}</span></td>
             </tr>
         </table>

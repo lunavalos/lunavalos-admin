@@ -323,73 +323,6 @@ const submitCreate = () => {
                         </div>
                     </div>
 
-                    <!-- ── ALERTAS DE RENOVACIÓN ────────────────────────────── -->
-                    <div v-if="lists.upcoming_renewals && lists.upcoming_renewals.length > 0" class="mb-6 space-y-3">
-                        <div class="flex items-center gap-2 mb-3">
-                            <BellAlertIcon class="h-5 w-5 text-orange-500" />
-                            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Servicios próximos a vencer</h3>
-                        </div>
-
-                        <div
-                            v-for="svc in lists.upcoming_renewals"
-                            :key="svc.id"
-                            class="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl border transition-all"
-                            :class="{
-                                'bg-red-50 dark:bg-rose-900/20 border-red-200 dark:border-rose-800/50':   svc.days_until <= 7,
-                                'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800/50': svc.days_until > 7 && svc.days_until <= 20,
-                                'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800/50': svc.days_until > 20,
-                            }"
-                        >
-                            <!-- Left: icon + info -->
-                            <div class="flex items-center gap-4 min-w-0">
-                                <div
-                                    class="p-2.5 rounded-xl shrink-0"
-                                    :class="{
-                                        'bg-red-100 dark:bg-rose-900/40 text-red-600 dark:text-rose-400':     svc.days_until <= 7,
-                                        'bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400': svc.days_until > 7 && svc.days_until <= 20,
-                                        'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-600 dark:text-yellow-400': svc.days_until > 20,
-                                    }"
-                                >
-                                    <ExclamationTriangleIcon class="h-5 w-5" />
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold text-gray-800 dark:text-gray-100 truncate">{{ svc.service_name }}</p>
-                                    <p class="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">
-                                        Vence el {{ formatDate(svc.renewal_date) }}
-                                        <span
-                                            class="ml-2 font-bold"
-                                            :class="{
-                                                'text-red-600 dark:text-rose-400':     svc.days_until <= 7,
-                                                'text-orange-600 dark:text-orange-400': svc.days_until > 7 && svc.days_until <= 20,
-                                                'text-yellow-600 dark:text-yellow-400': svc.days_until > 20,
-                                            }"
-                                        >· {{ svc.days_until === 0 ? 'Hoy' : `en ${svc.days_until} días` }}</span>
-                                    </p>
-                                </div>
-                            </div>
-
-                            <!-- Right: amount + download -->
-                            <div class="flex items-center gap-3 shrink-0">
-                                <span class="text-sm font-extrabold text-gray-800 dark:text-gray-100">
-                                    {{ formatCurrency(svc.renewal_amount) }}
-                                </span>
-                                <a
-                                    :href="route('finances.receipt', { client: svc.client_id, service: svc.service_name, amount: svc.renewal_amount, type: svc.billing_type })"
-                                    target="_blank"
-                                    class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl transition-all border"
-                                    :class="{
-                                        'bg-red-600 text-white border-red-600 hover:bg-red-700':         svc.days_until <= 7,
-                                        'bg-orange-500 text-white border-orange-500 hover:bg-orange-600': svc.days_until > 7 && svc.days_until <= 20,
-                                        'bg-yellow-500 text-white border-yellow-500 hover:bg-yellow-600': svc.days_until > 20,
-                                    }"
-                                    title="Descargar recibo PDF"
-                                >
-                                    <ArrowDownTrayIcon class="h-4 w-4" />
-                                    PDF
-                                </a>
-                            </div>
-                        </div>
-                    </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                         <!-- Bienvenida y Acción Rápida -->
@@ -539,10 +472,21 @@ const submitCreate = () => {
                                                 </div>
 
                                                 <!-- Billing Type Tag (Non-fallback) -->
-                                                <div v-if="!item.is_fallback" class="pt-1">
+                                                <div v-if="!item.is_fallback" class="pt-1 flex items-center justify-between gap-2">
                                                     <span class="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md" :class="item.billing_type === 'monthly' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400' : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400'">
                                                         {{ item.billing_type === 'monthly' ? 'Iguala Mensual' : 'Pago Único' }}
                                                     </span>
+                                                    <!-- Descargar recibo -->
+                                                    <a
+                                                        v-if="item.client_service_id"
+                                                        :href="route('client.receipt.download', item.client_service_id)"
+                                                        target="_blank"
+                                                        class="inline-flex items-center gap-1 px-2 py-1 text-[9px] font-bold rounded-lg bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 hover:bg-[#264ab3] hover:text-white transition-all"
+                                                        title="Descargar recibo de pago"
+                                                    >
+                                                        <ArrowDownTrayIcon class="h-3 w-3" />
+                                                        Recibo
+                                                    </a>
                                                 </div>
                                             </div>
                                         </div>

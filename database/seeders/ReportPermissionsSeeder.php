@@ -29,10 +29,10 @@ class ReportPermissionsSeeder extends Seeder
             $role = Role::where('name', $roleName)->first();
             if ($role) {
                 $role->givePermissionTo($permissions);
-                $this->command->info("✓ {$roleName} → permisos de Reportes asignados.");
+                $this->command?->info("✓ {$roleName} → permisos de Reportes asignados.");
             }
         }
 
-        $this->command->info('Permisos de Reportes creados correctamente.');
+        $this->command?->info('Permisos de Reportes creados correctamente.');
     }
 }

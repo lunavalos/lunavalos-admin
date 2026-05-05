@@ -176,6 +176,42 @@ class ClientReportController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // Download payment receipt for one of the client's own services
+    // GET /client/receipt/{clientService}
+    // -------------------------------------------------------------------------
+    public function downloadReceipt(\App\Models\ClientService $clientService)
+    {
+        $clientId = $this->clientId();
+
+        // Security: the service must belong to this client
+        if ($clientService->client_id !== $clientId) {
+            abort(403, 'No tienes permiso para descargar este recibo.');
+        }
+
+        $client = \App\Models\Client::findOrFail($clientId);
+
+        // Attach next_renewal_date so the receipt blade can render it
+        $client->next_renewal_date = $clientService->renewal_date;
+
+        $receiptData = [
+            'client'              => $client,
+            'service_name'        => $clientService->service_name,
+            'amount'              => (float) $clientService->renewal_amount,
+            'billing_type'        => $clientService->billing_type ?? 'unique',
+            'service_description' => null,
+        ];
+
+        $pdf = Pdf::loadView('pdf.receipt', $receiptData)
+            ->setPaper('letter', 'portrait');
+
+        $filename = 'recibo-' . str_replace(' ', '-', strtolower($client->business_name))
+                  . '-' . str_replace(' ', '-', strtolower($clientService->service_name))
+                  . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    // -------------------------------------------------------------------------
     // Private: snapshot builder (mirrors ReportController)
     // -------------------------------------------------------------------------
     private function buildTicketsSnapshot(array $ticketIds): array

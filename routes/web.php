@@ -7,6 +7,38 @@ use Inertia\Inertia;
 
 Route::redirect('/', '/login');
 
+// ⚠️  TEMPORAL — borrar después de usar
+if (app()->environment('local')) {
+    Route::get('/run-report-permissions-seeder', function () {
+        app(\Database\Seeders\ReportPermissionsSeeder::class)->run();
+        return response()->json(['ok' => true, 'message' => 'ReportPermissionsSeeder ejecutado correctamente.']);
+    });
+
+    Route::get('/debug-pdf/{report}', function (\App\Models\Report $report) {
+        try {
+            $report->load(['client', 'creator']);
+            $tickets  = collect($report->tickets_snapshot ?? [])->values()->toArray();
+            $settings = \App\Models\Setting::pluck('value', 'key')->toArray();
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.pdf', [
+                'report'   => $report,
+                'tickets'  => $tickets,
+                'settings' => $settings,
+            ])->setPaper('letter', 'portrait');
+
+            return $pdf->download('debug-report.pdf');
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error'   => $e->getMessage(),
+                'file'    => $e->getFile(),
+                'line'    => $e->getLine(),
+                'class'   => get_class($e),
+            ], 500);
+        }
+    });
+}
+
+
 Route::get('/two-factor-challenge', [\App\Http\Controllers\TwoFactorController::class, 'showChallenge'])
     ->name('two-factor.challenge');
 Route::post('/two-factor-challenge', [\App\Http\Controllers\TwoFactorController::class, 'storeChallenge'])
@@ -104,6 +136,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/{report}/pdf', [\App\Http\Controllers\ClientReportController::class, 'pdf'])->name('pdf');
     });
     Route::get('client/my-tickets', [\App\Http\Controllers\ClientReportController::class, 'myTickets'])->name('client.my-tickets');
+    Route::get('client/receipt/{clientService}', [\App\Http\Controllers\ClientReportController::class, 'downloadReceipt'])->name('client.receipt.download');
+
     Route::post('notifications/mark-as-read', [\App\Http\Controllers\DashboardController::class, 'markNotificationsAsRead'])->name('notifications.markAsRead');
     Route::post('notifications/{id}/mark-one-read', [\App\Http\Controllers\DashboardController::class, 'markOneNotificationAsRead'])->name('notifications.markOneRead');
 

@@ -31,8 +31,18 @@ class TicketController extends Controller
                 ->latest()
                 ->get();
 
+            // Load the client's active services for the services summary widget
+            $clientServices = collect();
+            if ($user->client) {
+                $clientServices = $user->client->services()
+                    ->where('status', 'active')
+                    ->orderBy('renewal_date')
+                    ->get(['id', 'service_name', 'billing_type', 'renewal_date', 'renewal_amount']);
+            }
+
             return Inertia::render('Tickets/ClientIndex', [
-                'tickets' => $tickets
+                'tickets'        => $tickets,
+                'clientServices' => $clientServices,
             ]);
         }
 

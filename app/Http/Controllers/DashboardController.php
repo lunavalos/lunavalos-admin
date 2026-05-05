@@ -79,20 +79,25 @@ class DashboardController extends Controller
                 
                 if ($client) {
                     if ($client->quote && $client->quote->items->count() > 0) {
+                        // Load active client services for ID lookup
+                        $client->load('services');
                         $planDetails = [
-                            'items' => $client->quote->items->map(function($item) {
+                            'items' => $client->quote->items->map(function($item) use ($client) {
+                                // Try to find a matching ClientService by service name
+                                $cs = $client->services->firstWhere('service_name', $item->concept);
                                 return [
-                                    'id' => $item->id,
-                                    'concept' => $item->concept,
-                                    'description' => $item->description ?: ($item->service ? $item->service->description : null),
-                                    'billing_type' => $item->billing_type,
-                                    'unit_price' => $item->unit_price,
-                                    'renewal_price' => $item->service ? $item->service->renewal_price : null
+                                    'id'                => $item->id,
+                                    'client_service_id' => $cs?->id,
+                                    'concept'           => $item->concept,
+                                    'description'       => $item->description ?: ($item->service ? $item->service->description : null),
+                                    'billing_type'      => $item->billing_type ?? $cs?->billing_type,
+                                    'unit_price'        => $item->unit_price,
+                                    'renewal_price'     => $item->service ? $item->service->renewal_price : null
                                 ];
                             }),
-                            'business_name' => $client->business_name,
-                            'total_initial' => $client->initial_price,
-                            'total_renewal' => $client->renewal_amount,
+                            'business_name'     => $client->business_name,
+                            'total_initial'     => $client->initial_price,
+                            'total_renewal'     => $client->renewal_amount,
                             'next_renewal_date' => $client->next_renewal_date
                         ];
                     } else {
@@ -101,13 +106,15 @@ class DashboardController extends Controller
                         
                         $servicesItems = $client->services->map(function($cs) {
                             return [
-                                'id' => $cs->id,
-                                'concept' => $cs->service_name,
-                                'description' => $cs->service->description ?? 'Servicio contratado.',
-                                'is_fallback' => false,
-                                'initial_price' => 0, // We focus on renewal here
-                                'renewal_price' => $cs->renewal_amount,
-                                'renewal_date' => $cs->renewal_date
+                                'id'                => $cs->id,
+                                'client_service_id' => $cs->id,
+                                'concept'           => $cs->service_name,
+                                'description'       => $cs->service->description ?? 'Servicio contratado.',
+                                'is_fallback'       => false,
+                                'billing_type'      => $cs->billing_type,
+                                'initial_price'     => 0,
+                                'renewal_price'     => $cs->renewal_amount,
+                                'renewal_date'      => $cs->renewal_date
                             ];
                         });
 

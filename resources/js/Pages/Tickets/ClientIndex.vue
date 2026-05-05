@@ -14,6 +14,9 @@ import {
     TrashIcon,
     ArchiveBoxIcon,
     CheckCircleIcon,
+    BriefcaseIcon,
+    ClockIcon,
+    ArrowDownTrayIcon,
 } from '@heroicons/vue/24/outline';
 import Modal from '@/Components/Modal.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -25,6 +28,7 @@ import Wysiwyg from '@/Components/Wysiwyg.vue';
 
 const props = defineProps({
     tickets: Array,
+    clientServices: { type: Array, default: () => [] },
 });
 
 const search = ref('');
@@ -68,6 +72,33 @@ const formatDate = (dateString) => {
         month: 'short', 
         year: 'numeric' 
     });
+};
+
+const formatRenewalDate = (dateString) => {
+    if (!dateString) return '—';
+    return new Date(dateString).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+};
+
+const daysUntilRenewal = (dateString) => {
+    if (!dateString) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const renewal = new Date(dateString);
+    renewal.setHours(0, 0, 0, 0);
+    return Math.ceil((renewal - today) / (1000 * 60 * 60 * 24));
+};
+
+const renewalBadgeClass = (dateString) => {
+    const days = daysUntilRenewal(dateString);
+    if (days === null) return 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400';
+    if (days <= 7)  return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+    if (days <= 30) return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+    return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400';
+};
+
+const billingLabel = (type) => {
+    const map = { monthly: 'Mensual', annual: 'Anual', unique: 'Único' };
+    return map[type] || type;
 };
 
 // Create logic
