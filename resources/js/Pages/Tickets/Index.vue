@@ -3,10 +3,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import draggable from 'vuedraggable';
-import { 
-    PlusIcon, 
-    ChatBubbleOvalLeftEllipsisIcon, 
-    UserIcon, 
+import {
+    PlusIcon,
+    ChatBubbleOvalLeftEllipsisIcon,
+    UserIcon,
     CalendarIcon,
     ExclamationCircleIcon,
     CheckCircleIcon,
@@ -18,7 +18,8 @@ import {
     TrashIcon,
     BuildingOfficeIcon,
     BriefcaseIcon,
-    ArchiveBoxXMarkIcon
+    ArchiveBoxXMarkIcon,
+    EnvelopeIcon,
 } from '@heroicons/vue/24/outline';
 import Modal from '@/Components/Modal.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -203,6 +204,29 @@ const deleteTicket = (ticketId) => {
     }
 };
 
+// ── Team Report Modal ─────────────────────────────────────────────────────────
+const isReportModalOpen = ref(false);
+const reportForm = useForm({
+    user_id:   null,
+    date_from: '',
+    date_to:   '',
+});
+
+const openReportModal = () => {
+    isReportModalOpen.value = true;
+};
+
+const closeReportModal = () => {
+    isReportModalOpen.value = false;
+    reportForm.reset();
+};
+
+const submitReport = () => {
+    reportForm.post(route('tickets.sendTeamReport'), {
+        onSuccess: () => closeReportModal(),
+    });
+};
+
 </script>
 
 <template>
@@ -244,6 +268,16 @@ const deleteTicket = (ticketId) => {
                         <ArchiveBoxXMarkIcon class="h-5 w-5" />
                         Papelera
                     </Link>
+
+                    <!-- Send Report button for admins -->
+                    <button
+                        v-if="isAdmin"
+                        @click="openReportModal"
+                        class="flex items-center gap-1.5 bg-white dark:bg-zinc-900 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 border border-gray-200 dark:border-zinc-800 hover:border-emerald-300 dark:hover:border-emerald-700 text-gray-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
+                    >
+                        <EnvelopeIcon class="h-5 w-5" />
+                        Enviar Reporte
+                    </button>
 
                     <button 
                         @click="openCreateModal"
@@ -594,6 +628,96 @@ const deleteTicket = (ticketId) => {
                         >
                             Crear Ticket
                         </PrimaryButton>
+                    </div>
+                </form>
+            </div>
+        </Modal>
+
+        <!-- TEAM REPORT MODAL -->
+        <Modal :show="isReportModalOpen" @close="closeReportModal" max-width="lg">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6 border-b border-gray-100 dark:border-zinc-800 pb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl">
+                            <EnvelopeIcon class="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100">Enviar Reporte de Tickets</h2>
+                            <p class="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">Se enviará al correo principal configurado en Ajustes</p>
+                        </div>
+                    </div>
+                    <button @click="closeReportModal" class="text-gray-400 hover:text-gray-600 transition">
+                        <XMarkIcon class="h-6 w-6" />
+                    </button>
+                </div>
+
+                <form @submit.prevent="submitReport" class="space-y-5">
+                    <!-- User selector -->
+                    <div>
+                        <InputLabel for="report_user" value="Usuario (miembro del equipo)" />
+                        <select
+                            id="report_user"
+                            class="mt-1 block w-full border-gray-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl shadow-sm"
+                            v-model="reportForm.user_id"
+                            required
+                        >
+                            <option :value="null" disabled>Seleccionar usuario...</option>
+                            <option v-for="user in assignableUsers" :key="user.id" :value="user.id">
+                                {{ user.name }}
+                            </option>
+                        </select>
+                        <InputError class="mt-1" :message="reportForm.errors.user_id" />
+                    </div>
+
+                    <!-- Date range -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel for="report_date_from" value="Desde" />
+                            <input
+                                id="report_date_from"
+                                type="date"
+                                class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl shadow-sm text-sm"
+                                v-model="reportForm.date_from"
+                                required
+                            />
+                            <InputError class="mt-1" :message="reportForm.errors.date_from" />
+                        </div>
+                        <div>
+                            <InputLabel for="report_date_to" value="Hasta" />
+                            <input
+                                id="report_date_to"
+                                type="date"
+                                class="mt-1 block w-full border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 focus:border-emerald-500 focus:ring-emerald-500 rounded-xl shadow-sm text-sm"
+                                v-model="reportForm.date_to"
+                                :min="reportForm.date_from"
+                                required
+                            />
+                            <InputError class="mt-1" :message="reportForm.errors.date_to" />
+                        </div>
+                    </div>
+
+                    <!-- Info note -->
+                    <div class="flex items-start gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl p-3">
+                        <svg class="h-4 w-4 text-amber-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                        <p class="text-xs text-amber-700 dark:text-amber-300">
+                            El reporte incluirá todos los tickets <strong>asignados</strong> a este usuario creados en el rango seleccionado, agrupados por estado.
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end space-x-3 pt-2">
+                        <SecondaryButton type="button" @click="closeReportModal" class="rounded-xl px-6">
+                            Cancelar
+                        </SecondaryButton>
+                        <button
+                            type="submit"
+                            class="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-xl font-bold transition flex items-center gap-2 disabled:opacity-50"
+                            :disabled="reportForm.processing"
+                        >
+                            <EnvelopeIcon class="h-4 w-4" />
+                            {{ reportForm.processing ? 'Enviando...' : 'Enviar Reporte' }}
+                        </button>
                     </div>
                 </form>
             </div>

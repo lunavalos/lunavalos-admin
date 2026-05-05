@@ -89,6 +89,7 @@ Route::middleware('auth')->group(function () {
     Route::post('tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assign'])->name('tickets.assign');
     Route::post('tickets/{ticket}/service', [\App\Http\Controllers\TicketController::class, 'updateService'])->name('tickets.updateService');
     Route::post('tickets/{ticket}/start-work', [\App\Http\Controllers\TicketController::class, 'startWork'])->name('tickets.startWork');
+    Route::post('tickets/send-team-report', [\App\Http\Controllers\TicketController::class, 'sendTeamReport'])->name('tickets.sendTeamReport');
     // Reportes (admin)
     Route::resource('reports', \App\Http\Controllers\ReportController::class);
     Route::get('clients/{client}/tickets-json', [\App\Http\Controllers\ReportController::class, 'clientTickets'])->name('clients.tickets-json');

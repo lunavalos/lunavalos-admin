@@ -7,12 +7,16 @@ use App\Models\TicketMessage;
 use App\Models\User;
 use App\Models\Client;
 use App\Models\ClientService;
+use App\Models\Setting;
 use App\Events\TicketMessageSent;
+use App\Mail\TeamTicketReportMail;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use App\Notifications\TicketNotification;
+use Carbon\Carbon;
 
 class TicketController extends Controller
 {
@@ -429,6 +433,56 @@ class TicketController extends Controller
         Ticket::onlyTrashed()->forceDelete();
 
         return redirect()->back()->with('success', 'Papelera vaciada correctamente.');
+    }
+
+    /**
+     * Send a ticket summary email (per non-client user) to the company's main email.
+     * Only admins can trigger this.
+     */
+    public function sendTeamReport(Request $request)
+    {
+        if (!Auth::user()->hasAnyRole(['Administrador', 'Administrador Master'])) {
+            abort(403);
+        }
+
+        $request->validate([
+            'user_id'   => 'required|exists:users,id',
+            'date_from' => 'required|date',
+            'date_to'   => 'required|date|after_or_equal:date_from',
+        ]);
+
+        $companyEmail = Setting::where('key', 'company_email')->value('value');
+        if (!$companyEmail) {
+            return back()->with('error', 'No hay un email principal configurado en Ajustes.');
+        }
+
+        $teamMember = User::findOrFail($request->user_id);
+
+        // Block sending reports about client users
+        if ($teamMember->hasRole('Cliente')) {
+            return back()->with('error', 'No se pueden generar reportes de usuarios cliente.');
+        }
+
+        $dateFrom = Carbon::parse($request->date_from)->startOfDay();
+        $dateTo   = Carbon::parse($request->date_to)->endOfDay();
+
+        $tickets = Ticket::with(['creator.client', 'client', 'clientService'])
+            ->where('assigned_id', $teamMember->id)
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->latest()
+            ->get();
+
+        $companyName = Setting::where('key', 'company_commercial_name')->value('value') ?? 'LunAvalos';
+
+        Mail::to($companyEmail)->send(new TeamTicketReportMail(
+            $teamMember,
+            $tickets,
+            $request->date_from,
+            $request->date_to,
+            $companyName
+        ));
+
+        return back()->with('success', "Reporte de tickets de {$teamMember->name} enviado a {$companyEmail}.");
     }
 }
 
