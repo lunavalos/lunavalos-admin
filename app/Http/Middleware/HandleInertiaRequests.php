@@ -43,15 +43,28 @@ class HandleInertiaRequests extends Middleware
                     'is_client' => $request->user()->hasRole('Cliente'),
                     'is_admin' => $request->user()->hasAnyRole(['Administrador', 'Administrador Master']),
                     'permissions' => $request->user()->getAllPermissions()->pluck('name'),
-                    'can' => [
-                        'view_roles'    => $request->user()->can('Ver Roles'),
-                        'view_users'    => $request->user()->can('Ver Usuarios'),
-                        'view_services' => $request->user()->can('Ver Servicios'),
-                        'view_clients'  => $request->user()->can('Ver Clientes'),
-                        'view_quotes'   => $request->user()->can('Ver Cotizaciones') ?? true,
-                        'view_reports'  => $request->user()->can('Ver Reportes'),
-                        // 'view_tasks' => $request->user()->can('Ver Tareas'),
-                    ],
+                    'can' => (function () use ($request) {
+                        try {
+                            return [
+                                'view_roles'    => $request->user()->can('Ver Roles'),
+                                'view_users'    => $request->user()->can('Ver Usuarios'),
+                                'view_services' => $request->user()->can('Ver Servicios'),
+                                'view_clients'  => $request->user()->can('Ver Clientes'),
+                                'view_quotes'   => $request->user()->can('Ver Cotizaciones') ?? true,
+                                'view_reports'  => $request->user()->can('Ver Reportes'),
+                                // 'view_tasks' => $request->user()->can('Ver Tareas'),
+                            ];
+                        } catch (\Throwable $e) {
+                            return [
+                                'view_roles'    => false,
+                                'view_users'    => false,
+                                'view_services' => false,
+                                'view_clients'  => false,
+                                'view_quotes'   => true,
+                                'view_reports'  => false,
+                            ];
+                        }
+                    })(),
                     'has_custom_email_config' => $request->user()->client ? $request->user()->client->has_custom_email_config : false,
                 ]) : null,
                 'notifications' => $notifications,
