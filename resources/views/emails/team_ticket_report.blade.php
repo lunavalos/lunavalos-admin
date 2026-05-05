@@ -28,16 +28,16 @@
 <div style="background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); overflow: hidden;">
 
     {{-- Header --}}
-    <div style="background: linear-gradient(135deg, #264ab3 0%, #1a3380 100%); padding: 32px 40px; text-align: center;">
+    <div style="background: linear-gradient(135deg, #ffffff 0%, #f2f5ff 100%); padding: 32px 40px; text-align: center; border-bottom: 1px solid #e0e7ff;">
         @if (!empty($logoFilePath))
             <img src="{{ $message->embed($logoFilePath) }}" alt="{{ $companyName }}" style="max-height: 70px; width: auto; max-width: 260px; display: block; margin: 0 auto 16px;"/>
         @else
-            <h2 style="color: white; margin: 0 0 16px; font-size: 22px; letter-spacing: 2px;">{{ strtoupper($companyName) }}</h2>
+            <h2 style="color: #111827; margin: 0 0 16px; font-size: 22px; letter-spacing: 2px;">{{ strtoupper($companyName) }}</h2>
         @endif
-        <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">
+        <h1 style="color: #111827; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.5px;">
             Reporte de Tickets Asignados
         </h1>
-        <p style="color: rgba(255,255,255,0.75); margin: 8px 0 0; font-size: 14px;">
+        <p style="color: #4b5563; margin: 8px 0 0; font-size: 14px;">
             {{ \Carbon\Carbon::parse($dateFrom)->format('d/m/Y') }} — {{ \Carbon\Carbon::parse($dateTo)->format('d/m/Y') }}
         </p>
     </div>
