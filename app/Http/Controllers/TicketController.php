@@ -91,6 +91,15 @@ class TicketController extends Controller
             }
         }
 
+        // Si el creador es un cliente, notificar a todos los administradores
+        if (Auth::user()->hasRole('Cliente')) {
+            $admins = User::role(['Administrador', 'Administrador Master'])->get();
+            $notifMsg = '📩 Nuevo ticket de ' . Auth::user()->name . ': ' . $ticket->title;
+            foreach ($admins as $admin) {
+                $admin->notify(new TicketNotification($ticket, 'created', $notifMsg));
+            }
+        }
+
         // Notificar solo al usuario asignado (si existe y es distinto al creador)
         if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id()) {
             $ticket->assigned->notify(new TicketNotification(
@@ -148,15 +157,10 @@ class TicketController extends Controller
             ]);
             broadcast(new TicketMessageSent($systemMsg))->toOthers();
 
-            // Notify participants
-            if ($ticket->creator_id !== Auth::id()) {
-                $ticket->creator->notify(new TicketNotification($ticket, 'status_changed', $message));
-            }
-            // Only notify assignee if they are different from the creator
-            if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id() && $ticket->assigned_id !== $ticket->creator_id) {
-                $ticket->assigned->notify(new TicketNotification($ticket, 'status_changed', $message));
-            }
+            // Notify participants about the status change
+            $this->notifyTicketParticipants($ticket, 'status_changed', $message);
         }
+
 
         return redirect()->back()->with('success', 'Estatus actualizado.');
     }
@@ -247,30 +251,53 @@ class TicketController extends Controller
             ]);
             broadcast(new TicketMessageSent($sysMsg2))->toOthers();
 
-            // Notify status change separately
+            // Notify about status change — notify everyone involved except the sender
             $statusMsg = "El ticket #{$ticket->id} cambió a: {$ticket->status}";
-            if ($ticket->creator_id !== Auth::id()) {
-                $ticket->creator->notify(new TicketNotification($ticket, 'status_changed', $statusMsg));
-            }
-            // Only notify assignee if they are different from the creator
-            if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id() && $ticket->assigned_id !== $ticket->creator_id) {
-                $ticket->assigned->notify(new TicketNotification($ticket, 'status_changed', $statusMsg));
-            }
+            $this->notifyTicketParticipants($ticket, 'status_changed', $statusMsg);
         }
 
-        $notifMessage = "Nuevo mensaje en ticket #{$ticket->id}: " . Auth::user()->name;
-
-        // Notify about the message itself
-        if ($ticket->creator_id !== Auth::id()) {
-            $ticket->creator->notify(new TicketNotification($ticket, 'new_message', $notifMessage));
-        }
-        // Only notify assignee if they are different from the creator
-        if ($ticket->assigned_id && $ticket->assigned_id !== Auth::id() && $ticket->assigned_id !== $ticket->creator_id) {
-            $ticket->assigned->notify(new TicketNotification($ticket, 'new_message', $notifMessage));
-        }
+        // Notify about the new message — notify everyone involved except the sender
+        $notifMessage = "Nuevo mensaje en el ticket #{$ticket->id} de: " . Auth::user()->name;
+        $this->notifyTicketParticipants($ticket, 'new_message', $notifMessage);
 
         return redirect()->back()->with('success', 'Mensaje enviado.');
     }
+
+    /**
+     * Notify all relevant participants of a ticket (except the current sender).
+     * Participants: creator, assigned user, and the client's linked user account.
+     */
+    private function notifyTicketParticipants(Ticket $ticket, string $type, string $message): void
+    {
+        $senderId = Auth::id();
+        $notified = [];
+
+        // Helper to send notification without duplicating
+        $notify = function ($user) use ($ticket, $type, $message, $senderId, &$notified) {
+            if ($user && $user->id !== $senderId && !in_array($user->id, $notified)) {
+                $user->notify(new TicketNotification($ticket, $type, $message));
+                $notified[] = $user->id;
+            }
+        };
+
+        // Notify creator
+        if ($ticket->creator) {
+            $notify($ticket->creator);
+        }
+
+        // Notify assigned user
+        if ($ticket->assigned) {
+            $notify($ticket->assigned);
+        }
+
+        // If no assigned user yet, try to notify the internal team via the ticket's client user link
+        // (in case creator is admin and client is not yet assigned)
+        if (!$ticket->assigned && $ticket->client && $ticket->client->user_id) {
+            $clientUser = User::find($ticket->client->user_id);
+            $notify($clientUser);
+        }
+    }
+
 
     public function show(Ticket $ticket)
     {

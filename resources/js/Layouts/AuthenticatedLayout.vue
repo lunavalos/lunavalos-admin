@@ -16,15 +16,31 @@ import Toast from '@/Components/Toast.vue';
 const page = usePage();
 
 const notifications = ref([]);
-const markAllAsRead = (url = null) => {
-    // Si url es un objeto (como el evento de click de Vue), lo ignoramos
-    const redirectUrl = typeof url === 'string' ? url : null;
 
+// Marca TODAS las notificaciones como leídas (botón "Marcar como leídas")
+const markAllAsRead = () => {
     router.post(route('notifications.markAsRead'), {}, {
         preserveScroll: true,
-        onFinish: () => {
-            if (redirectUrl) {
-                router.visit(redirectUrl);
+        onSuccess: () => {
+            // Inertia refresca las props, el conteo se actualiza solo
+        }
+    });
+};
+
+// Marca UNA notificación como leída y navega al ticket relacionado
+const markOneAsRead = (notif) => {
+    // Generamos la URL en el frontend con Ziggy para evitar problemas con APP_URL
+    // (que puede ser http://localhost aunque el app corra en otro host)
+    const ticketId = notif.data?.ticket_id || null;
+    const destination = ticketId
+        ? route('tickets.show', ticketId)
+        : (notif.data?.url || null);
+
+    router.post(route('notifications.markOneRead', { id: notif.id }), {}, {
+        preserveScroll: false,
+        onSuccess: () => {
+            if (destination) {
+                router.visit(destination);
             }
         }
     });
@@ -67,15 +83,18 @@ onMounted(() => {
             .notification((notification) => {
                 console.log('Real-time notification received:', notification);
 
-                // Al recibir una notificación, la agregamos al inicio del array de notificaciones de Inertia
-                page.props.auth.notifications.unshift({
-                    id: notification.id,
-                    data: notification,
-                    created_at: new Date().toISOString(),
-                    read_at: null
-                });
+                // Evitar duplicados: solo agregar si el ID no existe ya en el array
+                const alreadyExists = page.props.auth.notifications.some(n => n.id === notification.id);
+                if (!alreadyExists) {
+                    page.props.auth.notifications.unshift({
+                        id: notification.id,
+                        data: notification,
+                        created_at: new Date().toISOString(),
+                        read_at: null
+                    });
+                }
 
-                // También podemos mostrar una notificación visual básica
+                // Notificación visual del navegador (si tiene permisos)
                 if ("Notification" in window && Notification.permission === "granted") {
                     new Notification(notification.title, {
                         body: notification.message
@@ -151,7 +170,7 @@ onMounted(() => {
                                     <template v-for="notif in $page.props.auth.notifications" :key="notif.id">
                                         <div 
                                             class="block p-4 hover:bg-blue-50 dark:hover:bg-zinc-800/50 transition-colors border-b border-gray-50 dark:border-zinc-800 last:border-0 cursor-pointer"
-                                            @click="markAllAsRead(notif.data.url)"
+                                            @click="markOneAsRead(notif)"
                                         >
                                             <div class="flex items-start">
                                                 <div class="flex-1">

@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
     });
     Route::get('client/my-tickets', [\App\Http\Controllers\ClientReportController::class, 'myTickets'])->name('client.my-tickets');
     Route::post('notifications/mark-as-read', [\App\Http\Controllers\DashboardController::class, 'markNotificationsAsRead'])->name('notifications.markAsRead');
+    Route::post('notifications/{id}/mark-one-read', [\App\Http\Controllers\DashboardController::class, 'markOneNotificationAsRead'])->name('notifications.markOneRead');
 
     // Finanzas
     Route::get('finances', [\App\Http\Controllers\FinanceController::class, 'index'])->name('finances.index');

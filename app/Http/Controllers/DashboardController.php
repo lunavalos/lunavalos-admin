@@ -171,6 +171,15 @@ class DashboardController extends Controller
         return back();
     }
 
+    public function markOneNotificationAsRead(Request $request, $id)
+    {
+        $notification = $request->user()->notifications()->where('id', $id)->first();
+        if ($notification && !$notification->read_at) {
+            $notification->markAsRead();
+        }
+        return back();
+    }
+
     public function clientEmails(Request $request)
     {
         $user = $request->user();
