@@ -29,8 +29,8 @@
 
     {{-- Header --}}
     <div style="background: linear-gradient(135deg, #264ab3 0%, #1a3380 100%); padding: 32px 40px; text-align: center;">
-        @if ($logoUrl)
-            <img src="{{ $logoUrl }}" alt="{{ $companyName }}" style="max-height: 70px; width: auto; max-width: 260px; display: block; margin: 0 auto 16px;"/>
+        @if (!empty($logoFilePath))
+            <img src="{{ $message->embed($logoFilePath) }}" alt="{{ $companyName }}" style="max-height: 70px; width: auto; max-width: 260px; display: block; margin: 0 auto 16px;"/>
         @else
             <h2 style="color: white; margin: 0 0 16px; font-size: 22px; letter-spacing: 2px;">{{ strtoupper($companyName) }}</h2>
         @endif
