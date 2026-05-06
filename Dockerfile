@@ -26,7 +26,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg && \
-    docker-php-ext-install pdo pdo_mysql mbstring zip intl gd bcmath pcntl
+    docker-php-ext-install pdo
+RUN docker-php-ext-install pdo_mysql
+RUN docker-php-ext-install mbstring
+RUN docker-php-ext-install zip
+RUN docker-php-ext-install intl
+RUN docker-php-ext-install gd
+RUN docker-php-ext-install bcmath
+RUN docker-php-ext-install pcntl
 
 COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 
