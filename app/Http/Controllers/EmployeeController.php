@@ -49,7 +49,9 @@ class EmployeeController extends Controller implements HasMiddleware
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'nullable|exists:users,id|unique:employees,user_id',
+            'user_id'         => 'nullable|exists:users,id|unique:employees,user_id',
+            'first_name'      => 'nullable|string|max:100',
+            'last_name'       => 'nullable|string|max:100',
             'employee_number' => 'required|string|unique:employees,employee_number',
             'phone' => 'nullable|string',
             'curp' => 'nullable|string',
@@ -119,6 +121,8 @@ class EmployeeController extends Controller implements HasMiddleware
     {
         $validated = $request->validate([
             'employee_number' => 'required|string|unique:employees,employee_number,' . $employee->id,
+            'first_name'      => 'nullable|string|max:100',
+            'last_name'       => 'nullable|string|max:100',
             'phone' => 'nullable|string',
             'curp' => 'nullable|string',
             'nss' => 'nullable|string',
@@ -266,7 +270,9 @@ class EmployeeController extends Controller implements HasMiddleware
         }
 
         $variables = [
-            '[nombre_empleado]' => $employee->user->name ?? '',
+            '[nombre_empleado]' => ($employee->first_name || $employee->last_name)
+                ? trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? ''))
+                : ($employee->user->name ?? ''),
             '[numero_empleado]' => $employee->employee_number ?? '',
             '[telefono]' => $employee->phone ?? '',
             '[curp]' => $employee->curp ?? '',

@@ -18,6 +18,8 @@ const props = defineProps({
 
 const form = useForm({
     user_id: '',
+    first_name: '',
+    last_name: '',
     employee_number: '',
     phone: '',
     curp: '',
@@ -133,6 +135,45 @@ const submit = () => {
                             <div v-if="form.errors.employee_number" class="text-red-500 dark:text-rose-500 text-[10px] mt-1">{{ form.errors.employee_number }}</div>
                         </div>
                     </div>
+
+                    <!-- Nombre y Apellidos: visible solo en modo Sin Vinculación -->
+                    <Transition
+                        enter-active-class="transition-all duration-300 ease-out"
+                        enter-from-class="opacity-0 -translate-y-2"
+                        enter-to-class="opacity-100 translate-y-0"
+                        leave-active-class="transition-all duration-200 ease-in"
+                        leave-from-class="opacity-100 translate-y-0"
+                        leave-to-class="opacity-0 -translate-y-2"
+                    >
+                        <div v-if="form.user_id === ''" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-5 border-t border-dashed border-blue-100 dark:border-blue-900/30">
+                            <div class="md:col-span-2">
+                                <p class="text-[10px] font-black text-[#264ab3] dark:text-blue-400 uppercase tracking-widest flex items-center gap-1.5 mb-4">
+                                    <IdentificationIcon class="h-3.5 w-3.5" />
+                                    Nombre del Empleado (sin cuenta de usuario)
+                                </p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase mb-2">Nombre(s)</label>
+                                <input
+                                    v-model="form.first_name"
+                                    type="text"
+                                    placeholder="Ej. Juan Carlos"
+                                    class="w-full border-gray-200 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 rounded-xl shadow-sm focus:ring-2 focus:ring-[#264ab3] focus:border-transparent text-sm transition-colors"
+                                />
+                                <div v-if="form.errors.first_name" class="text-red-500 dark:text-rose-500 text-[10px] mt-1">{{ form.errors.first_name }}</div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase mb-2">Apellidos</label>
+                                <input
+                                    v-model="form.last_name"
+                                    type="text"
+                                    placeholder="Ej. García López"
+                                    class="w-full border-gray-200 dark:border-zinc-800 dark:bg-zinc-950 dark:text-gray-100 rounded-xl shadow-sm focus:ring-2 focus:ring-[#264ab3] focus:border-transparent text-sm transition-colors"
+                                />
+                                <div v-if="form.errors.last_name" class="text-red-500 dark:text-rose-500 text-[10px] mt-1">{{ form.errors.last_name }}</div>
+                            </div>
+                        </div>
+                    </Transition>
                 </div>
 
                 <!-- Job Details -->
