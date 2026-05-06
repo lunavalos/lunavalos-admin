@@ -52,6 +52,7 @@ class QuoteController extends Controller
             'items.*.description' => 'nullable|string',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_renewal_price' => 'nullable|numeric|min:0',
             'items.*.billing_type' => 'required|in:unique,monthly,annual',
             'items.*.service_id' => 'nullable|exists:services,id',
             'items.*.costs' => 'nullable|array',
@@ -83,6 +84,7 @@ class QuoteController extends Controller
                     'description' => $item['description'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
+                    'unit_renewal_price' => $item['unit_renewal_price'] ?? 0,
                     'billing_type' => $item['billing_type'],
                     'service_id' => $item['service_id'] ?? null,
                 ]);
@@ -147,6 +149,7 @@ class QuoteController extends Controller
             'items.*.description' => 'nullable|string',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.unit_renewal_price' => 'nullable|numeric|min:0',
             'items.*.billing_type' => 'required|in:unique,monthly,annual',
             'items.*.service_id' => 'nullable|exists:services,id',
             'items.*.costs' => 'nullable|array',
@@ -184,6 +187,7 @@ class QuoteController extends Controller
                         'description' => $item['description'] ?? null,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
+                        'unit_renewal_price' => $item['unit_renewal_price'] ?? 0,
                         'billing_type' => $item['billing_type'],
                         'service_id' => $item['service_id'] ?? null,
                     ]);
@@ -206,6 +210,7 @@ class QuoteController extends Controller
                         'description' => $item['description'] ?? null,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
+                        'unit_renewal_price' => $item['unit_renewal_price'] ?? 0,
                         'billing_type' => $item['billing_type'],
                         'service_id' => $item['service_id'] ?? null,
                     ]);

@@ -77,6 +77,7 @@ const addCustomService = () => {
         concept: '',
         description: '',
         unit_price: 0,
+        unit_renewal_price: 0,
         quantity: 1,
         billing_type: 'unique', // Default to unique
         service_id: null,
@@ -100,6 +101,7 @@ const addServiceToQuote = () => {
             concept: service.name,
             description: computedDescription,
             unit_price: service.price,
+            unit_renewal_price: service.renewal_price ?? 0,
             quantity: 1,
             billing_type: service.billing_type,
             service_id: service.id,
@@ -141,6 +143,16 @@ const annualTotal = computed(() => {
     return form.items
         .filter(item => item.billing_type === 'annual')
         .reduce((sum, item) => sum + (parseFloat(item.unit_price) * parseInt(item.quantity)), 0);
+});
+
+const annualRenewalTotal = computed(() => {
+    return form.items
+        .filter(item => item.billing_type === 'annual')
+        .reduce((sum, item) => sum + (parseFloat(item.unit_renewal_price || 0) * parseInt(item.quantity)), 0);
+});
+
+const hasAnnualRenewal = computed(() => {
+    return form.items.some(item => item.billing_type === 'annual' && parseFloat(item.unit_renewal_price || 0) > 0);
 });
 
 const submit = () => {
@@ -550,10 +562,19 @@ const submit = () => {
                                     <span v-else class="text-sm font-semibold text-green-600 dark:text-emerald-300 uppercase italic">Ver opciones en lista</span>
                                 </div>
 
-                                <div class="flex justify-between items-center text-gray-600 dark:text-zinc-400 bg-white dark:bg-zinc-900 p-3 rounded shadow-sm border border-orange-100 dark:border-orange-900/30 transition-colors">
-                                    <span class="font-medium text-orange-800 dark:text-orange-400">Inversión Anual:</span>
-                                    <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ formatCurrency(annualTotal) }}</span>
-                                    <span v-else class="text-sm font-semibold text-orange-600 dark:text-orange-300 uppercase italic">Ver opciones en lista</span>
+                                <div class="flex flex-col bg-white dark:bg-zinc-900 rounded shadow-sm border border-orange-100 dark:border-orange-900/30 overflow-hidden">
+                                    <div class="flex justify-between items-center text-gray-600 dark:text-zinc-400 p-3">
+                                        <span class="font-medium text-orange-800 dark:text-orange-400">Inversión Anual (Año 1):</span>
+                                        <span v-if="!form.is_multiple_choice" class="text-xl font-bold text-gray-900 dark:text-gray-100">{{ formatCurrency(annualTotal) }}</span>
+                                        <span v-else class="text-sm font-semibold text-orange-600 dark:text-orange-300 uppercase italic">Ver opciones en lista</span>
+                                    </div>
+                                    <div v-if="hasAnnualRenewal && !form.is_multiple_choice" class="flex justify-between items-center px-3 pb-3 pt-0">
+                                        <span class="text-xs font-medium text-orange-600 dark:text-orange-400 flex items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                            Anualidad / Renovación:
+                                        </span>
+                                        <span class="text-sm font-bold text-orange-500 dark:text-orange-300">{{ formatCurrency(annualRenewalTotal) }}</span>
+                                    </div>
                                 </div>
 
                                 <div v-if="form.is_multiple_choice" class="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 rounded text-xs text-blue-700 dark:text-blue-300">

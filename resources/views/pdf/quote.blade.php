@@ -213,12 +213,14 @@
         $uniqueTotal = 0;
         $monthlyTotal = 0;
         $annualTotal = 0;
+        $annualRenewalTotal = 0;
         foreach ($quote->items as $item) {
             $lineTotal = $item->unit_price * $item->quantity;
             if ($item->billing_type == 'unique') {
                 $uniqueTotal += $lineTotal;
             } elseif ($item->billing_type == 'annual') {
                 $annualTotal += $lineTotal;
+                $annualRenewalTotal += ($item->unit_renewal_price ?? 0) * $item->quantity;
             } else {
                 $monthlyTotal += $lineTotal;
             }
@@ -308,6 +310,11 @@
                     </td>
                     <td class="text-right" style="vertical-align: middle;">
                         ${{ number_format($item->unit_price * $item->quantity, 2) }}
+                        @if($item->billing_type == 'annual' && ($item->unit_renewal_price ?? 0) > 0)
+                            <div style="font-size: 10px; font-weight: normal; color: #b45309; margin-top: 4px;">
+                                Renovaci&oacute;n: ${{ number_format($item->unit_renewal_price * $item->quantity, 2) }}
+                            </div>
+                        @endif
                     </td>
                 </tr>
             @endforeach
@@ -325,9 +332,19 @@
     
                 @if($annualTotal > 0)
                     <tr>
-                        <td class="totals-label">INVERSIÓN ANUAL</td>
+                        <td class="totals-label">INVERSI&Oacute;N INICIAL</td>
                         <td class="totals-value">${{ number_format($annualTotal, 2) }}</td>
                     </tr>
+                    @if($annualRenewalTotal > 0)
+                        <tr>
+                            <td class="totals-label" style="color: #b45309; background-color: #fffbeb;">
+                                RENOVACI&Oacute;N ANUAL
+                            </td>
+                            <td class="totals-value" style="color: #b45309; background-color: #fffbeb;">
+                                ${{ number_format($annualRenewalTotal, 2) }}
+                            </td>
+                        </tr>
+                    @endif
                 @endif
     
                 @if($uniqueTotal > 0)
