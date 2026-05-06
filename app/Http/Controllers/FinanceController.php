@@ -62,6 +62,7 @@ class FinanceController extends Controller implements HasMiddleware
             with('client')
             ->whereNotNull('renewal_date')
             ->where('status', 'active')
+            ->whereHas('client', fn($q) => $q->where('is_historical', false))
             ->get();
 
         // Enriquecer cada servicio con su próxima fecha de cobro efectiva
@@ -136,6 +137,7 @@ class FinanceController extends Controller implements HasMiddleware
             ->where('status', 'active')
             ->where('billing_type', '!=', 'monthly')
             ->where('renewal_date', '<', $today)
+            ->whereHas('client', fn($q) => $q->where('is_historical', false))
             ->count();
 
         // Ingreso anual proyectado basado en frecuencia
@@ -171,6 +173,7 @@ class FinanceController extends Controller implements HasMiddleware
         // tienen un cobro por cada mes dentro del rango (hasta renewal_date)
         $allRawServices = \App\Models\ClientService::whereNotNull('renewal_date')
             ->where('status', 'active')
+            ->whereHas('client', fn($q) => $q->where('is_historical', false))
             ->get();
 
         $monthlyIncome = [];
