@@ -39,7 +39,13 @@ const calculateQuoteProfit = (quote) => {
     return totalProfit;
 };
 const deleteQuote = (id) => {
-    if (confirm('¿Estás seguro de que deseas eliminar esta cotización?')) {
+    const quote = props.quotes.find(q => q.id === id);
+    const isCompleted = quote?.status === 'Completada';
+    const msg = isCompleted
+        ? '⚠️ Esta cotización está COMPLETADA. ¿Seguro que deseas eliminarla? Los servicios ya aplicados al cliente NO se revertirán automáticamente.'
+        : '¿Estás seguro de que deseas eliminar esta cotización?';
+
+    if (confirm(msg)) {
         form.delete(route('quotes.destroy', id), {
             preserveScroll: true,
         });
@@ -167,6 +173,17 @@ const changeStatus = (id, newStatus, quote) => {
                                                 <EyeIcon class="w-5 h-5" />
                                             </a>
                                             <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Ver PDF</span>
+                                        </div>
+
+                                        <!-- Admin-only delete: visible in ANY status -->
+                                        <div v-if="$page.props.auth.user.is_admin" class="group relative inline-block">
+                                            <button
+                                                @click="deleteQuote(quote.id)"
+                                                class="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-colors inline-flex items-center"
+                                            >
+                                                <TrashIcon class="w-5 h-5" />
+                                            </button>
+                                            <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Eliminar (Admin)</span>
                                         </div>
 
                                         <template v-if="quote.status !== 'Completada' && !quote.client">
