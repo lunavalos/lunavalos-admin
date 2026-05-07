@@ -706,10 +706,12 @@ const saveEdit = (msg) => {
                 <div v-if="canComment" class="p-4 bg-white dark:bg-zinc-900 border-t border-gray-100 dark:border-zinc-800">
                     <form @submit.prevent="submitMessage('')" class="flex flex-col space-y-3">
                         <div class="flex flex-col bg-gray-50 dark:bg-zinc-950 rounded-2xl border border-gray-200 dark:border-zinc-800 focus-within:border-[#264ab3] dark:focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 dark:focus-within:ring-blue-900/30 transition-all overflow-hidden">
-                            <Wysiwyg 
-                                v-model="messageForm.message"
-                                placeholder="Escribe un mensaje aquí..."
-                            />
+                            <div class="max-h-64 overflow-y-auto">
+                                <Wysiwyg 
+                                    v-model="messageForm.message"
+                                    placeholder="Escribe un mensaje aquí..."
+                                />
+                            </div>
                             
                             <div class="flex items-center justify-between p-2 bg-white/50 dark:bg-zinc-900/50 border-t border-gray-100 dark:border-zinc-800">
                                 <label class="cursor-pointer p-2 text-gray-400 dark:text-zinc-500 hover:text-[#264ab3] dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all relative overflow-hidden">

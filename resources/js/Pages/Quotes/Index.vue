@@ -71,7 +71,7 @@ const changeStatus = (id, newStatus, quote) => {
         router.post(route('quotes.status', id), { status: newStatus }, {
             preserveScroll: true,
             onSuccess: () => {
-                if (newStatus === 'Aceptada') {
+                if (newStatus === 'Aceptada' && !quote.client_id) {
                     // Redirect to create client with pre-filled details
                     const servicesArr = quote.items ? quote.items.map(item => item.concept) : [];
                     const params = new URLSearchParams({
@@ -175,8 +175,8 @@ const changeStatus = (id, newStatus, quote) => {
                                             <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Ver PDF</span>
                                         </div>
 
-                                        <!-- Admin-only delete: visible in ANY status -->
-                                        <div v-if="$page.props.auth.user.is_admin" class="group relative inline-block">
+                                        <!-- Admin-only delete: visible for completed/signed quotes -->
+                                        <div v-if="$page.props.auth.user.is_admin && (quote.status === 'Completada' || quote.status === 'Contrato Firmado')" class="group relative inline-block">
                                             <button
                                                 @click="deleteQuote(quote.id)"
                                                 class="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-colors inline-flex items-center"
@@ -186,9 +186,9 @@ const changeStatus = (id, newStatus, quote) => {
                                             <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Eliminar (Admin)</span>
                                         </div>
 
-                                        <template v-if="quote.status !== 'Completada' && !quote.client">
-                                            <!-- Edit button - Hide if signed or has client -->
-                                            <div v-if="quote.status !== 'Contrato Firmado' && !quote.client" class="group relative inline-block">
+                                        <template v-if="quote.status !== 'Completada'">
+                                            <!-- Edit button - Hide if signed -->
+                                            <div v-if="quote.status !== 'Contrato Firmado'" class="group relative inline-block">
                                                 <Link
                                                     :href="route('quotes.edit', quote.id)"
                                                     class="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 p-2 rounded-full transition-colors inline-flex items-center"
@@ -198,8 +198,8 @@ const changeStatus = (id, newStatus, quote) => {
                                                 <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Editar</span>
                                             </div>
 
-                                            <!-- Delete button - Hide if signed or has client -->
-                                            <div v-if="quote.status !== 'Contrato Firmado' && !quote.client" class="group relative inline-block">
+                                            <!-- Delete button - Hide if signed -->
+                                            <div v-if="quote.status !== 'Contrato Firmado'" class="group relative inline-block">
                                                 <button
                                                     @click="deleteQuote(quote.id)"
                                                     class="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/30 p-2 rounded-full transition-colors inline-flex items-center"
