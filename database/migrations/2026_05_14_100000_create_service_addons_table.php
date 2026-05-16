@@ -1,0 +1,40 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Tabla `service_addons`: servicios adicionales que se pueden enganchar a
+ * un servicio principal (paquete) o agregarse sueltos en una cotización.
+ *
+ * Es aditiva: no modifica `services` ni `service_costs` existentes.
+ */
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('service_addons', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('category')->index();
+            $table->text('description')->nullable();
+            $table->decimal('price', 12, 2)->default(0);
+            $table->enum('billing_cycle', [
+                'once',
+                'monthly',
+                'quarterly',
+                'semiannual',
+                'annual',
+                'custom_months',
+            ])->default('once');
+            $table->unsignedTinyInteger('billing_cycle_months')->nullable();
+            $table->boolean('is_active')->default(true)->index();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('service_addons');
+    }
+};

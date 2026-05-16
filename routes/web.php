@@ -78,7 +78,43 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('roles', \App\Http\Controllers\RoleController::class);
     Route::resource('users', \App\Http\Controllers\UserController::class);
+    // Service addons (subrecurso visible en /services/addons-* y dentro del catálogo)
+    Route::resource('service-addons', \App\Http\Controllers\ServiceAddonController::class)
+        ->except(['show']);
     Route::resource('services', \App\Http\Controllers\ServiceController::class);
+
+    // Quote wizard (debe declararse antes del resource para evitar colisión con {quote}).
+    Route::get('quotes/wizard',  [\App\Http\Controllers\QuoteWizardController::class, 'create'])->name('quotes.wizard.create');
+    Route::post('quotes/wizard', [\App\Http\Controllers\QuoteWizardController::class, 'store'])->name('quotes.wizard.store');
+    Route::get('quotes/{quote}/wizard/edit', [\App\Http\Controllers\QuoteWizardController::class, 'edit'])->name('quotes.wizard.edit');
+    Route::put('quotes/{quote}/wizard',      [\App\Http\Controllers\QuoteWizardController::class, 'update'])->name('quotes.wizard.update');
+    Route::post('quotes/{quote}/transition', [\App\Http\Controllers\QuoteWizardController::class, 'transition'])->name('quotes.transition');
+
+    // Pantalla de gestión post-creación (Inertia) + cierre de venta a contrato.
+    Route::get('quotes/{quote}/manage',   [\App\Http\Controllers\QuoteManagementController::class, 'show'])->name('quotes.manage');
+    Route::post('quotes/{quote}/convert', [\App\Http\Controllers\QuoteManagementController::class, 'convert'])->name('quotes.convert');
+
+    // Pagos / cobranza
+    Route::get('payments',                  [\App\Http\Controllers\PaymentController::class, 'index'])->name('payments.index');
+    Route::get('payments/contracts/{contract}', [\App\Http\Controllers\PaymentController::class, 'showContract'])->name('payments.contract.show');
+    Route::post('payments',                 [\App\Http\Controllers\PaymentController::class, 'store'])->name('payments.store');
+    Route::post('payments/{payment}/settle',[\App\Http\Controllers\PaymentController::class, 'settle'])->name('payments.settle');
+    Route::post('payments/{payment}/cancel',[\App\Http\Controllers\PaymentController::class, 'cancel'])->name('payments.cancel');
+
+    // Renovaciones de contratos
+    Route::get('contracts',                                [\App\Http\Controllers\ContractController::class, 'index'])->name('contracts.index');
+    Route::get('contracts/renewals',                       [\App\Http\Controllers\ContractRenewalController::class, 'index'])->name('contracts.renewals.index');
+    Route::get('contracts/{contract}/admin',               [\App\Http\Controllers\ContractController::class, 'adminShow'])->name('contracts.admin.show');
+    Route::post('contracts/renewals/check',                [\App\Http\Controllers\ContractRenewalController::class, 'runCheck'])->name('contracts.renewals.check');
+    Route::post('contracts/{contract}/renew',              [\App\Http\Controllers\ContractRenewalController::class, 'start'])->name('contracts.renewals.start');
+    Route::post('contracts/{contract}/renew/decline',      [\App\Http\Controllers\ContractRenewalController::class, 'decline'])->name('contracts.renewals.decline');
+
+    // Facturación (Facturama / CFDI 4.0)
+    Route::get('invoices',                                       [\App\Http\Controllers\InvoiceController::class, 'index'])->name('invoices.index');
+    Route::post('payments/{payment}/invoice',                    [\App\Http\Controllers\InvoiceController::class, 'issueForPayment'])->name('invoices.issueForPayment');
+    Route::post('invoices/{invoice}/cancel',                     [\App\Http\Controllers\InvoiceController::class, 'cancel'])->name('invoices.cancel');
+    Route::get('invoices/{invoice}/download/{type}',             [\App\Http\Controllers\InvoiceController::class, 'download'])->whereIn('type', ['pdf', 'xml'])->name('invoices.download');
+
     Route::resource('quotes', \App\Http\Controllers\QuoteController::class);
     Route::post('quotes/{quote}/status', [\App\Http\Controllers\QuoteController::class, 'updateStatus'])->name('quotes.status');
     Route::post('quotes/{quote}/generate-contract', [\App\Http\Controllers\ContractController::class, 'generate'])->name('quotes.generateContract');
@@ -157,3 +193,4 @@ require __DIR__ . '/auth.php';
 // Public Contract Routes - Test Webhook Deploy
 Route::get('contratodeservicio/{token}', [\App\Http\Controllers\ContractController::class, 'show'])->name('contracts.show');
 Route::post('contratodeservicio/{token}/sign', [\App\Http\Controllers\ContractController::class, 'sign'])->name('contracts.sign');
+Route::get('contratodeservicio/{token}/pdf', [\App\Http\Controllers\ContractController::class, 'downloadPdf'])->name('contracts.download.pdf');

@@ -225,6 +225,28 @@
                 $monthlyTotal += $lineTotal;
             }
         }
+
+        // Mapeo billing_cycle (addon) → bucket totales/badge.
+        $addonBucket = function ($cycle) {
+            return match ($cycle) {
+                'monthly'              => 'monthly',
+                'annual', 'semiannual' => 'annual',
+                'unique', 'one_time'   => 'unique',
+                default                => 'monthly',
+            };
+        };
+
+        foreach ($quote->addons ?? [] as $addon) {
+            $line = $addon->unit_price * $addon->quantity;
+            $bucket = $addonBucket($addon->billing_cycle);
+            if ($bucket === 'unique') {
+                $uniqueTotal += $line;
+            } elseif ($bucket === 'annual') {
+                $annualTotal += $line;
+            } else {
+                $monthlyTotal += $line;
+            }
+        }
     @endphp
 
     <!-- Header Banner -->
@@ -318,6 +340,42 @@
                     </td>
                 </tr>
             @endforeach
+
+            @php
+                $cycleLabels = config('service_addons.billing_cycles', []);
+            @endphp
+            @foreach($quote->addons ?? [] as $addon)
+                @php
+                    $bucket = $addonBucket($addon->billing_cycle);
+                    $cycleLabel = $cycleLabels[$addon->billing_cycle] ?? ucfirst($addon->billing_cycle);
+                @endphp
+                <tr>
+                    <td>
+                        <div class="concept-title">
+                            {{ $addon->serviceAddon->name ?? 'Servicio adicional' }}
+                            @if($bucket === 'unique')
+                                <span class="concept-badge badge-unique">PAGO ÚNICO</span>
+                            @elseif($bucket === 'annual')
+                                <span class="concept-badge badge-annual">{{ strtoupper($cycleLabel) }}</span>
+                            @else
+                                <span class="concept-badge badge-monthly">{{ strtoupper($cycleLabel) }}</span>
+                            @endif
+                            @if($addon->is_required)
+                                <span class="concept-badge" style="background-color:#fde68a;color:#92400e;">OBLIGATORIO</span>
+                            @endif
+                        </div>
+                        @if($addon->serviceAddon && $addon->serviceAddon->description)
+                            <div class="concept-desc">{!! nl2br(e($addon->serviceAddon->description)) !!}</div>
+                        @endif
+                    </td>
+                    <td class="text-center" style="vertical-align: middle;">
+                        {{ $addon->quantity }}
+                    </td>
+                    <td class="text-right" style="vertical-align: middle;">
+                        ${{ number_format($addon->unit_price * $addon->quantity, 2) }}
+                    </td>
+                </tr>
+            @endforeach
         </table>
 
         <!-- Totals Table -->
@@ -332,7 +390,7 @@
     
                 @if($annualTotal > 0)
                     <tr>
-                        <td class="totals-label">INVERSI&Oacute;N INICIAL</td>
+                        <td class="totals-label">TOTAL PAGO ANUAL <span style="font-weight:normal; font-size:10px;">(renovaciones)</span></td>
                         <td class="totals-value">${{ number_format($annualTotal, 2) }}</td>
                     </tr>
                     @if($annualRenewalTotal > 0)
@@ -349,7 +407,7 @@
     
                 @if($uniqueTotal > 0)
                     <tr>
-                        <td class="totals-label">TOTAL PAGO ÚNICO</td>
+                        <td class="totals-label">TOTAL PAGO &Uacute;NICO <span style="font-weight:normal; font-size:10px;">(un solo pago)</span></td>
                         <td class="totals-value">${{ number_format($uniqueTotal, 2) }}</td>
                     </tr>
                 @endif
@@ -363,13 +421,74 @@
             </table>
         @endif
 
+        @php
+            $hasTaxSnapshot = ($quote->applies_iva || $quote->applies_isr_retention || $quote->applies_iva_retention)
+                || ((float)($quote->subtotal ?? 0) > 0);
+        @endphp
+
+        @if(!$quote->is_multiple_choice && !$quote->legacy && $hasTaxSnapshot)
+            <table class="totals-table" style="margin-top: 20px;">
+                <tr>
+                    <td class="totals-label" style="background-color:#eff3f9; color:#264ab3;">SUBTOTAL</td>
+                    <td class="totals-value" style="color:#111;">${{ number_format($quote->subtotal, 2) }}</td>
+                </tr>
+                @if((float) $quote->discount_amount > 0)
+                    <tr>
+                        <td class="totals-label">DESCUENTO</td>
+                        <td class="totals-value" style="color:#b45309;">- ${{ number_format($quote->discount_amount, 2) }}</td>
+                    </tr>
+                @endif
+                @if($quote->applies_iva && (float) $quote->iva_amount > 0)
+                    <tr>
+                        <td class="totals-label">IVA TRASLADADO ({{ rtrim(rtrim(number_format($quote->iva_rate, 4), '0'), '.') }}%)</td>
+                        <td class="totals-value" style="color:#264ab3;">+ ${{ number_format($quote->iva_amount, 2) }}</td>
+                    </tr>
+                @endif
+                @if($quote->applies_isr_retention && (float) $quote->isr_retention_amount > 0)
+                    <tr>
+                        <td class="totals-label">RET. ISR ({{ rtrim(rtrim(number_format($quote->isr_retention_rate, 4), '0'), '.') }}%)</td>
+                        <td class="totals-value" style="color:#b91c1c;">- ${{ number_format($quote->isr_retention_amount, 2) }}</td>
+                    </tr>
+                @endif
+                @if($quote->applies_iva_retention && (float) $quote->iva_retention_amount > 0)
+                    <tr>
+                        <td class="totals-label">RET. IVA ({{ rtrim(rtrim(number_format($quote->iva_retention_rate, 4), '0'), '.') }}%)</td>
+                        <td class="totals-value" style="color:#b91c1c;">- ${{ number_format($quote->iva_retention_amount, 2) }}</td>
+                    </tr>
+                @endif
+                <tr>
+                    <td class="totals-label" style="background-color:#ecfdf5; color:#065f46; font-size:15px;">TOTAL A PAGAR</td>
+                    <td class="totals-value" style="color:#16a34a; font-size:18px;">${{ number_format($quote->total, 2) }}</td>
+                </tr>
+                @if($quote->tax_regime)
+                    @php $regimes = config('sat.tax_regimes'); $regLabel = $regimes[$quote->tax_regime]['label'] ?? null; @endphp
+                    <tr>
+                        <td colspan="2" style="font-size:11px; color:#555; background-color:#fafafa; text-align:right;">
+                            Régimen fiscal: <strong>{{ $quote->tax_regime }}</strong>@if($regLabel) · {{ $regLabel }}@endif
+                        </td>
+                    </tr>
+                @endif
+            </table>
+        @endif
+
         <!-- Notes Section underneath -->
-        @if($uniqueTotal > 0 && $quote->include_payment_terms)
-            <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
-                <strong>Condiciones de Proyecto ("Pago Único"):</strong> 50% de anticipo al inicio
-                (${{ number_format($uniqueTotal / 2, 2) }}) y 50% restante al entregar
-                (${{ number_format($uniqueTotal / 2, 2) }}).
-            </div>
+        @if(($uniqueTotal > 0 || $monthlyTotal > 0) && $quote->include_payment_terms)
+            @php
+                $planMonths = (int) ($quote->package_payment_plan_months ?? 0);
+                $displayTotal = $uniqueTotal > 0 ? $uniqueTotal : $monthlyTotal;
+            @endphp
+            @if($planMonths > 1)
+                <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
+                    <strong>Condiciones de Pago (Plan a {{ $planMonths }} mensualidades):</strong>
+                    Pago inicial al contratar + {{ $planMonths - 1 }} {{ $planMonths - 1 === 1 ? 'mensualidad' : 'mensualidades' }} del saldo restante.
+                </div>
+            @elseif($uniqueTotal > 0)
+                <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
+                    <strong>Condiciones de Proyecto ("Pago Único"):</strong> 50% de anticipo al inicio
+                    (${{ number_format($uniqueTotal / 2, 2) }}) y 50% restante al entregar
+                    (${{ number_format($uniqueTotal / 2, 2) }}).
+                </div>
+            @endif
         @endif
 
         @if($quote->duration)

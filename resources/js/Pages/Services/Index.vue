@@ -55,6 +55,12 @@ const deleteService = (id) => {
 
         <div class="py-12">
             <div class="container mx-auto">
+                <!-- Tabs -->
+                <div class="flex border-b border-gray-200 dark:border-zinc-800 mb-6">
+                    <Link :href="route('services.index')" class="px-4 py-2 text-sm font-semibold border-b-2 border-primary text-primary">Principales</Link>
+                    <Link :href="route('service-addons.index')" class="px-4 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700 dark:text-gray-400">Addons</Link>
+                </div>
+
                 <div v-if="flashMessage" class="mb-4 bg-green-100 dark:bg-emerald-900/40 border border-green-400 dark:border-emerald-800 text-green-700 dark:text-emerald-300 px-4 py-3 rounded relative" role="alert">
                   <span class="block sm:inline">{{ flashMessage }}</span>
                 </div>

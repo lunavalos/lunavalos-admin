@@ -14,7 +14,12 @@ class QuoteController extends Controller
 {
     public function index()
     {
-        $quotes = Quote::with(['items.costs', 'contract', 'client'])->orderBy('created_at', 'desc')->get();
+        $quotes = Quote::with([
+            'items.costs',
+            'addons.serviceAddon.costs',
+            'contract',
+            'client',
+        ])->orderBy('created_at', 'desc')->get();
         return Inertia::render('Quotes/Index', [
             'quotes' => $quotes
         ]);
@@ -108,7 +113,7 @@ class QuoteController extends Controller
 
     public function show(Quote $quote)
     {
-        $quote->load('items');
+        $quote->load(['items', 'addons.serviceAddon']);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.quote', compact('quote'));
 

@@ -27,6 +27,8 @@ const formatCurrency = (value) => {
 
 const calculateQuoteProfit = (quote) => {
     let totalProfit = 0;
+
+    // Utilidad por items (servicios)
     if (quote.items) {
         quote.items.forEach(item => {
             let itemCostPerUnit = 0;
@@ -36,6 +38,18 @@ const calculateQuoteProfit = (quote) => {
             totalProfit += (Number(item.unit_price) - itemCostPerUnit) * Number(item.quantity);
         });
     }
+
+    // Utilidad por addons (descuenta los costos internos del catálogo del addon)
+    if (quote.addons) {
+        quote.addons.forEach(qAddon => {
+            const unitPrice = Number(qAddon.unit_price ?? qAddon.serviceAddon?.price ?? 0);
+            const qty       = Number(qAddon.quantity ?? 1);
+            const addonCostPerUnit = (qAddon.serviceAddon?.costs ?? [])
+                .reduce((sum, c) => sum + (Number(c.price) * Number(c.quantity)), 0);
+            totalProfit += (unitPrice - addonCostPerUnit) * qty;
+        });
+    }
+
     return totalProfit;
 };
 const deleteQuote = (id) => {
@@ -101,6 +115,12 @@ const changeStatus = (id, newStatus, quote) => {
                     Historial de Cotizaciones
                 </h2>
                 <Link
+                    :href="route('quotes.wizard.create')"
+                    class="btn bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2"
+                >
+                    ✨ Nueva Cotización (Wizard)
+                </Link>
+                <Link
                     :href="route('quotes.create')"
                     class="btn bg-primary hover:bg-secondary text-white font-bold py-2 px-4 rounded"
                 >
@@ -143,11 +163,17 @@ const changeStatus = (id, newStatus, quote) => {
                                         </div>
                                     </td>
                                     <td class="p-3">
-                                        <span v-if="quote.status === 'Aceptada'" class="bg-green-100 dark:bg-emerald-900/40 text-green-800 dark:text-emerald-300 text-xs font-semibold px-2 py-1 rounded">Aceptada</span>
-                                        <span v-else-if="quote.status === 'Contrato Firmado'" class="bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 text-xs font-semibold px-2 py-1 rounded">Contrato Firmado</span>
-                                        <span v-else-if="quote.status === 'Completada'" class="bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 text-xs font-semibold px-2 py-1 rounded">Completada</span>
-                                        <span v-else-if="quote.status === 'Rechazada'" class="bg-red-100 dark:bg-rose-900/40 text-red-800 dark:text-rose-300 text-xs font-semibold px-2 py-1 rounded">Rechazada</span>
-                                        <span v-else class="bg-yellow-100 dark:bg-amber-900/40 text-yellow-800 dark:text-amber-300 text-xs font-semibold px-2 py-1 rounded">Pendiente</span>
+                                        <span class="text-xs font-semibold px-2 py-1 rounded" :class="{
+                                            'bg-gray-200 text-gray-700': quote.status === 'Borrador',
+                                            'bg-blue-100 text-blue-800': quote.status === 'Enviada',
+                                            'bg-green-100 dark:bg-emerald-900/40 text-green-800 dark:text-emerald-300': quote.status === 'Aceptada',
+                                            'bg-red-100 dark:bg-rose-900/40 text-red-800 dark:text-rose-300': quote.status === 'Rechazada',
+                                            'bg-amber-100 text-amber-800': quote.status === 'Expirada',
+                                            'bg-violet-100 text-violet-800': quote.status === 'Convertida',
+                                            'bg-yellow-100 text-yellow-800': quote.status === 'Requiere ajustes' || quote.status === 'Pendiente' || !quote.status,
+                                            'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300': quote.status === 'Completada',
+                                            'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300': quote.status === 'Contrato Firmado',
+                                        }">{{ quote.status || 'Pendiente' }}</span>
                                     </td>
                                     <td class="p-3">
                                         <div class="flex flex-col">
@@ -190,7 +216,7 @@ const changeStatus = (id, newStatus, quote) => {
                                             <!-- Edit button - Hide if signed -->
                                             <div v-if="quote.status !== 'Contrato Firmado'" class="group relative inline-block">
                                                 <Link
-                                                    :href="route('quotes.edit', quote.id)"
+                                                    :href="quote.package_service_id ? route('quotes.wizard.edit', quote.id) : route('quotes.edit', quote.id)"
                                                     class="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 p-2 rounded-full transition-colors inline-flex items-center"
                                                 >
                                                     <PencilSquareIcon class="w-5 h-5" />
@@ -230,9 +256,22 @@ const changeStatus = (id, newStatus, quote) => {
                                                     <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Copiar Link</span>
                                                 </div>
                                             </template>
+
+                                            <!-- Ver contrato firmado (visible siempre que exista contrato) -->
+                                            <div v-if="quote.contract" class="group relative inline-block">
+                                                <Link
+                                                    :href="route('contracts.index', { search: quote.contract.contract_number || '' })"
+                                                    class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-2 rounded-full transition-colors inline-flex items-center"
+                                                >
+                                                    <DocumentTextIcon class="w-5 h-5" />
+                                                </Link>
+                                                <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">
+                                                    Contrato {{ quote.contract.contract_number || ('#' + quote.contract.id) }}
+                                                </span>
+                                            </div>
                                             
-                                            <!-- Actions dropdown/buttons -->
-                                            <div v-if="quote.status !== 'Aceptada' && quote.status !== 'Contrato Firmado' && (!quote.contract || quote.contract.status !== 'signed')" class="group relative inline-block">
+                                            <!-- Actions dropdown/buttons (solo cotizaciones legacy, NO wizard ni con contrato) -->
+                                            <div v-if="!quote.package_service_id && !quote.contract && quote.status !== 'Aceptada' && quote.status !== 'Contrato Firmado'" class="group relative inline-block">
                                                 <button
                                                     @click="changeStatus(quote.id, 'Aceptada', quote)"
                                                     class="text-green-500 hover:text-green-700 hover:bg-green-50 p-2 rounded-full transition-colors inline-flex items-center"
@@ -242,8 +281,8 @@ const changeStatus = (id, newStatus, quote) => {
                                                 <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Marcar Aceptada</span>
                                             </div>
 
-                                            <!-- Nuevo Botón: Aplicar Servicios (si es cliente existente) -->
-                                            <div v-if="quote.client_id && quote.status !== 'Completada'" class="group relative inline-block">
+                                            <!-- Nuevo Botón: Aplicar Servicios (solo cotizaciones legacy con cliente) -->
+                                            <div v-if="!quote.package_service_id && !quote.contract && quote.client_id && quote.status !== 'Completada'" class="group relative inline-block">
                                                 <button
                                                     @click="changeStatus(quote.id, 'Completada', quote)"
                                                     class="text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 p-2 rounded-full transition-colors inline-flex items-center font-bold"
@@ -252,7 +291,7 @@ const changeStatus = (id, newStatus, quote) => {
                                                 </button>
                                                 <span class="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity z-10">Completar y Aplicar Servicios al Cliente</span>
                                             </div>
-                                            <div v-else-if="(quote.status === 'Aceptada' || quote.status === 'Contrato Firmado' || (quote.contract && quote.contract.status === 'signed')) && !quote.client" class="group relative inline-block">
+                                            <div v-else-if="!quote.package_service_id && !quote.contract && (quote.status === 'Aceptada' || quote.status === 'Contrato Firmado') && !quote.client" class="group relative inline-block">
                                                 <Link
                                                     :href="route('clients.create') + '?quote_id=' + quote.id + '&business_name=' + encodeURIComponent(quote.client_name)"
                                                     class="text-blue-500 hover:text-blue-700 hover:bg-blue-50 p-2 rounded-full transition-colors inline-flex items-center"

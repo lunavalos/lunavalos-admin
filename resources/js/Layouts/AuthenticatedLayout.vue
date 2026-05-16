@@ -78,29 +78,36 @@ onMounted(() => {
         document.documentElement.classList.add('dark');
     }
 
-    if (page.props.auth.user) {
-        window.Echo.private(`App.Models.User.${page.props.auth.user.id}`)
-            .notification((notification) => {
-                console.log('Real-time notification received:', notification);
+    const authUser = page.props?.auth?.user;
+    const authNotifications = page.props?.auth?.notifications ?? [];
 
-                // Evitar duplicados: solo agregar si el ID no existe ya en el array
-                const alreadyExists = page.props.auth.notifications.some(n => n.id === notification.id);
-                if (!alreadyExists) {
-                    page.props.auth.notifications.unshift({
-                        id: notification.id,
-                        data: notification,
-                        created_at: new Date().toISOString(),
-                        read_at: null
-                    });
-                }
+    if (authUser && window.Echo?.private) {
+        try {
+            window.Echo.private(`App.Models.User.${authUser.id}`)
+                .notification((notification) => {
+                    console.log('Real-time notification received:', notification);
 
-                // Notificación visual del navegador (si tiene permisos)
-                if ("Notification" in window && Notification.permission === "granted") {
-                    new Notification(notification.title, {
-                        body: notification.message
-                    });
-                }
-            });
+                    // Evitar duplicados: solo agregar si el ID no existe ya en el array
+                    const alreadyExists = authNotifications.some(n => n.id === notification.id);
+                    if (!alreadyExists) {
+                        page.props.auth.notifications.unshift({
+                            id: notification.id,
+                            data: notification,
+                            created_at: new Date().toISOString(),
+                            read_at: null
+                        });
+                    }
+
+                    // Notificación visual del navegador (si tiene permisos)
+                    if ("Notification" in window && Notification.permission === "granted") {
+                        new Notification(notification.title, {
+                            body: notification.message
+                        });
+                    }
+                });
+        } catch (error) {
+            console.warn('Echo subscription skipped because it is not available or failed:', error);
+        }
     }
 });
 
@@ -436,6 +443,86 @@ onMounted(() => {
                                 <BanknotesIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                                 <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
                                     Finanzas
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Cobranza / Pagos Link -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Pagos'))">
+                            <Link
+                                :href="route('payments.index')"
+                                :class="[
+                                    route().current('payments.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Cobranza' : ''"
+                            >
+                                <BanknotesIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Cobranza
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Contratos Link -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Contratos'))">
+                            <Link
+                                :href="route('contracts.index')"
+                                :class="[
+                                    route().current('contracts.index')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Contratos' : ''"
+                            >
+                                <DocumentTextIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Contratos
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Renovaciones Link -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Contratos'))">
+                            <Link
+                                :href="route('contracts.renewals.index')"
+                                :class="[
+                                    route().current('contracts.renewals.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Renovaciones' : ''"
+                            >
+                                <DocumentTextIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Renovaciones
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Facturas Link -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Facturas'))">
+                            <Link
+                                :href="route('invoices.index')"
+                                :class="[
+                                    route().current('invoices.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Facturas' : ''"
+                            >
+                                <DocumentTextIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Facturas (CFDI)
                                 </span>
                             </Link>
                         </li>

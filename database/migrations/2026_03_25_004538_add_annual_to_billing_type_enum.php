@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         \Illuminate\Support\Facades\DB::statement("ALTER TABLE services MODIFY COLUMN billing_type ENUM('unique', 'monthly', 'annual') DEFAULT 'unique'");
         \Illuminate\Support\Facades\DB::statement("ALTER TABLE quote_items MODIFY COLUMN billing_type ENUM('unique', 'monthly', 'annual') DEFAULT 'unique'");
     }
@@ -20,6 +24,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            return;
+        }
+
         \Illuminate\Support\Facades\DB::statement("ALTER TABLE services MODIFY COLUMN billing_type ENUM('unique', 'monthly') DEFAULT 'unique'");
         \Illuminate\Support\Facades\DB::statement("ALTER TABLE quote_items MODIFY COLUMN billing_type ENUM('unique', 'monthly') DEFAULT 'unique'");
     }

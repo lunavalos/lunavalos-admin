@@ -109,7 +109,7 @@ const form = useForm({
     smtp_tls: true,
     has_custom_email_config: false,
     costs: [],
-    services: [],
+    services: Array.isArray(props.quote_data?.services) ? props.quote_data.services.map(s => ({ ...s })) : [],
 });
 
 const showCredentials = ref(false);

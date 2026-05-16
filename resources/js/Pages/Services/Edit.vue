@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
@@ -11,8 +12,24 @@ const props = defineProps({
     availableServices: {
         type: Array,
         default: () => []
-    }
+    },
+    addonCategories: {
+        type: Object,
+        default: () => ({}),
+    },
+    maxPaymentMonths: {
+        type: Number,
+        default: 24,
+    },
 });
+
+// Categorías obligatorias: usa el array nuevo si existe; si no, cae al single legacy.
+const initialCategories = (() => {
+    const arr = props.service.required_addon_categories;
+    if (Array.isArray(arr) && arr.length) return arr.filter(Boolean);
+    if (props.service.required_addon_category) return [props.service.required_addon_category];
+    return [];
+})();
 
 const form = useForm({
     name: props.service.name,
@@ -21,17 +38,45 @@ const form = useForm({
     renewal_price: props.service.renewal_price !== null ? props.service.renewal_price : 0,
     billing_type: props.service.billing_type,
     is_package: props.service.is_package === 1 || props.service.is_package === true,
+    required_addon_categories: initialCategories,
+    payment_plan_months: props.service.payment_plan_months || 1,
     services: props.service.services ? props.service.services.map(s => s.id) : [],
     costs: props.service.costs ? props.service.costs.map(c => ({ ...c })) : [],
+    features: props.service.features
+        ? props.service.features.map((f, i) => ({ label: f.label, sort_order: f.sort_order ?? i }))
+        : [],
 });
 
-const addCost = () => {
-    form.costs.push({ title: '', quantity: 1, price: 0 });
-};
+const addCost = () => form.costs.push({ title: '', quantity: 1, price: 0 });
+const removeCost = (index) => form.costs.splice(index, 1);
+const addFeature = () => form.features.push({ label: '', sort_order: form.features.length });
+const removeFeature = (index) => form.features.splice(index, 1);
 
-const removeCost = (index) => {
-    form.costs.splice(index, 1);
-};
+const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+
+// Resumen agregado del paquete (precio + costos + utilidad de sub-servicios).
+const bundleDetail = computed(() =>
+    props.availableServices.filter(s => form.services.includes(s.id))
+);
+const bundlePriceTotal = computed(() =>
+    bundleDetail.value.reduce((acc, s) => acc + Number(s.price || 0), 0)
+);
+const bundleCostTotal = computed(() =>
+    bundleDetail.value.reduce((acc, s) => {
+        const sub = (s.costs || []).reduce((a, c) => a + Number(c.price || 0) * Number(c.quantity || 1), 0);
+        return acc + sub;
+    }, 0)
+);
+const ownCostTotal = computed(() =>
+    form.costs.reduce((a, c) => a + Number(c.price || 0) * Number(c.quantity || 1), 0)
+);
+const totalInternalCost = computed(() => bundleCostTotal.value + ownCostTotal.value);
+const packageMargin = computed(() => Number(form.price || 0) - totalInternalCost.value);
+const packageMarginPct = computed(() => {
+    const p = Number(form.price || 0);
+    if (p <= 0) return 0;
+    return ((p - totalInternalCost.value) / p) * 100;
+});
 
 const submit = () => {
     form.put(route('services.update', props.service.id));
@@ -85,15 +130,72 @@ const submit = () => {
                             </div>
 
                             <!-- Servicios Incluidos (Solo si es paquete) -->
-                            <div v-if="form.is_package" class="p-4 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-md">
+                            <div v-if="form.is_package" class="p-4 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-md space-y-4">
                                 <InputLabel value="Servicios Incluidos en el Paquete" class="font-bold text-gray-700 dark:text-gray-300 mb-2" />
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    <label v-for="availableService in availableServices" :key="availableService.id" class="inline-flex items-center p-2 hover:bg-white dark:hover:bg-zinc-900 rounded transition-colors">
-                                        <input type="checkbox" :value="availableService.id" v-model="form.services" class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-indigo-600 shadow-sm focus:ring-indigo-500">
-                                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">{{ availableService.name }}</span>
+                                    <label v-for="availableService in availableServices" :key="availableService.id" class="flex items-start gap-2 p-2 hover:bg-white dark:hover:bg-zinc-900 rounded transition-colors">
+                                        <input type="checkbox" :value="availableService.id" v-model="form.services" class="mt-1 rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center justify-between gap-2">
+                                                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate">{{ availableService.name }}</span>
+                                                <span class="text-xs font-semibold text-primary whitespace-nowrap">{{ fmt(availableService.price) }}</span>
+                                            </div>
+                                            <p v-if="availableService.description" class="text-xs text-gray-500 dark:text-zinc-400 mt-0.5 line-clamp-2">{{ availableService.description }}</p>
+                                        </div>
                                     </label>
                                 </div>
                                 <InputError class="mt-2" :message="form.errors.services" />
+
+                                <!-- Resumen agregado del bundle -->
+                                <div v-if="bundleDetail.length > 0" class="mt-2 p-3 rounded-md bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800">
+                                    <h5 class="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300 mb-2">Resumen del paquete ({{ bundleDetail.length }} servicios)</h5>
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr class="text-[10px] uppercase text-gray-400 dark:text-zinc-500 text-left border-b border-gray-200 dark:border-zinc-800">
+                                                <th class="pb-1">Servicio</th>
+                                                <th class="pb-1 text-right">Precio</th>
+                                                <th class="pb-1 text-right">Costo interno</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                                            <tr v-for="sub in bundleDetail" :key="sub.id">
+                                                <td class="py-1.5 text-gray-700 dark:text-gray-200">{{ sub.name }}</td>
+                                                <td class="py-1.5 text-right text-gray-700 dark:text-gray-200">{{ fmt(sub.price) }}</td>
+                                                <td class="py-1.5 text-right text-rose-600 dark:text-rose-400">
+                                                    {{ fmt((sub.costs || []).reduce((a, c) => a + Number(c.price || 0) * Number(c.quantity || 1), 0)) }}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot class="font-bold text-gray-800 dark:text-gray-100 border-t border-gray-200 dark:border-zinc-800">
+                                            <tr>
+                                                <td class="pt-2">Suma sub-servicios</td>
+                                                <td class="pt-2 text-right">{{ fmt(bundlePriceTotal) }}</td>
+                                                <td class="pt-2 text-right text-rose-600 dark:text-rose-400">{{ fmt(bundleCostTotal) }}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                    <div class="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                        <div class="p-2 rounded bg-gray-50 dark:bg-zinc-950">
+                                            <div class="text-[10px] uppercase text-gray-400">Precio paquete</div>
+                                            <div class="font-bold text-primary">{{ fmt(form.price) }}</div>
+                                        </div>
+                                        <div class="p-2 rounded bg-gray-50 dark:bg-zinc-950">
+                                            <div class="text-[10px] uppercase text-gray-400">Costo total interno</div>
+                                            <div class="font-bold text-rose-600">{{ fmt(totalInternalCost) }}</div>
+                                        </div>
+                                        <div class="p-2 rounded bg-gray-50 dark:bg-zinc-950">
+                                            <div class="text-[10px] uppercase text-gray-400">Utilidad</div>
+                                            <div class="font-bold" :class="packageMargin >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ fmt(packageMargin) }}</div>
+                                        </div>
+                                        <div class="p-2 rounded bg-gray-50 dark:bg-zinc-950">
+                                            <div class="text-[10px] uppercase text-gray-400">Margen %</div>
+                                            <div class="font-bold" :class="packageMarginPct >= 0 ? 'text-emerald-600' : 'text-red-600'">{{ packageMarginPct.toFixed(1) }}%</div>
+                                        </div>
+                                    </div>
+                                    <p v-if="form.price > 0 && bundlePriceTotal > Number(form.price)" class="mt-2 text-[11px] text-amber-600">
+                                        El precio del paquete ({{ fmt(form.price) }}) es menor que la suma individual ({{ fmt(bundlePriceTotal) }}). Implica descuento de {{ fmt(bundlePriceTotal - Number(form.price)) }}.
+                                    </p>
+                                </div>
                             </div>
 
                             <!-- Descripción -->
@@ -162,6 +264,62 @@ const submit = () => {
                                         />
                                     </div>
                                     <InputError class="mt-2" :message="form.errors.renewal_price" />
+                                </div>
+                            </div>
+
+                            <!-- Addons obligatorios + plan de pago (aplica a cualquier servicio, no solo paquetes) -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-md">
+                                <div>
+                                    <InputLabel value="Addons obligatorios al cotizar" class="font-bold text-gray-700 dark:text-gray-300" />
+                                    <p class="text-xs text-gray-500 mt-1 mb-2">Marca las categorías de las que el cliente <strong>debe</strong> elegir al menos un addon al usar este servicio en una cotización. Si no marcas ninguna, los addons quedan opcionales.</p>
+                                    <div class="grid grid-cols-1 gap-1">
+                                        <label v-for="(label, key) in addonCategories" :key="key" class="inline-flex items-center gap-2 p-1.5 rounded hover:bg-white dark:hover:bg-zinc-900 transition-colors">
+                                            <input type="checkbox" :value="key" v-model="form.required_addon_categories" class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-indigo-600 focus:ring-indigo-500">
+                                            <span class="text-sm text-gray-700 dark:text-gray-200">{{ label }}</span>
+                                        </label>
+                                    </div>
+                                    <InputError class="mt-2" :message="form.errors.required_addon_categories" />
+                                </div>
+                                <div>
+                                    <InputLabel for="payment_plan_months" value="Plan de pago sugerido (meses)" class="font-bold text-gray-700 dark:text-gray-300" />
+                                    <p class="text-xs text-gray-500 mt-1 mb-2">Sugerencia por default al cotizar este servicio. El usuario puede ajustarlo en el wizard. <strong>1 = pago único.</strong></p>
+                                    <TextInput
+                                        id="payment_plan_months"
+                                        type="number"
+                                        :min="1"
+                                        :max="maxPaymentMonths"
+                                        class="mt-1 block w-full"
+                                        v-model="form.payment_plan_months"
+                                    />
+                                    <InputError class="mt-2" :message="form.errors.payment_plan_months" />
+                                </div>
+                            </div>
+
+                            <!-- ¿Qué incluye? -->
+                            <div class="p-6 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wider text-xs">¿Qué incluye?</h4>
+                                    <button type="button" @click="addFeature" class="text-xs flex items-center text-emerald-600 hover:text-emerald-700 font-bold bg-white dark:bg-zinc-900 border border-emerald-100 dark:border-emerald-900/50 px-3 py-1.5 rounded-lg shadow-sm">
+                                        <PlusCircleIcon class="h-4 w-4 mr-1" />
+                                        Agregar característica
+                                    </button>
+                                </div>
+                                <div v-if="form.features.length > 0" class="space-y-2">
+                                    <div v-for="(feature, index) in form.features" :key="index" class="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-md px-3 py-2">
+                                        <span class="text-emerald-500">✓</span>
+                                        <input
+                                            type="text"
+                                            v-model="feature.label"
+                                            class="flex-1 border-none focus:ring-0 p-0 text-sm text-gray-700 dark:text-gray-200 bg-transparent"
+                                            placeholder="Ej. 5 horas de servicio incluidas"
+                                        />
+                                        <button @click="removeFeature(index)" type="button" class="text-gray-300 hover:text-red-500">
+                                            <TrashIcon class="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div v-else class="text-center py-4 border-2 border-dashed border-gray-100 dark:border-zinc-900 rounded-xl">
+                                    <p class="text-gray-400 dark:text-zinc-500 text-sm italic">Sin características aún. Estas se muestran en la card del paquete dentro del wizard.</p>
                                 </div>
                             </div>
 

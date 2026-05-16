@@ -9,4 +9,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('quotes:check-followup')->daily();
+Schedule::command('quotes:expire')->daily();
 Schedule::command('tickets:auto-close-in-review')->daily();
+Schedule::command('contracts:check-renewals')->dailyAt('08:00');

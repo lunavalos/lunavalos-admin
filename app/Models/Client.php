@@ -46,6 +46,18 @@ class Client extends Model
         'briefing_contact_methods',
         'briefing_current_emails',
         'vault_credentials',
+        'rfc',
+        'tax_regime',
+        'cfdi_use',
+        'tax_zip_code',
+        'fiscal_address',
+        'legal_name',
+        'applies_iva',
+        'iva_rate',
+        'applies_isr_retention',
+        'isr_retention_rate',
+        'applies_iva_retention',
+        'iva_retention_rate',
     ];
 
     protected $casts = [
@@ -59,6 +71,12 @@ class Client extends Model
         'has_custom_email_config' => 'boolean',
         'email_accounts' => 'array',
         'vault_credentials' => 'array',
+        'applies_iva' => 'boolean',
+        'iva_rate' => 'decimal:4',
+        'applies_isr_retention' => 'boolean',
+        'isr_retention_rate' => 'decimal:4',
+        'applies_iva_retention' => 'boolean',
+        'iva_retention_rate' => 'decimal:4',
     ];
 
     /** The primary (legacy) single user linked to this client via clients.user_id */
@@ -86,5 +104,10 @@ class Client extends Model
     public function services()
     {
         return $this->hasMany(ClientService::class);
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(Contract::class);
     }
 }

@@ -159,9 +159,10 @@ class ClientController extends Controller implements HasMiddleware
     public function create(Request $request)
     {
         $quote_data = $request->only(['quote_id', 'business_name', 'contact_name', 'email', 'phone', 'package_services']);
+        $quote_services = [];
 
         if ($request->has('quote_id')) {
-            $quote = \App\Models\Quote::with(['items', 'contract'])->find($request->quote_id);
+            $quote = \App\Models\Quote::with(['items', 'addons.serviceAddon', 'package', 'contract'])->find($request->quote_id);
             if ($quote) {
                 if (empty($quote_data['business_name'])) {
                     // Prioritize legal name from signed contract if available
@@ -200,6 +201,49 @@ class ClientController extends Controller implements HasMiddleware
 
                 $quote_data['initial_price'] = $initialPrice;
                 $quote_data['renewal_amount'] = $renewalAmount;
+
+                // Pre-fill list of services + addons for "Servicios y Renovaciones".
+                $addonBucket = function (?string $cycle): string {
+                    return match ($cycle) {
+                        'monthly'              => 'monthly',
+                        'annual', 'semiannual' => 'annual',
+                        'unique', 'one_time'   => 'unique',
+                        default                => 'monthly',
+                    };
+                };
+
+                foreach ($quote->items as $item) {
+                    $billing = $item->billing_type ?: 'unique';
+                    $quote_services[] = [
+                        'service_id'     => $item->service_id,
+                        'service_name'   => $item->concept,
+                        'renewal_date'   => '',
+                        'renewal_amount' => $billing === 'monthly'
+                            ? (float) $item->unit_price
+                            : (float) ($item->unit_renewal_price ?? 0),
+                        'billing_type'    => $billing,
+                        'initial_payment' => (float) ($item->unit_price * $item->quantity),
+                        'initial_cost'    => 0,
+                    ];
+                }
+
+                foreach ($quote->addons as $qAddon) {
+                    $cycle    = $qAddon->billing_cycle;
+                    $bucket   = $addonBucket($cycle);
+                    $name     = $qAddon->serviceAddon->name ?? 'Servicio adicional';
+                    $line     = (float) ($qAddon->unit_price * $qAddon->quantity);
+                    $quote_services[] = [
+                        'service_id'      => null,
+                        'service_name'    => $name,
+                        'renewal_date'    => '',
+                        'renewal_amount'  => $bucket === 'unique' ? 0 : (float) $qAddon->unit_price,
+                        'billing_type'    => $bucket,
+                        'initial_payment' => $line,
+                        'initial_cost'    => 0,
+                    ];
+                }
+
+                $quote_data['services'] = $quote_services;
             }
         }
 
@@ -245,6 +289,18 @@ class ClientController extends Controller implements HasMiddleware
             'login_password' => 'nullable|string|min:6',
             'email_accounts' => 'nullable|array',
             'vault_credentials' => 'nullable|array',
+            'rfc' => 'nullable|string|max:20',
+            'tax_regime' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(config('sat.tax_regimes')))],
+            'cfdi_use' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(config('sat.cfdi_uses')))],
+            'tax_zip_code' => 'nullable|string|max:10',
+            'fiscal_address' => 'nullable|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
+            'applies_iva' => 'boolean',
+            'iva_rate' => 'nullable|numeric|min:0|max:100',
+            'applies_isr_retention' => 'boolean',
+            'isr_retention_rate' => 'nullable|numeric|min:0|max:100',
+            'applies_iva_retention' => 'boolean',
+            'iva_retention_rate' => 'nullable|numeric|min:0|max:100',
             'costs' => 'nullable|array',
             'costs.*.concept' => 'required|string',
             'costs.*.amount' => 'required|numeric',
@@ -371,7 +427,13 @@ class ClientController extends Controller implements HasMiddleware
 
     public function show(Client $client)
     {
-        $client->load(['costs', 'services']);
+        $client->load([
+            'costs',
+            'services',
+            'contracts' => fn ($q) => $q->orderByDesc('created_at'),
+            'contracts.payments:id,contract_id,amount,status',
+            'contracts.quote:id,client_id,billing_type',
+        ]);
         return \Inertia\Inertia::render('Clients/Show', [
             'client' => $client
         ]);
@@ -422,6 +484,18 @@ class ClientController extends Controller implements HasMiddleware
             'login_password' => 'nullable|string|min:6',
             'email_accounts' => 'nullable|array',
             'vault_credentials' => 'nullable|array',
+            'rfc' => 'nullable|string|max:20',
+            'tax_regime' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(config('sat.tax_regimes')))],
+            'cfdi_use' => ['nullable', \Illuminate\Validation\Rule::in(array_keys(config('sat.cfdi_uses')))],
+            'tax_zip_code' => 'nullable|string|max:10',
+            'fiscal_address' => 'nullable|string|max:255',
+            'legal_name' => 'nullable|string|max:255',
+            'applies_iva' => 'boolean',
+            'iva_rate' => 'nullable|numeric|min:0|max:100',
+            'applies_isr_retention' => 'boolean',
+            'isr_retention_rate' => 'nullable|numeric|min:0|max:100',
+            'applies_iva_retention' => 'boolean',
+            'iva_retention_rate' => 'nullable|numeric|min:0|max:100',
             'services' => 'nullable|array',
             'services.*.service_id' => 'nullable|exists:services,id',
             'services.*.service_name' => 'required|string|max:255',

@@ -239,6 +239,63 @@ const closePasswordModal = () => {
                     </div>
                 </div>
 
+                <!-- Contratos del Cliente -->
+                <div v-if="client.contracts && client.contracts.length" class="bg-white dark:bg-zinc-900 shadow-xl rounded-2xl border border-gray-100 dark:border-zinc-800 overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Contratos del cliente</h3>
+                        <Link :href="route('contracts.index', { client_id: client.id })" class="text-xs font-bold text-primary hover:text-secondary">
+                            Ver módulo de contratos →
+                        </Link>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-100 dark:divide-zinc-800 text-sm">
+                            <thead class="bg-gray-50 dark:bg-zinc-950/40">
+                                <tr class="text-left text-[11px] uppercase tracking-wider text-gray-500 dark:text-zinc-400">
+                                    <th class="px-4 py-3">Contrato</th>
+                                    <th class="px-4 py-3">Vigencia</th>
+                                    <th class="px-4 py-3 text-right">Total</th>
+                                    <th class="px-4 py-3 text-right">Mensual</th>
+                                    <th class="px-4 py-3">Estado</th>
+                                    <th class="px-4 py-3">Renovación</th>
+                                    <th class="px-4 py-3 text-right">Pagos</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                                <tr v-for="c in client.contracts" :key="c.id" class="hover:bg-gray-50 dark:hover:bg-zinc-800/40">
+                                    <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100">
+                                        <a v-if="c.token" :href="'/contratodeservicio/' + c.token" target="_blank" class="text-primary hover:text-secondary">
+                                            {{ c.contract_number || ('#' + c.id) }}
+                                        </a>
+                                        <span v-else>{{ c.contract_number || ('#' + c.id) }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-600 dark:text-zinc-300">
+                                        <div>{{ c.start_date ? new Date(c.start_date).toLocaleDateString('es-MX') : '—' }}</div>
+                                        <div class="text-[11px] text-gray-400">→ {{ c.end_date ? new Date(c.end_date).toLocaleDateString('es-MX') : '—' }}</div>
+                                    </td>
+                                    <td class="px-4 py-3 text-right font-semibold">{{ new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN'}).format(Number(c.total_amount) || 0) }}</td>
+                                    <td class="px-4 py-3 text-right">{{ new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN'}).format(Number(c.monthly_amount) || 0) }}</td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
+                                              :class="c.status === 'signed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                                    : c.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                                                    : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300'">{{ c.status }}</span>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
+                                              :class="c.renewal_status === 'renewed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                                    : c.renewal_status === 'pending' || c.renewal_status === 'notified' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                                                    : c.renewal_status === 'overdue' ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
+                                                    : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300'">{{ c.renewal_status || 'none' }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right text-gray-600 dark:text-zinc-300">
+                                        {{ (c.payments || []).length }} registros
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
             </div>
         </div>
 

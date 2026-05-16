@@ -12,6 +12,67 @@ use Inertia\Inertia;
 class ContractController extends Controller
 {
     /**
+     * Admin: list all contracts with KPIs.
+     */
+    public function index(Request $request)
+    {
+        $query = Contract::with(['client:id,name,email', 'quote:id,client_id,billing_type', 'payments:id,contract_id,amount,status'])
+            ->orderByDesc('created_at');
+
+        if ($status = $request->input('status')) {
+            $query->where('status', $status);
+        }
+        if ($renewal = $request->input('renewal_status')) {
+            $query->where('renewal_status', $renewal);
+        }
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('contract_number', 'like', "%{$search}%")
+                  ->orWhere('legal_name', 'like', "%{$search}%")
+                  ->orWhereHas('client', fn ($c) => $c->where('name', 'like', "%{$search}%"));
+            });
+        }
+        if ($clientId = $request->input('client_id')) {
+            $query->where('client_id', $clientId);
+        }
+
+        $contracts = $query->get();
+
+        // KPIs
+        $signed   = $contracts->where('status', 'signed');
+        $pending  = $contracts->where('status', 'pending');
+        $totalSigned    = $signed->sum(fn ($c) => (float) $c->total_amount);
+        $totalPending   = $pending->sum(fn ($c) => (float) $c->total_amount);
+        $mrr = $signed
+            ->filter(fn ($c) => ! in_array($c->renewal_status, ['renewed', 'declined']))
+            ->sum(fn ($c) => (float) $c->monthly_amount);
+        $upcoming90 = $signed->filter(function ($c) {
+            if (! $c->end_date) return false;
+            $days = now()->startOfDay()->diffInDays($c->end_date->startOfDay(), false);
+            return $days >= 0 && $days <= 90 && ! in_array($c->renewal_status, ['renewed', 'declined']);
+        })->count();
+        $overdue = $signed->filter(function ($c) {
+            if (! $c->end_date) return false;
+            return $c->end_date->isPast() && ! in_array($c->renewal_status, ['renewed', 'declined']);
+        })->count();
+
+        return Inertia::render('Contracts/Index', [
+            'contracts' => $contracts,
+            'filters'   => $request->only(['status', 'renewal_status', 'search', 'client_id']),
+            'kpis'      => [
+                'total_signed_amount'  => $totalSigned,
+                'total_pending_amount' => $totalPending,
+                'mrr'                  => $mrr,
+                'upcoming_90d'         => $upcoming90,
+                'overdue'              => $overdue,
+                'count_total'          => $contracts->count(),
+                'count_signed'         => $signed->count(),
+                'count_pending'        => $pending->count(),
+            ],
+        ]);
+    }
+
+    /**
      * Generate a new contract for the given quote.
      */
     public function generate(Request $request, Quote $quote)
@@ -87,5 +148,52 @@ class ContractController extends Controller
         // In a real scenario, you'd generate the final PDF here and shoot an email.
         // For now, we just redirect back with a success message.
         return back()->with('success', 'Contrato firmado legalmente.');
+    }
+
+    /**
+     * Download signed contract as PDF (public, token-gated).
+     */
+    public function downloadPdf($token)
+    {
+        $contract = Contract::where('token', $token)->with('quote.items')->firstOrFail();
+
+        if ($contract->status !== 'signed') {
+            abort(403, 'El contrato aún no ha sido firmado.');
+        }
+
+        $settings = Setting::pluck('value', 'key')->toArray();
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('contracts.pdf', [
+            'contract' => $contract,
+            'settings' => $settings,
+        ])->setPaper('letter', 'portrait');
+
+        $filename = 'contrato-' . ($contract->contract_number ?? $contract->id) . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Admin: detail view for a single contract.
+     */
+    public function adminShow(Contract $contract)    {
+        $contract->load([
+            'client:id,name,email',
+            'quote:id,client_name,contact_name,email,phone,status,total,billing_type,issue_date',
+            'payments' => fn ($q) => $q->orderBy('due_date')->orderBy('created_at'),
+            'createdBy:id,name',
+            'renewedContract:id,contract_number',
+        ]);
+
+        $totalPaid     = $contract->payments->whereIn('status', ['registrado', 'conciliado', 'facturado'])->sum(fn ($p) => (float) $p->amount);
+        $totalPending  = $contract->payments->whereIn('status', ['programado'])->sum(fn ($p) => (float) $p->amount);
+        $daysUntilEnd  = $contract->daysUntilEnd();
+
+        return Inertia::render('Contracts/AdminShow', [
+            'contract'     => $contract,
+            'totalPaid'    => $totalPaid,
+            'totalPending' => $totalPending,
+            'daysUntilEnd' => $daysUntilEnd,
+        ]);
     }
 }
