@@ -183,17 +183,37 @@ class ContractController extends Controller
             'payments' => fn ($q) => $q->orderBy('due_date')->orderBy('created_at'),
             'createdBy:id,name',
             'renewedContract:id,contract_number',
+            'contractServices',
+            'activeBillingCycle.credits.contractService',
         ]);
 
         $totalPaid     = $contract->payments->whereIn('status', ['registrado', 'conciliado', 'facturado'])->sum(fn ($p) => (float) $p->amount);
         $totalPending  = $contract->payments->whereIn('status', ['programado'])->sum(fn ($p) => (float) $p->amount);
         $daysUntilEnd  = $contract->daysUntilEnd();
 
+        $activeCycle = $contract->activeBillingCycle;
+
         return Inertia::render('Contracts/AdminShow', [
-            'contract'     => $contract,
-            'totalPaid'    => $totalPaid,
-            'totalPending' => $totalPending,
-            'daysUntilEnd' => $daysUntilEnd,
+            'contract'         => $contract,
+            'totalPaid'        => $totalPaid,
+            'totalPending'     => $totalPending,
+            'daysUntilEnd'     => $daysUntilEnd,
+            'contractServices' => $contract->contractServices,
+            'activeCycle'      => $activeCycle ? [
+                'id'           => $activeCycle->id,
+                'period_start' => $activeCycle->period_start->toDateString(),
+                'period_end'   => $activeCycle->period_end->toDateString(),
+                'label'        => $activeCycle->period_start->format('M Y'),
+                'status'       => $activeCycle->status,
+                'credits'      => $activeCycle->credits->map(fn ($cr) => [
+                    'id'                  => $cr->id,
+                    'contract_service_id' => $cr->contract_service_id,
+                    'total'               => (int) $cr->total,
+                    'rolled_over'         => (int) $cr->rolled_over,
+                    'consumed'            => (int) $cr->consumed,
+                    'is_unlimited'        => (bool) $cr->is_unlimited,
+                ]),
+            ] : null,
         ]);
     }
 }

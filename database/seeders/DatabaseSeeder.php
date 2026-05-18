@@ -77,6 +77,11 @@ class DatabaseSeeder extends Seeder
             'Crear Addons',
             'Editar Addons',
             'Eliminar Addons',
+            'Ver Recurrentes',
+            'Gestionar Recurrentes',
+            'Ver Social',
+            'Gestionar Social',
+            'Publicar Social',
         ];
 
         foreach ($permissions as $permission) {

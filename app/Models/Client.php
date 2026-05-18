@@ -110,4 +110,14 @@ class Client extends Model
     {
         return $this->hasMany(Contract::class);
     }
+
+    public function socialAccounts()
+    {
+        return $this->hasMany(SocialAccount::class);
+    }
+
+    public function socialPosts()
+    {
+        return $this->hasMany(SocialPost::class);
+    }
 }

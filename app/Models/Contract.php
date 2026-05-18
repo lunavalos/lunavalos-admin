@@ -90,6 +90,30 @@ class Contract extends Model
         return $this->belongsTo(self::class, 'renewed_contract_id');
     }
 
+    public function contractServices(): HasMany
+    {
+        return $this->hasMany(ContractService::class)->orderBy('sort_order');
+    }
+
+    public function billingCycles(): HasMany
+    {
+        return $this->hasMany(BillingCycle::class)->orderByDesc('period_start');
+    }
+
+    public function activeBillingCycle()
+    {
+        return $this->hasOne(BillingCycle::class)->where('status', 'active')->latestOfMany('period_start');
+    }
+
+    /**
+     * Indica si el contrato participa del módulo de Clientes Recurrentes
+     * (tiene al menos un entregable mensual configurado).
+     */
+    public function isRecurring(): bool
+    {
+        return $this->contractServices()->exists();
+    }
+
     /**
      * Días restantes hasta end_date (negativo si ya venció).
      */

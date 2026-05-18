@@ -25,6 +25,14 @@ class AppServiceProvider extends ServiceProvider
         Carbon::setLocale('es');
         Vite::prefetch(concurrency: 3);
 
+        // Registrar provider de Socialite para TikTok (paquete socialiteproviders/tiktok)
+        if (class_exists(\SocialiteProviders\Manager\SocialiteWasCalled::class)) {
+            \Illuminate\Support\Facades\Event::listen(
+                \SocialiteProviders\Manager\SocialiteWasCalled::class,
+                [\SocialiteProviders\TikTok\TikTokExtendSocialite::class, 'handle']
+            );
+        }
+
         \Illuminate\Validation\Rules\Password::defaults(function () {
             return \Illuminate\Validation\Rules\Password::min(6);
         });

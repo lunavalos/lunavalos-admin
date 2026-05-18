@@ -147,6 +147,33 @@ Route::middleware('auth')->group(function () {
     Route::post('employees/{employee}/salaries', [\App\Http\Controllers\EmployeeController::class, 'updateSalary'])->name('employees.updateSalary');
     Route::post('employees/{employee}/payroll', [\App\Http\Controllers\EmployeeController::class, 'storePayroll'])->name('employees.storePayroll');
     Route::get('payroll/{receipt}/print', [\App\Http\Controllers\EmployeeController::class, 'printPayroll'])->name('payroll.print');
+    // Clientes Recurrentes (planes mensuales con créditos / entregables)
+    Route::get('recurring', [\App\Http\Controllers\RecurringDashboardController::class, 'index'])->name('recurring.index');
+    Route::get('recurring/clients/{client}', [\App\Http\Controllers\RecurringClientController::class, 'show'])->name('recurring.clients.show');
+    Route::post('recurring/clients/{client}/open-cycle', [\App\Http\Controllers\RecurringClientController::class, 'openCycle'])->name('recurring.clients.openCycle');
+    Route::post('recurring/clients/{client}/deliverables', [\App\Http\Controllers\RecurringClientController::class, 'createDeliverable'])->name('recurring.clients.deliverables.store');
+
+    // Configuración de entregables recurrentes dentro de un contrato
+    Route::post('contracts/{contract}/services',                       [\App\Http\Controllers\ContractServiceController::class, 'store'])->name('contracts.services.store');
+    Route::put('contracts/{contract}/services/{service}',              [\App\Http\Controllers\ContractServiceController::class, 'update'])->name('contracts.services.update');
+    Route::delete('contracts/{contract}/services/{service}',           [\App\Http\Controllers\ContractServiceController::class, 'destroy'])->name('contracts.services.destroy');
+    Route::post('contracts/{contract}/open-cycle',                     [\App\Http\Controllers\ContractServiceController::class, 'openCycle'])->name('contracts.openCycle');
+
+    // Social Publishing (Fase 3)
+    Route::get('social',                                               [\App\Http\Controllers\SocialController::class, 'index'])->name('social.index');
+    Route::get('social/clients/{client}',                              [\App\Http\Controllers\SocialController::class, 'show'])->name('social.clients.show');
+    Route::get('social/clients/{client}/posts/create',                 [\App\Http\Controllers\SocialController::class, 'createPost'])->name('social.posts.create');
+    Route::post('social/clients/{client}/posts',                       [\App\Http\Controllers\SocialController::class, 'storePost'])->name('social.posts.store');
+    Route::get('social/clients/{client}/posts/{post}/edit',            [\App\Http\Controllers\SocialController::class, 'editPost'])->name('social.posts.edit');
+    Route::post('social/clients/{client}/posts/{post}',                [\App\Http\Controllers\SocialController::class, 'updatePost'])->name('social.posts.update');
+    Route::delete('social/clients/{client}/posts/{post}',              [\App\Http\Controllers\SocialController::class, 'destroyPost'])->name('social.posts.destroy');
+    Route::post('social/clients/{client}/posts/{post}/publish',        [\App\Http\Controllers\SocialController::class, 'publishNow'])->name('social.posts.publishNow');
+
+    // OAuth Social — conectar/desconectar cuentas
+    Route::get('social/oauth/{provider}/{client}/redirect',            [\App\Http\Controllers\SocialAuthController::class, 'redirect'])->name('social.oauth.redirect');
+    Route::get('social/oauth/{provider}/callback',                     [\App\Http\Controllers\SocialAuthController::class, 'callback'])->name('social.oauth.callback');
+    Route::delete('social/accounts/{account}',                         [\App\Http\Controllers\SocialAuthController::class, 'disconnect'])->name('social.accounts.disconnect');
+
     // Tickets
     Route::get('tickets/trash', [\App\Http\Controllers\TicketController::class, 'trash'])->name('tickets.trash');
     Route::post('tickets/{id}/restore', [\App\Http\Controllers\TicketController::class, 'restore'])->name('tickets.restore');

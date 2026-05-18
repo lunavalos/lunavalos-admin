@@ -23,10 +23,12 @@ class TicketController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $query = Ticket::with(['creator.client', 'assigned', 'messages.user', 'client', 'clientService']);
+        $query = Ticket::with(['creator.client', 'assigned', 'messages.user', 'client', 'clientService'])
+            ->support(); // Kanban de soporte: solo tickets sueltos, no entregables recurrentes.
 
         if ($user->hasRole('Cliente')) {
             $tickets = Ticket::where('creator_id', $user->id)
+                ->support()
                 ->with(['assigned', 'messages', 'clientService'])
                 ->latest()
                 ->get();
@@ -91,6 +93,7 @@ class TicketController extends Controller
             'assigned_id'       => $request->assigned_id,
             'client_id'         => $clientId,
             'client_service_id' => $request->client_service_id,
+            'source_type'       => Ticket::SOURCE_SUPPORT,
             'due_date'          => $request->due_date,
             'status'            => $request->assigned_id ? 'En Proceso' : 'Nuevos',
         ]);

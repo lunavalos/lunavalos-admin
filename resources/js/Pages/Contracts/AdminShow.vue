@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
 import {
     DocumentTextIcon,
     BanknotesIcon,
@@ -14,13 +15,18 @@ import {
     BuildingOfficeIcon,
     LinkIcon,
     ArrowTopRightOnSquareIcon,
+    PlusIcon,
+    PencilSquareIcon,
+    TrashIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    contract:     { type: Object, required: true },
-    totalPaid:    { type: Number, default: 0 },
-    totalPending: { type: Number, default: 0 },
-    daysUntilEnd: { type: Number, default: null },
+    contract:         { type: Object, required: true },
+    totalPaid:        { type: Number, default: 0 },
+    totalPending:     { type: Number, default: 0 },
+    daysUntilEnd:     { type: Number, default: null },
+    contractServices: { type: Array,  default: () => [] },
+    activeCycle:      { type: Object, default: null },
 });
 
 const fmt      = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
@@ -78,6 +84,78 @@ const remainingColor = () => {
 };
 
 const c = props.contract;
+
+/* -------------------------------------------------------------------- */
+/* Entregables recurrentes (módulo Clientes Recurrentes)                */
+/* -------------------------------------------------------------------- */
+const showServiceModal = ref(false);
+const editingServiceId = ref(null);
+
+const serviceForm = useForm({
+    name: '',
+    prefix: '',
+    color: '',
+    quantity_per_cycle: 0,
+    unit_type: 'fixed',
+    rollover_allowed: false,
+    auto_create_tickets: true,
+    sort_order: 0,
+});
+
+const unitTypeLabels = {
+    fixed: 'Cuota fija (auto-genera tickets)',
+    on_demand_pool: 'Bolsa on-demand',
+    unlimited: 'Ilimitado',
+};
+
+const creditsByServiceId = computed(() => {
+    const map = {};
+    if (props.activeCycle?.credits) {
+        props.activeCycle.credits.forEach(cr => { map[cr.contract_service_id] = cr; });
+    }
+    return map;
+});
+
+function openNewServiceModal() {
+    editingServiceId.value = null;
+    serviceForm.reset();
+    serviceForm.unit_type = 'fixed';
+    serviceForm.auto_create_tickets = true;
+    serviceForm.sort_order = (props.contractServices?.length || 0) + 1;
+    showServiceModal.value = true;
+}
+
+function openEditServiceModal(svc) {
+    editingServiceId.value = svc.id;
+    serviceForm.name = svc.name;
+    serviceForm.prefix = svc.prefix;
+    serviceForm.color = svc.color || '';
+    serviceForm.quantity_per_cycle = svc.quantity_per_cycle;
+    serviceForm.unit_type = svc.unit_type;
+    serviceForm.rollover_allowed = !!svc.rollover_allowed;
+    serviceForm.auto_create_tickets = !!svc.auto_create_tickets;
+    serviceForm.sort_order = svc.sort_order;
+    showServiceModal.value = true;
+}
+
+function submitService() {
+    const onDone = () => { showServiceModal.value = false; serviceForm.reset(); };
+    if (editingServiceId.value) {
+        serviceForm.put(route('contracts.services.update', [c.id, editingServiceId.value]), { onSuccess: onDone });
+    } else {
+        serviceForm.post(route('contracts.services.store', c.id), { onSuccess: onDone });
+    }
+}
+
+function deleteService(svc) {
+    if (!confirm(`¿Eliminar el entregable "${svc.name}"?`)) return;
+    router.delete(route('contracts.services.destroy', [c.id, svc.id]));
+}
+
+function openCurrentCycle() {
+    if (!confirm('¿Abrir el ciclo del mes actual? Esto pre-cargará los tickets fijos en el backlog.')) return;
+    router.post(route('contracts.openCycle', c.id));
+}
 </script>
 
 <template>
@@ -381,6 +459,115 @@ const c = props.contract;
                     </div>
                 </div>
 
+                <!-- Entregables Recurrentes (módulo Clientes Recurrentes) -->
+                <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-5">
+                    <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <ArrowPathIcon class="w-5 h-5 text-primary" />
+                            <h3 class="font-semibold text-gray-800 dark:text-gray-100">Entregables Recurrentes</h3>
+                            <span v-if="activeCycle"
+                                  class="ml-2 inline-flex items-center gap-1 rounded-full bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-300">
+                                Ciclo activo: {{ activeCycle.label }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button v-if="contractServices.length && !activeCycle && c.status === 'signed'"
+                                @click="openCurrentCycle"
+                                class="inline-flex items-center gap-1 rounded-md bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white">
+                                <ArrowPathIcon class="w-4 h-4" /> Abrir ciclo del mes
+                            </button>
+                            <Link v-if="activeCycle && c.client"
+                                :href="route('recurring.clients.show', c.client.id)"
+                                class="inline-flex items-center gap-1 rounded-md border border-gray-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50">
+                                <ArrowTopRightOnSquareIcon class="w-4 h-4" /> Ver tablero
+                            </Link>
+                            <button @click="openNewServiceModal"
+                                class="inline-flex items-center gap-1 rounded-md bg-primary hover:bg-secondary px-3 py-1.5 text-xs font-medium text-white">
+                                <PlusIcon class="w-4 h-4" /> Agregar
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500 dark:text-zinc-400 mb-3">
+                        Define la cuota mensual de entregables que se generarán automáticamente cada ciclo
+                        (ej. 8 Reels, 4 Blogs). Los tipos <strong>Cuota fija</strong> pre-cargan tickets;
+                        las <strong>Bolsas on-demand</strong> permiten crear tickets sueltos que descuentan créditos.
+                    </p>
+
+                    <div v-if="!contractServices.length"
+                        class="rounded-lg border border-dashed border-gray-300 dark:border-zinc-700 p-8 text-center">
+                        <p class="text-sm text-gray-500 dark:text-zinc-400">
+                            Aún no hay entregables recurrentes configurados.
+                        </p>
+                        <button @click="openNewServiceModal"
+                            class="mt-3 inline-flex items-center gap-1 rounded-md bg-primary hover:bg-secondary px-3 py-1.5 text-xs font-medium text-white">
+                            <PlusIcon class="w-4 h-4" /> Agregar primer entregable
+                        </button>
+                    </div>
+
+                    <div v-else class="overflow-x-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 dark:bg-zinc-950/40 text-left text-xs text-gray-500 uppercase tracking-wide">
+                                <tr>
+                                    <th class="px-4 py-2">Prefijo</th>
+                                    <th class="px-4 py-2">Nombre</th>
+                                    <th class="px-4 py-2">Tipo</th>
+                                    <th class="px-4 py-2 text-right">Cuota</th>
+                                    <th class="px-4 py-2">Rollover</th>
+                                    <th class="px-4 py-2">Auto-tickets</th>
+                                    <th class="px-4 py-2 text-right">Consumo ciclo</th>
+                                    <th class="px-4 py-2 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                                <tr v-for="svc in contractServices" :key="svc.id" class="hover:bg-gray-50 dark:hover:bg-zinc-800/40">
+                                    <td class="px-4 py-2 font-mono text-xs">
+                                        <span class="inline-block rounded bg-gray-100 dark:bg-zinc-700 px-2 py-0.5">{{ svc.prefix }}</span>
+                                    </td>
+                                    <td class="px-4 py-2 text-gray-800 dark:text-gray-100">{{ svc.name }}</td>
+                                    <td class="px-4 py-2 text-gray-600 dark:text-zinc-300">{{ unitTypeLabels[svc.unit_type] }}</td>
+                                    <td class="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-100">
+                                        <template v-if="svc.unit_type === 'unlimited'">∞</template>
+                                        <template v-else>{{ svc.quantity_per_cycle }}</template>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <span :class="svc.rollover_allowed ? 'text-emerald-600' : 'text-gray-400'">
+                                            {{ svc.rollover_allowed ? 'Sí' : 'No' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <span :class="svc.auto_create_tickets ? 'text-emerald-600' : 'text-gray-400'">
+                                            {{ svc.auto_create_tickets ? 'Sí' : 'No' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2 text-right text-gray-600 dark:text-zinc-300">
+                                        <template v-if="creditsByServiceId[svc.id]">
+                                            <span v-if="creditsByServiceId[svc.id].is_unlimited">
+                                                {{ creditsByServiceId[svc.id].consumed }} / ∞
+                                            </span>
+                                            <span v-else>
+                                                {{ creditsByServiceId[svc.id].consumed }} /
+                                                {{ creditsByServiceId[svc.id].total + creditsByServiceId[svc.id].rolled_over }}
+                                            </span>
+                                        </template>
+                                        <span v-else class="text-gray-300">—</span>
+                                    </td>
+                                    <td class="px-4 py-2 text-right">
+                                        <button @click="openEditServiceModal(svc)"
+                                            class="inline-flex items-center p-1 text-gray-500 hover:text-primary" title="Editar">
+                                            <PencilSquareIcon class="w-4 h-4" />
+                                        </button>
+                                        <button @click="deleteService(svc)"
+                                            class="inline-flex items-center p-1 text-gray-500 hover:text-rose-600" title="Eliminar">
+                                            <TrashIcon class="w-4 h-4" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Notas -->
                 <div v-if="c.notes" class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-5">
                     <div class="flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3 mb-3">
@@ -390,6 +577,96 @@ const c = props.contract;
                     <p class="text-sm text-gray-600 dark:text-zinc-300 whitespace-pre-line">{{ c.notes }}</p>
                 </div>
 
+            </div>
+        </div>
+
+        <!-- Modal: crear/editar entregable recurrente -->
+        <div v-if="showServiceModal"
+             class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+             @click.self="showServiceModal = false">
+            <div class="w-full max-w-lg rounded-xl bg-white dark:bg-zinc-900 shadow-xl">
+                <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 px-5 py-3">
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-100">
+                        {{ editingServiceId ? 'Editar entregable' : 'Nuevo entregable recurrente' }}
+                    </h3>
+                    <button @click="showServiceModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+                </div>
+                <form @submit.prevent="submitService" class="p-5 space-y-4">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="col-span-2">
+                            <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Nombre</label>
+                            <input v-model="serviceForm.name" type="text" required
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" />
+                            <p v-if="serviceForm.errors.name" class="text-xs text-rose-600 mt-1">{{ serviceForm.errors.name }}</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Prefijo</label>
+                            <input v-model="serviceForm.prefix" type="text" maxlength="8" required
+                                placeholder="R, B, EM…"
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono uppercase" />
+                            <p v-if="serviceForm.errors.prefix" class="text-xs text-rose-600 mt-1">{{ serviceForm.errors.prefix }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Tipo de unidad</label>
+                            <select v-model="serviceForm.unit_type"
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm">
+                                <option value="fixed">Cuota fija</option>
+                                <option value="on_demand_pool">Bolsa on-demand</option>
+                                <option value="unlimited">Ilimitado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">
+                                Cuota por ciclo
+                                <span v-if="serviceForm.unit_type === 'unlimited'" class="text-gray-400">(ignorado)</span>
+                            </label>
+                            <input v-model.number="serviceForm.quantity_per_cycle" type="number" min="0" max="999"
+                                :disabled="serviceForm.unit_type === 'unlimited'"
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm disabled:opacity-50" />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-zinc-300">
+                            <input v-model="serviceForm.rollover_allowed" type="checkbox"
+                                class="rounded border-gray-300 text-primary focus:ring-primary" />
+                            Permitir rollover de créditos
+                        </label>
+                        <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-zinc-300">
+                            <input v-model="serviceForm.auto_create_tickets" type="checkbox"
+                                :disabled="serviceForm.unit_type !== 'fixed'"
+                                class="rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50" />
+                            Auto-crear tickets al abrir ciclo
+                        </label>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Color (opcional)</label>
+                            <input v-model="serviceForm.color" type="text" placeholder="#264ab3"
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Orden</label>
+                            <input v-model.number="serviceForm.sort_order" type="number"
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" />
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                        <button type="button" @click="showServiceModal = false"
+                            class="px-3 py-1.5 rounded-md text-sm text-gray-600 hover:bg-gray-100 dark:hover:bg-zinc-800">
+                            Cancelar
+                        </button>
+                        <button type="submit" :disabled="serviceForm.processing"
+                            class="px-4 py-1.5 rounded-md bg-primary hover:bg-secondary text-white text-sm font-medium disabled:opacity-50">
+                            {{ editingServiceId ? 'Guardar cambios' : 'Crear entregable' }}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </AuthenticatedLayout>

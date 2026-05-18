@@ -9,7 +9,7 @@ import {
     BriefcaseIcon, DocumentTextIcon, UsersIcon, Cog6ToothIcon,
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
-    SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon, DocumentChartBarIcon, ServerIcon
+    SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon, DocumentChartBarIcon, ServerIcon, ArrowPathIcon, MegaphoneIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -280,6 +280,46 @@ onMounted(() => {
                                 <InboxIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                                 <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
                                     Tickets
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Recurring Clients Link (Admin / internal team) -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Recurrentes'))">
+                            <Link
+                                :href="route('recurring.index')"
+                                :class="[
+                                    route().current('recurring.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Clientes Recurrentes' : ''"
+                            >
+                                <ArrowPathIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Recurrentes
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Social Publishing Link (Admin / internal team) -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Social'))">
+                            <Link
+                                :href="route('social.index')"
+                                :class="[
+                                    route().current('social.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Social Publishing' : ''"
+                            >
+                                <MegaphoneIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Social
                                 </span>
                             </Link>
                         </li>

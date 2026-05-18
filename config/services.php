@@ -35,4 +35,45 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Social Publishing — OAuth providers (Socialite)
+    |--------------------------------------------------------------------------
+    | Cada provider requiere registrar redirect_uri en su panel de desarrollador.
+    | Las URLs callback son: {APP_URL}/social/oauth/{provider}/callback
+    */
+
+    'facebook' => [
+        'client_id'     => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL') . '/social/oauth/facebook/callback',
+        'graph_version' => env('FACEBOOK_GRAPH_VERSION', 'v19.0'),
+    ],
+
+    // Instagram Business se autentica vía Facebook Login (mismo client_id)
+    'instagram' => [
+        'client_id'     => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL') . '/social/oauth/instagram/callback',
+    ],
+
+    'linkedin-openid' => [
+        'client_id'     => env('LINKEDIN_CLIENT_ID'),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL') . '/social/oauth/linkedin/callback',
+    ],
+
+    'tiktok' => [
+        'client_id'     => env('TIKTOK_CLIENT_KEY'),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL') . '/social/oauth/tiktok/callback',
+    ],
+
+    // YouTube se autentica con Google (Socialite core driver "google")
+    'google' => [
+        'client_id'     => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect'      => env('APP_URL') . '/social/oauth/youtube/callback',
+    ],
+
 ];
