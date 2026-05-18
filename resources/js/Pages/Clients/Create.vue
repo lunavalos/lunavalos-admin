@@ -22,6 +22,14 @@ const props = defineProps({
     agencies: {
         type: Array,
         default: () => []
+    },
+    taxRegimes: {
+        type: Object,
+        default: () => ({})
+    },
+    cfdiUses: {
+        type: Object,
+        default: () => ({})
     }
 });
 
@@ -91,6 +99,12 @@ const form = useForm({
     email_accounts: [],
     vault_credentials: [],
     notes: '',
+    legal_name: props.quote_data?.legal_name || '',
+    rfc: props.quote_data?.rfc || '',
+    tax_regime: props.quote_data?.tax_regime || '',
+    cfdi_use: props.quote_data?.cfdi_use || '',
+    tax_zip_code: props.quote_data?.tax_zip_code || '',
+    fiscal_address: props.quote_data?.fiscal_address || '',
     login_email: '',
     login_password: '',
     quote_id: props.quote_data?.quote_id || null,
@@ -329,6 +343,88 @@ const submit = () => {
                                     <option value="Otro">Otro</option>
                                 </select>
                                 <InputError class="mt-2" :message="form.errors.agency_source" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 1.1 Datos Fiscales -->
+                    <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800 p-6">
+                        <div class="border-b border-gray-200 dark:border-zinc-800 pb-4 mb-6">
+                            <h3 class="text-lg font-bold text-slate-700 dark:text-slate-300">Datos Fiscales</h3>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <InputLabel for="legal_name" value="Razón Social / Nombre Legal" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <TextInput
+                                    id="legal_name"
+                                    type="text"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md"
+                                    v-model="form.legal_name"
+                                    placeholder="Ej. Luna Avalos Digital House"
+                                />
+                                <InputError class="mt-2" :message="form.errors.legal_name" />
+                            </div>
+                            <div>
+                                <InputLabel for="rfc" value="RFC" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <TextInput
+                                    id="rfc"
+                                    type="text"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md uppercase"
+                                    v-model="form.rfc"
+                                    placeholder="Ej. XAXX010101000"
+                                />
+                                <InputError class="mt-2" :message="form.errors.rfc" />
+                            </div>
+                            <div>
+                                <InputLabel for="fiscal_address" value="Dirección Fiscal" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <TextInput
+                                    id="fiscal_address"
+                                    type="text"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md"
+                                    v-model="form.fiscal_address"
+                                    placeholder="Calle, número, colonia, municipio"
+                                />
+                                <InputError class="mt-2" :message="form.errors.fiscal_address" />
+                            </div>
+                            <div>
+                                <InputLabel for="tax_zip_code" value="Código Postal Fiscal" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <TextInput
+                                    id="tax_zip_code"
+                                    type="text"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md"
+                                    v-model="form.tax_zip_code"
+                                    placeholder="Ej. 25000"
+                                />
+                                <InputError class="mt-2" :message="form.errors.tax_zip_code" />
+                            </div>
+                            <div>
+                                <InputLabel for="tax_regime" value="Régimen Fiscal" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <select
+                                    id="tax_regime"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md bg-white dark:bg-zinc-950 text-gray-900 dark:text-gray-100"
+                                    v-model="form.tax_regime"
+                                >
+                                    <option value="" disabled>Selecciona un régimen...</option>
+                                    <option v-for="(reg, code) in props.taxRegimes" :key="code" :value="code">
+                                        {{ code }} - {{ reg.label }}
+                                    </option>
+                                </select>
+                                <InputError class="mt-2" :message="form.errors.tax_regime" />
+                            </div>
+                            <div>
+                                <InputLabel for="cfdi_use" value="Uso de CFDI" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <select
+                                    id="cfdi_use"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md bg-white dark:bg-zinc-950 text-gray-900 dark:text-gray-100"
+                                    v-model="form.cfdi_use"
+                                >
+                                    <option value="" disabled>Selecciona un uso...</option>
+                                    <option v-for="(label, code) in props.cfdiUses" :key="code" :value="code">
+                                        {{ code }} - {{ label }}
+                                    </option>
+                                </select>
+                                <InputError class="mt-2" :message="form.errors.cfdi_use" />
                             </div>
                         </div>
                     </div>

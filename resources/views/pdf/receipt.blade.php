@@ -221,45 +221,76 @@
             </tr>
         </table>
 
+        @php
+            $grouped = isset($services) && is_array($services) && count($services) > 0;
+            $total = $grouped ? ($total_amount ?? array_sum(array_column($services, 'renewal_amount'))) : ($amount ?? 0);
+            $receiptDate = $grouped
+                ? \Carbon\Carbon::parse($group_date ?? ($services[0]['next_renewal_date'] ?? now()))
+                : \Carbon\Carbon::parse($client->next_renewal_date);
+        @endphp
+
         <!-- Receipt Table -->
         <table class="receipt-table">
             <tr>
-                <th style="width: 70%;">Descripción del Servicio</th>
+                <th style="width: 50%;">Descripción del Servicio</th>
+                <th style="width: 20%;">Tipo</th>
                 <th style="width: 30%; text-align: right;">Importe</th>
             </tr>
-            
-            @if($billing_type === 'monthly')
-            <tr>
-                <td>
-                    <div class="concept-title">Cuota de Servicio Mensual</div>
-                    <div class="concept-desc">
-                        Servicio contratado: <strong>{{ $service_name }}</strong><br>
-                        @if(!empty($service_description))
-                            {{ $service_description }}<br>
-                        @endif
-                        Correspondiente al mes de: {{ \Carbon\Carbon::parse($client->next_renewal_date)->translatedFormat('F Y') }}
-                    </div>
-                </td>
-                <td class="amount-col">
-                    ${{ number_format($amount, 2) }}
-                </td>
-            </tr>
+
+            @if($grouped)
+                @foreach($services as $service)
+                    <tr>
+                        <td>
+                            <div class="concept-title">{{ $service['service_name'] }}</div>
+                            <div class="concept-desc">
+                                @if(!empty($service['service_description']))
+                                    {{ $service['service_description'] }}<br>
+                                @endif
+                                Fecha de cobro / renovación: {{ \Carbon\Carbon::parse($service['next_renewal_date'])->format('d / m / Y') }}
+                            </div>
+                        </td>
+                        <td>{{ ucfirst($service['billing_type'] ?? 'único') }}</td>
+                        <td class="amount-col">
+                            ${{ number_format($service['renewal_amount'], 2) }}
+                        </td>
+                    </tr>
+                @endforeach
             @else
-            <tr>
-                <td>
-                    <div class="concept-title">Renovación de Cuenta / Servicios Anuales</div>
-                    <div class="concept-desc">
-                        Paquete / Servicio contratado: <strong>{{ $service_name }}</strong><br>
-                        @if(!empty($service_description))
-                            {{ $service_description }}<br>
-                        @endif
-                        Periodo de renovación a partir del: {{ \Carbon\Carbon::parse($client->next_renewal_date)->format('d M Y') }}
-                    </div>
-                </td>
-                <td class="amount-col">
-                    ${{ number_format($amount, 2) }}
-                </td>
-            </tr>
+                @if($billing_type === 'monthly')
+                    <tr>
+                        <td>
+                            <div class="concept-title">Cuota de Servicio Mensual</div>
+                            <div class="concept-desc">
+                                Servicio contratado: <strong>{{ $service_name }}</strong><br>
+                                @if(!empty($service_description))
+                                    {{ $service_description }}<br>
+                                @endif
+                                Correspondiente al mes de: {{ $receiptDate->translatedFormat('F Y') }}
+                            </div>
+                        </td>
+                        <td>{{ ucfirst($billing_type) }}</td>
+                        <td class="amount-col">
+                            ${{ number_format($amount, 2) }}
+                        </td>
+                    </tr>
+                @else
+                    <tr>
+                        <td>
+                            <div class="concept-title">Renovación de Cuenta / Servicios Anuales</div>
+                            <div class="concept-desc">
+                                Paquete / Servicio contratado: <strong>{{ $service_name }}</strong><br>
+                                @if(!empty($service_description))
+                                    {{ $service_description }}<br>
+                                @endif
+                                Periodo de renovación a partir del: {{ $receiptDate->format('d M Y') }}
+                            </div>
+                        </td>
+                        <td>{{ ucfirst($billing_type) }}</td>
+                        <td class="amount-col">
+                            ${{ number_format($amount, 2) }}
+                        </td>
+                    </tr>
+                @endif
             @endif
         </table>
 
@@ -267,7 +298,7 @@
         <div class="totals-container">
             <div class="total-box">
                 <div class="total-label">Total a Pagar</div>
-                <div class="total-value">${{ number_format($amount, 2) }}</div>
+                <div class="total-value">${{ number_format($total, 2) }}</div>
             </div>
         </div>
 

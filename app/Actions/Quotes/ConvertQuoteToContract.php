@@ -2,6 +2,7 @@
 
 namespace App\Actions\Quotes;
 
+use App\Actions\Clients\SyncClientFromQuote;
 use App\Models\Client;
 use App\Models\ClientPayment;
 use App\Models\Contract;
@@ -24,17 +25,28 @@ class ConvertQuoteToContract
             $client = $this->getOrCreateClient($quote);
             $this->getOrCreateClientUser($client, $quote);
 
+            $months = $quote->package_payment_plan_months ?? 1;
+            $total  = (float) $quote->total;
+            $anticipo = (float) $data['anticipo_amount'];
+            $balance  = $total - $anticipo;
+            $monthly  = $months > 1 ? round($balance / ($months - 1), 2) : 0;
+
             $contract = Contract::create([
-                'quote_id' => $quote->id,
-                'client_id' => $client->id,
-                'token' => Str::random(40),
-                'contract_number' => $this->generateContractNumber(),
-                'start_date' => $data['paid_at'] ?? now()->toDateString(),
-                'total_amount' => $quote->total,
-                'anticipo_amount' => $data['anticipo_amount'],
-                'payment_plan_months' => $quote->package_payment_plan_months ?? 1,
-                'status' => 'activo',
-                'created_by_user_id' => $actor->id,
+                'quote_id'             => $quote->id,
+                'client_id'            => $client->id,
+                'token'                => Str::random(40),
+                'contract_number'      => $this->generateContractNumber(),
+                'start_date'           => $data['paid_at'] ?? now()->toDateString(),
+                'subtotal'             => $quote->subtotal,
+                'discount_amount'      => $quote->discount_amount ?? 0,
+                'iva_amount'           => $quote->iva_amount,
+                'retentions_total'     => (($quote->isr_retention_amount ?? 0) + ($quote->iva_retention_amount ?? 0)),
+                'total_amount'         => $total,
+                'anticipo_amount'      => $anticipo,
+                'monthly_amount'       => $monthly,
+                'payment_plan_months'  => $months,
+                'status'               => 'activo',
+                'created_by_user_id'   => $actor->id,
             ]);
 
             // 1. Registramos el pago inicial (Anticipo) como Pagado
@@ -43,7 +55,11 @@ class ConvertQuoteToContract
             // 2. Generamos el cronograma de pagos restantes (Pendientes)
             $this->generateSchedule($contract, $client);
 
-            // 3. Marcamos la cotización como Convertida
+            // 3. Materializamos Servicios, Costos y datos fiscales en el Cliente
+            //    (fuente única de verdad: SyncClientFromQuote, idempotente).
+            (new SyncClientFromQuote)($client, $quote);
+
+            // 4. Marcamos la cotización como Convertida
             $quote->update(['status' => 'Convertida']);
 
             return $contract;
@@ -57,11 +73,16 @@ class ConvertQuoteToContract
         return Client::firstOrCreate(
             ['email' => $quote->email],
             [
-                'business_name' => $quote->client_name,
-                'contact_name'  => $quote->contact_name,
-                'phone'         => $quote->phone,
-                'tax_regime'    => $quote->tax_regime,
-                'address'       => $quote->address,
+                'business_name'         => $quote->client_name,
+                'contact_name'          => $quote->contact_name,
+                'phone'                 => $quote->phone,
+                'tax_regime'            => $quote->tax_regime,
+                'applies_iva'           => $quote->applies_iva,
+                'iva_rate'              => $quote->iva_rate,
+                'applies_isr_retention' => $quote->applies_isr_retention,
+                'isr_retention_rate'    => $quote->isr_retention_rate,
+                'applies_iva_retention' => $quote->applies_iva_retention,
+                'iva_retention_rate'    => $quote->iva_retention_rate,
             ]
         );
     }
@@ -114,8 +135,16 @@ class ConvertQuoteToContract
      * - Si N == 1 pero queda saldo (anticipo parcial), se agenda 1 cuota única con el saldo.
      * - Si saldo <= 0: no se generan cuotas.
      */
-    private function generateSchedule(Contract $contract, Client $client): void
+    public function generateSchedule(Contract $contract, Client $client): void
     {
+        // Idempotente: si ya hay mensualidades agendadas para este contrato, no duplicamos.
+        $hasSchedule = ClientPayment::where('contract_id', $contract->id)
+            ->where('type', 'mensualidad')
+            ->exists();
+        if ($hasSchedule) {
+            return;
+        }
+
         $balance = max(0, (float) $contract->total_amount - (float) $contract->anticipo_amount);
         $months  = (int) $contract->payment_plan_months;
 

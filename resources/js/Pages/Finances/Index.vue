@@ -78,6 +78,43 @@ const filteredRenewals = computed(() => {
     );
 });
 
+const groupedRenewals = computed(() => {
+    const groups = {};
+
+    filteredRenewals.value.forEach((renewal) => {
+        const dateKey = renewal.next_renewal_date ? String(renewal.next_renewal_date).split('T')[0] : 'none';
+        const key = `${renewal.client_id}|${dateKey}`;
+
+        if (!groups[key]) {
+            groups[key] = {
+                client_id: renewal.client_id,
+                business_name: renewal.business_name,
+                contact_name: renewal.contact_name,
+                email: renewal.email,
+                next_renewal_date: renewal.next_renewal_date,
+                renewal_amount: 0,
+                billing_type: renewal.billing_type,
+                services: [],
+                service_count: 0,
+            };
+        }
+
+        groups[key].renewal_amount += parseFloat(renewal.renewal_amount || 0);
+        groups[key].services.push(renewal.service_name || 'Servicio');
+        groups[key].service_count += 1;
+
+        if (groups[key].billing_type !== renewal.billing_type) {
+            groups[key].billing_type = 'mixed';
+        }
+    });
+
+    return Object.values(groups).sort((a, b) => {
+        if (!a.next_renewal_date) return 1;
+        if (!b.next_renewal_date) return -1;
+        return new Date(a.next_renewal_date) - new Date(b.next_renewal_date);
+    });
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const formatCurrency = (amount) => {
     if (!amount) return '$0.00';
@@ -137,7 +174,10 @@ const sendEmail = (item) => {
     if (!confirm(`¿Estás seguro de enviar el aviso de cobro por correo a ${item.email}?`)) return;
     router.post(
         route('finances.send-receipt', item.client_id),
-        { service: item.service_name, amount: item.renewal_amount, type: item.billing_type },
+        {
+            group_by_date: 1,
+            date: item.next_renewal_date,
+        },
         { preserveScroll: true, preserveState: true }
     );
 };
@@ -676,8 +716,8 @@ const statusChartOptions = computed(() => ({
                                 </td>
                             </tr>
                             <tr
-                                v-for="(item, index) in filteredRenewals"
-                                :key="index"
+                                v-for="(item, index) in groupedRenewals"
+                                :key="item.client_id + '_' + (item.next_renewal_date || index)"
                                 class="hover:bg-green-50/40 dark:hover:bg-emerald-900/10 transition-colors"
                             >
                                 <!-- Indicador de urgencia -->
@@ -697,15 +737,17 @@ const statusChartOptions = computed(() => ({
 
                                 <!-- Servicio -->
                                 <td class="px-6 py-4">
-                                    <span
-                                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                        :class="item.billing_type === 'monthly'
-                                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'"
-                                    >
-                                        {{ item.service_name || 'PND' }}
-                                        <span v-if="item.billing_type === 'monthly'" class="ml-1 opacity-75">(Mensual)</span>
-                                    </span>
+                                    <div class="text-sm font-semibold text-gray-800 dark:text-gray-200">
+                                        {{ item.service_count > 1 ? `${item.service_count} servicios` : item.services[0] || 'PND' }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-gray-500 dark:text-zinc-400">
+                                        <template v-if="item.service_count > 1">
+                                            {{ item.services.slice(0, 3).join(', ') }}<span v-if="item.service_count > 3"> y {{ item.service_count - 3 }} más</span>
+                                        </template>
+                                        <template v-else>
+                                            {{ item.billing_type === 'monthly' ? 'Mensual' : item.billing_type === 'annual' ? 'Anual' : item.billing_type === 'mixed' ? 'Mixto' : 'Pago Único' }}
+                                        </template>
+                                    </div>
                                 </td>
 
                                 <!-- Fecha -->
@@ -753,14 +795,13 @@ const statusChartOptions = computed(() => ({
                                     <div class="flex items-center justify-end space-x-2">
                                         <a
                                             :href="route('finances.receipt', {
-                                                client:  item.client_id,
-                                                service: item.service_name,
-                                                amount:  item.renewal_amount,
-                                                type:    item.billing_type
+                                                client:        item.client_id,
+                                                group_by_date: 1,
+                                                date:          item.next_renewal_date
                                             })"
                                             target="_blank"
                                             class="inline-flex items-center justify-center px-3 py-2 bg-white dark:bg-zinc-800 border border-gray-300 dark:border-zinc-600 rounded-lg font-semibold text-xs text-gray-700 dark:text-gray-200 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-zinc-600 transition"
-                                            title="Ver / Imprimir Recibo"
+                                            title="Ver / Imprimir Recibo Agrupado"
                                         >
                                             <PrinterIcon class="h-4 w-4 mr-1" />PDF
                                         </a>
@@ -780,10 +821,10 @@ const statusChartOptions = computed(() => ({
                 </div>
 
                 <!-- Footer de tabla con total -->
-                <div v-if="filteredRenewals.length > 0" class="px-6 py-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between text-xs text-gray-500 dark:text-zinc-400">
+                <div v-if="groupedRenewals.length > 0" class="px-6 py-3 bg-gray-50 dark:bg-zinc-900/80 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between text-xs text-gray-500 dark:text-zinc-400">
                     <span>Total en la vista actual:</span>
                     <span class="font-bold text-gray-800 dark:text-gray-100 text-sm">
-                        {{ formatCurrency(filteredRenewals.reduce((s, r) => s + (parseFloat(r.renewal_amount) || 0), 0)) }}
+                        {{ formatCurrency(groupedRenewals.reduce((s, r) => s + (parseFloat(r.renewal_amount) || 0), 0)) }}
                     </span>
                 </div>
             </div>

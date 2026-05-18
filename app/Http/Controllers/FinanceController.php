@@ -290,24 +290,41 @@ class FinanceController extends Controller implements HasMiddleware
 
     public function receipt(Request $request, Client $client)
     {
-        $serviceName   = $request->query('service', $client->package_services ?: 'Renovación de Cuenta');
-        $serviceAmount = floatval($request->query('amount', $client->renewal_amount));
-        $billingType   = $request->query('type', 'unique');
+        $groupByDate = filter_var($request->query('group_by_date', false), FILTER_VALIDATE_BOOLEAN);
+        $groupDate   = $request->query('date');
 
-        // Obtener descripción del servicio desde el catálogo
-        $clientService = \App\Models\ClientService::with('service')
-            ->where('client_id', $client->id)
-            ->where('service_name', $serviceName)
-            ->first();
-        $serviceDescription = $clientService?->service?->description ?? null;
+        if ($groupByDate && $groupDate) {
+            $services = $this->findServicesForDateGroup($client, $groupDate);
+            $total     = $services->sum('renewal_amount');
 
-        $receiptData = [
-            'client'              => $client,
-            'service_name'        => $serviceName,
-            'amount'              => $serviceAmount,
-            'billing_type'        => $billingType,
-            'service_description' => $serviceDescription,
-        ];
+            $receiptData = [
+                'client'       => $client,
+                'services'     => $services->toArray(),
+                'total_amount' => $total,
+                'group_date'   => $groupDate,
+                'receipt_date' => $groupDate,
+            ];
+        } else {
+            $serviceName   = $request->query('service', $client->package_services ?: 'Renovación de Cuenta');
+            $serviceAmount = floatval($request->query('amount', $client->renewal_amount));
+            $billingType   = $request->query('type', 'unique');
+
+            $clientService = \App\Models\ClientService::with('service')
+                ->where('client_id', $client->id)
+                ->where('service_name', $serviceName)
+                ->first();
+            $serviceDescription = $clientService?->service?->description ?? null;
+            $receiptDate = $clientService ? $this->getNextBillingDate($clientService) : ($request->query('date') ? \Carbon\Carbon::parse($request->query('date')) : now());
+
+            $receiptData = [
+                'client'              => $client,
+                'service_name'        => $serviceName,
+                'amount'              => $serviceAmount,
+                'billing_type'        => $billingType,
+                'service_description' => $serviceDescription,
+                'receipt_date'       => $receiptDate?->format('Y-m-d'),
+            ];
+        }
 
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.receipt', $receiptData);
@@ -323,24 +340,46 @@ class FinanceController extends Controller implements HasMiddleware
             return back()->with('error', 'El cliente no tiene un correo electrónico configurado para enviar el recibo.');
         }
 
-        $serviceName   = $request->input('service', $client->package_services ?: 'Renovación de Cuenta');
-        $serviceAmount = floatval($request->input('amount', $client->renewal_amount));
-        $billingType   = $request->input('type', 'unique');
+        $groupByDate = filter_var($request->input('group_by_date', false), FILTER_VALIDATE_BOOLEAN);
+        $groupDate   = $request->input('date');
+        $serviceAmount = 0;
 
-        // Obtener descripción del servicio desde el catálogo
-        $clientService = \App\Models\ClientService::with('service')
-            ->where('client_id', $client->id)
-            ->where('service_name', $serviceName)
-            ->first();
-        $serviceDescription = $clientService?->service?->description ?? null;
+        if ($groupByDate && $groupDate) {
+            $services      = $this->findServicesForDateGroup($client, $groupDate);
+            $totalAmount   = $services->sum('renewal_amount');
+            $serviceLabel  = 'Servicio(s) de renovación ' . \Carbon\Carbon::parse($groupDate)->translatedFormat('d / m / Y');
+            $billingType   = 'grouped';
 
-        $receiptData = [
-            'client'              => $client,
-            'service_name'        => $serviceName,
-            'amount'              => $serviceAmount,
-            'billing_type'        => $billingType,
-            'service_description' => $serviceDescription,
-        ];
+            $receiptData = [
+                'client'       => $client,
+                'services'     => $services->toArray(),
+                'total_amount' => $totalAmount,
+                'group_date'   => $groupDate,
+                'grouped'      => true,
+                'receipt_date' => $groupDate,
+            ];
+        } else {
+            $serviceName   = $request->input('service', $client->package_services ?: 'Renovación de Cuenta');
+            $serviceAmount = floatval($request->input('amount', $client->renewal_amount));
+            $billingType   = $request->input('type', 'unique');
+
+            $clientService = \App\Models\ClientService::with('service')
+                ->where('client_id', $client->id)
+                ->where('service_name', $serviceName)
+                ->first();
+            $serviceDescription = $clientService?->service?->description ?? null;
+
+            $receiptDate = $clientService ? $this->getNextBillingDate($clientService) : ($request->input('date') ? \Carbon\Carbon::parse($request->input('date')) : now());
+
+            $receiptData = [
+                'client'              => $client,
+                'service_name'        => $serviceName,
+                'amount'              => $serviceAmount,
+                'billing_type'        => $billingType,
+                'service_description' => $serviceDescription,
+                'receipt_date'       => $receiptDate?->format('Y-m-d'),
+            ];
+        }
 
         if (!class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             return back()->with('error', 'No se ha podido generar el PDF del recibo asociado.');
@@ -351,16 +390,66 @@ class FinanceController extends Controller implements HasMiddleware
         try {
             \Illuminate\Support\Facades\Mail::to($client->email)
                 ->cc('ventas@lunavalos.com')
-                ->send(new \App\Mail\RenewalReceiptMail($client, $serviceName, $serviceAmount, $billingType, $pdfContent));
+                ->send(new \App\Mail\RenewalReceiptMail(
+                    $client,
+                    $request->input('service', $groupByDate ? 'Recibo de Servicios Agrupados' : 'Recibo de Servicios'),
+                    $groupByDate ? $totalAmount : $serviceAmount,
+                    $request->input('type', $billingType ?? 'unique'),
+                    $pdfContent
+                ));
 
-            // Stamp the send timestamp on the matching ClientService
-            \App\Models\ClientService::where('client_id', $client->id)
-                ->where('service_name', $serviceName)
-                ->update(['renewal_email_sent_at' => now()]);
+            if (!empty($services)) {
+                \App\Models\ClientService::where('client_id', $client->id)
+                    ->whereIn('id', $services->pluck('id')->toArray())
+                    ->update(['renewal_email_sent_at' => now()]);
+            } elseif (!empty($clientService)) {
+                \App\Models\ClientService::where('client_id', $client->id)
+                    ->where('service_name', $serviceName)
+                    ->update(['renewal_email_sent_at' => now()]);
+            }
 
-            return back()->with('message', '¡Recibo de ' . $serviceName . ' enviado a ' . $client->email . ' con éxito!');
+            return back()->with('message', '¡Recibo enviado a ' . $client->email . ' con éxito!');
         } catch (\Exception $e) {
             return back()->with('error', 'Fallo de conexión SMTP o al enviar: ' . $e->getMessage());
         }
+    }
+
+    private function findServicesForDateGroup(Client $client, string $date)
+    {
+        $target = \Carbon\Carbon::parse($date)->startOfDay();
+
+        $services = \App\Models\ClientService::with('service')
+            ->where('client_id', $client->id)
+            ->where('status', 'active')
+            ->whereNotNull('renewal_date')
+            ->get()
+            ->filter(function ($service) use ($target) {
+                $nextDate = $this->getNextBillingDate($service);
+                return $nextDate && $nextDate->startOfDay()->eq($target);
+            });
+
+        return $services->map(function ($service) {
+            return [
+                'id'                  => $service->id,
+                'service_name'        => $service->service_name,
+                'renewal_amount'      => (float) $service->renewal_amount,
+                'billing_type'        => $service->billing_type ?? 'unique',
+                'service_description' => $service->service?->description,
+                'next_renewal_date'   => optional($this->getNextBillingDate($service))->format('Y-m-d'),
+            ];
+        });
+    }
+
+    private function getNextBillingDate(\App\Models\ClientService $service): ?\Carbon\Carbon
+    {
+        if (!$service->renewal_date) {
+            return null;
+        }
+
+        if ($service->billing_type === 'monthly') {
+            return $this->getNextMonthlyOccurrence($service->renewal_date);
+        }
+
+        return $service->renewal_date;
     }
 }

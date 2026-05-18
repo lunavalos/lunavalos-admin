@@ -250,7 +250,9 @@ class ClientController extends Controller implements HasMiddleware
         return \Inertia\Inertia::render('Clients/Create', [
             'quote_data' => $quote_data,
             'services' => \App\Models\Service::all(),
-            'agencies' => \App\Models\Agency::orderBy('name')->get()
+            'agencies' => \App\Models\Agency::orderBy('name')->get(),
+            'taxRegimes' => config('sat.tax_regimes'),
+            'cfdiUses' => config('sat.cfdi_uses'),
         ]);
     }
 
@@ -389,23 +391,13 @@ class ClientController extends Controller implements HasMiddleware
         }
 
         if (!empty($validated['quote_id'])) {
-            $quote = \App\Models\Quote::with('items.costs')->find($validated['quote_id']);
+            $quote = \App\Models\Quote::with('items.costs', 'package')->find($validated['quote_id']);
             if ($quote) {
                 $quote->update(['status' => 'Completada']);
-                
-                // Copiar costos de la cotización al nuevo cliente
-                foreach ($quote->items as $item) {
-                    foreach ($item->costs as $cost) {
-                        \App\Models\ClientCost::create([
-                            'client_id' => $client->id,
-                            'concept' => $cost->title . ' (' . $item->concept . ')',
-                            // Calculate total cost for that item's row based on quantity (quantity * price) if needed, or just price.
-                            // The cost relation has: title, quantity, price.
-                            'amount' => $cost->price * $cost->quantity,
-                            'billing_frequency' => $item->billing_type
-                        ]);
-                    }
-                }
+
+                // Fuente única de verdad: materializa fiscal + servicios + costos
+                // desde la cotización (idempotente, no duplica ni sobrescribe).
+                (new \App\Actions\Clients\SyncClientFromQuote)($client, $quote);
             }
         }
 
@@ -445,7 +437,9 @@ class ClientController extends Controller implements HasMiddleware
         return \Inertia\Inertia::render('Clients/Edit', [
             'client' => $client,
             'services' => \App\Models\Service::all(),
-            'agencies' => \App\Models\Agency::orderBy('name')->get()
+            'agencies' => \App\Models\Agency::orderBy('name')->get(),
+            'taxRegimes' => config('sat.tax_regimes'),
+            'cfdiUses' => config('sat.cfdi_uses'),
         ]);
     }
 
