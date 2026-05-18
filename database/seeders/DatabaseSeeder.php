@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
@@ -91,20 +90,7 @@ class DatabaseSeeder extends Seeder
         $adminRoles = ['Administrador', 'Administrador Master'];
         foreach ($adminRoles as $roleName) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
-            $role->syncPermissions($permissions);
-        }
-
-        $user = User::firstOrCreate(
-            ['email' => 'test@example.com'],
-            [
-                'name' => 'Test User',
-                'password' => 'password',
-                'email_verified_at' => now(),
-            ]
-        );
-
-        if (!$user->hasRole('Administrador Master')) {
-            $user->assignRole('Administrador Master');
+            $role->givePermissionTo($permissions);
         }
     }
 }
