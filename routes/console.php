@@ -14,3 +14,5 @@ Schedule::command('tickets:auto-close-in-review')->daily();
 Schedule::command('contracts:check-renewals')->dailyAt('08:00');
 Schedule::command('recurring:open-cycles')->monthlyOn(1, '02:00');
 Schedule::command('social:dispatch-scheduled')->everyFiveMinutes();
+Schedule::command('social:fetch-insights')->everySixHours();
+Schedule::command('social:fetch-account-stats')->dailyAt('03:00');

@@ -534,8 +534,109 @@
                     @endforeach
                 </div>
                 @endif
+
+                <!-- Lienzo del ticket -->
+                @php $canvasItems = $ticket['canvas_items'] ?? []; @endphp
+                @if(count($canvasItems) > 0)
+                <div class="log-section">
+                    <div class="log-title">Lienzo · {{ count($canvasItems) }} {{ count($canvasItems) === 1 ? 'pieza' : 'piezas' }}</div>
+                    <table style="width:100%; border-collapse:collapse;">
+                        @foreach(array_chunk($canvasItems, 3) as $row)
+                        <tr>
+                            @foreach($row as $ci)
+                            @php
+                                $imgPath = !empty($ci['file_path']) ? public_path('storage/' . $ci['file_path']) : null;
+                                $isImg   = ($ci['type'] ?? null) === 'image' && $imgPath && file_exists($imgPath);
+                                $apStat  = $ci['approval_status'] ?? 'pending';
+                                $apLabel = $apStat === 'approved' ? 'Aprobado' : ($apStat === 'changes_requested' ? 'Cambios' : 'Pendiente');
+                                $apBg    = $apStat === 'approved' ? '#dcfce7' : ($apStat === 'changes_requested' ? '#ffedd5' : '#f1f5f9');
+                                $apCol   = $apStat === 'approved' ? '#166534' : ($apStat === 'changes_requested' ? '#9a3412' : '#475569');
+                            @endphp
+                            <td style="width:33%; padding:4px; vertical-align:top;">
+                                <div style="border:1px solid #e2e8f0; border-radius:6px; padding:6px; background:#fff;">
+                                    @if($isImg)
+                                        <img src="{{ $imgPath }}" style="width:100%; max-height:120px; object-fit:cover; border-radius:4px;" />
+                                    @else
+                                        <div style="height:80px; background:#f1f5f9; border-radius:4px; text-align:center; font-size:9px; color:#94a3b8; padding-top:32px;">
+                                            {{ strtoupper($ci['type'] ?? 'archivo') }}
+                                        </div>
+                                    @endif
+                                    @if(!empty($ci['caption']))
+                                        <div style="font-size:9px; color:#334155; margin-top:4px;">{{ $ci['caption'] }}</div>
+                                    @endif
+                                    <div style="margin-top:4px;">
+                                        <span style="display:inline-block; font-size:8px; font-weight:700; background:{{ $apBg }}; color:{{ $apCol }}; padding:2px 6px; border-radius:3px;">{{ $apLabel }}</span>
+                                        @php $pinCount = count($ci['pins'] ?? []) + array_sum(array_map(fn($c) => count($c['pins'] ?? []), $ci['children'] ?? [])); @endphp
+                                        @if($pinCount > 0)
+                                            <span style="font-size:8px; color:#64748b; margin-left:4px;">{{ $pinCount }} comentario{{ $pinCount === 1 ? '' : 's' }}</span>
+                                        @endif
+                                        @if(!empty($ci['children']) && count($ci['children']) > 0)
+                                            <span style="font-size:8px; color:#64748b; margin-left:4px;">+{{ count($ci['children']) }} stack</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </td>
+                            @endforeach
+                            @for($i = count($row); $i < 3; $i++)
+                                <td style="width:33%;"></td>
+                            @endfor
+                        </tr>
+                        @endforeach
+                    </table>
+                </div>
+                @endif
             </div>
             @endforeach
+        @endif
+
+        <!-- DOCUMENTOS DEL CLIENTE -->
+        @if(!empty($clientAssets) && count($clientAssets) > 0)
+            <div class="section-title">Documentos del cliente</div>
+            <table style="width:100%; border-collapse:collapse;">
+                @foreach(array_chunk($clientAssets, 2) as $row)
+                <tr>
+                    @foreach($row as $a)
+                    @php
+                        $aPath = !empty($a['file_path']) ? public_path('storage/' . $a['file_path']) : null;
+                        $isLogo = ($a['kind'] ?? null) === 'logo' && $aPath && file_exists($aPath);
+                    @endphp
+                    <td style="width:50%; padding:4px; vertical-align:top;">
+                        <div style="border:1px solid #e2e8f0; border-radius:6px; padding:8px; background:#fff;">
+                            <table style="width:100%;"><tr>
+                                <td style="width:48px; vertical-align:top;">
+                                    @if($isLogo)
+                                        <img src="{{ $aPath }}" style="width:40px; height:40px; object-fit:contain; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px;" />
+                                    @elseif(($a['kind'] ?? null) === 'color_palette' && !empty($a['value']['colors']))
+                                        <table style="width:40px; height:40px; border-collapse:collapse; border:1px solid #e2e8f0;"><tr>
+                                            @foreach(array_slice($a['value']['colors'], 0, 4) as $c)
+                                                <td style="background: {{ $c }}; width:10px; height:40px;"></td>
+                                            @endforeach
+                                        </tr></table>
+                                    @else
+                                        <div style="width:40px; height:40px; background:#f1f5f9; border-radius:4px;"></div>
+                                    @endif
+                                </td>
+                                <td style="vertical-align:top; padding-left:8px;">
+                                    <div style="font-size:11px; font-weight:700; color:#1e293b;">{{ $a['label'] ?? '' }}</div>
+                                    <div style="font-size:9px; color:#94a3b8; text-transform:uppercase;">{{ $a['kind'] ?? '' }}</div>
+                                    @if(!empty($a['url']))
+                                        <div style="font-size:9px; color:#264ab3; word-break:break-all;">{{ $a['url'] }}</div>
+                                    @elseif(!empty($a['file_name']))
+                                        <div style="font-size:9px; color:#475569;">{{ $a['file_name'] }}</div>
+                                    @elseif(($a['kind'] ?? null) === 'note' && !empty($a['value']['text']))
+                                        <div style="font-size:9px; color:#475569; font-style:italic;">{{ \Illuminate\Support\Str::limit($a['value']['text'], 120) }}</div>
+                                    @elseif(($a['kind'] ?? null) === 'typography' && !empty($a['value']['family']))
+                                        <div style="font-size:9px; color:#475569;">{{ $a['value']['family'] }}</div>
+                                    @endif
+                                </td>
+                            </tr></table>
+                        </div>
+                    </td>
+                    @endforeach
+                    @if(count($row) < 2)<td style="width:50%;"></td>@endif
+                </tr>
+                @endforeach
+            </table>
         @endif
 
         <!-- NOTES -->

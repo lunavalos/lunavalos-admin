@@ -318,7 +318,19 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket)
     {
-        $ticket->load(['creator.client', 'assigned', 'messages.user', 'attachments', 'client.services', 'clientService']);
+        $ticket->load([
+            'creator.client',
+            'assigned',
+            'messages.user',
+            'attachments',
+            'client.services',
+            'client.assets.creator',
+            'clientService',
+            'canvasItems.pins.user',
+            'canvasItems.uploader',
+            'canvasItems.children.pins.user',
+            'canvasItems.children.uploader',
+        ]);
 
         $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get();
 

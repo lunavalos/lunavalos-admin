@@ -2,6 +2,7 @@
 
 namespace App\Services\SocialPublishing\Drivers;
 
+use App\Models\SocialAccount;
 use App\Models\SocialPostTarget;
 use App\Services\SocialPublishing\Publisher;
 use Illuminate\Support\Facades\Http;
@@ -59,5 +60,19 @@ abstract class AbstractPublisher implements Publisher
     protected function http()
     {
         return Http::acceptJson()->timeout(60);
+    }
+
+    /**
+     * Por defecto los drivers no implementan analytics todavía.
+     * Cada driver puede sobrescribir estos métodos cuando se integre el endpoint real.
+     */
+    public function fetchInsights(SocialPostTarget $target): array
+    {
+        return [];
+    }
+
+    public function fetchAccountStats(SocialAccount $account): array
+    {
+        return [];
     }
 }

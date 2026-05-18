@@ -7,6 +7,7 @@ import InputError from '@/Components/InputError.vue';
 import Modal from '@/Components/Modal.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import ClientAssetsManager from '@/Components/ClientAssetsManager.vue';
 import { ref, computed, watch, nextTick } from 'vue';
 import { CheckCircleIcon, PlusCircleIcon, PlusIcon, TagIcon, PaperClipIcon, TrashIcon, UserIcon, ArrowLeftIcon, BuildingOfficeIcon, UserPlusIcon, MagnifyingGlassIcon, EyeIcon, EyeSlashIcon, ChartBarIcon } from '@heroicons/vue/24/outline';
 import axios from 'axios';
@@ -1002,6 +1003,16 @@ const monthlyNetMargin = computed(() => totalMonthlyIncome.value - totalMonthlyC
                                     </label>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- 4.5 Activos del cliente (flexible: paleta, tipografía, links, docs) -->
+                    <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-100 dark:border-zinc-800 mb-6">
+                        <div class="p-6">
+                            <ClientAssetsManager
+                                :client-id="client.id"
+                                :assets="client.assets || []"
+                            />
                         </div>
                     </div>
 

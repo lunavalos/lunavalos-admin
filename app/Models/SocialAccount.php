@@ -50,6 +50,11 @@ class SocialAccount extends Model
         return $this->hasMany(SocialPostTarget::class);
     }
 
+    public function dailyStats(): HasMany
+    {
+        return $this->hasMany(SocialAccountDailyStat::class);
+    }
+
     public function isExpired(): bool
     {
         return $this->token_expires_at && $this->token_expires_at->isPast();

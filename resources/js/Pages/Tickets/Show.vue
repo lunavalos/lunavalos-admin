@@ -23,12 +23,15 @@ import {
     PlayIcon,
     StopCircleIcon,
     PencilSquareIcon,
+    PhotoIcon,
 } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import Wysiwyg from '@/Components/Wysiwyg.vue';
+import ClientAssetsManager from '@/Components/ClientAssetsManager.vue';
+import TicketCanvas from '@/Components/TicketCanvas.vue';
 
 const props = defineProps({
     ticket: Object,
@@ -45,6 +48,13 @@ const isClient = computed(() => {
 const isAdmin = computed(() => {
     return page.props.auth.user.is_admin;
 });
+
+// Tabs: conversation | documents | canvas
+const activeTab = ref('conversation');
+
+// Resolve the client object (from ticket.client or ticket.creator.client) with its assets
+const clientForCanvas = computed(() => props.ticket?.client || props.ticket?.creator?.client || null);
+const canvasItems = computed(() => props.ticket?.canvas_items || []);
 
 const statusColors = {
     'Nuevos': 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-900/50',
@@ -418,89 +428,148 @@ const saveEdit = (msg) => {
 
     <AuthenticatedLayout v-if="ticket">
         <template #header>
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div class="flex items-center">
-                    <Link :href="route('tickets.index')" class="mr-4 p-2 bg-white dark:bg-zinc-900 rounded-xl border border-gray-200 dark:border-zinc-800 hover:border-[#264ab3] text-gray-500 dark:text-zinc-400 hover:text-[#264ab3] transition-all">
-                        <ChevronLeftIcon class="h-6 w-6" />
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+                <div class="flex items-center min-w-0">
+                    <Link :href="route('tickets.index')" class="mr-2 p-1.5 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 hover:border-[#264ab3] text-gray-500 dark:text-zinc-400 hover:text-[#264ab3] transition-all">
+                        <ChevronLeftIcon class="h-4 w-4" />
                     </Link>
-                    <div>
-                        <div class="flex items-center space-x-2 mb-1">
-                            <span class="text-xs font-bold text-gray-400 dark:text-zinc-500">TICKET #{{ ticket.id }}</span>
-                            <!-- Live connection indicator -->
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <span class="text-[10px] font-bold text-gray-400 dark:text-zinc-500 font-mono">#{{ ticket.id }}</span>
                             <span
                                 v-if="isConnected"
-                                class="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/50"
+                                class="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"
                             >
                                 <span class="relative flex h-1.5 w-1.5">
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                     <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                                 </span>
-                                En vivo
+                                LIVE
                             </span>
-                            <span 
-                                class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter"
+                            <span
+                                class="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-tighter"
                                 :class="priorityColors[ticket.priority]"
                             >
                                 {{ ticket.priority }}
                             </span>
+                            <span
+                                v-if="ticket.client?.business_name || ticket.creator?.client?.business_name"
+                                class="text-[10px] text-gray-500 dark:text-zinc-400 truncate"
+                            >
+                                · {{ ticket.client?.business_name || ticket.creator?.client?.business_name }}
+                            </span>
                         </div>
-                        <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">{{ ticket.title }}</h2>
+                        <h2 class="text-base md:text-lg font-bold text-gray-900 dark:text-gray-100 leading-tight truncate">{{ ticket.title }}</h2>
                     </div>
                 </div>
 
-                <div class="flex items-center space-x-3">
-                    <div class="flex items-center">
-                        <select 
-                            v-if="!isClient"
-                            @change="updateStatus($event.target.value)"
-                            class="px-4 py-2 rounded-xl font-bold text-sm border-2 focus:ring-0 cursor-pointer transition-all appearance-none"
-                            :class="statusColors[ticket.status]"
+                <div class="flex items-center gap-2 flex-wrap">
+                    <select
+                        v-if="!isClient"
+                        @change="updateStatus($event.target.value)"
+                        class="px-2.5 py-1 rounded-lg font-bold text-xs border focus:ring-0 cursor-pointer transition-all appearance-none"
+                        :class="statusColors[ticket.status]"
+                    >
+                        <option v-for="status in ['Nuevos', 'En Proceso', 'En Revisión', 'Ajustes', 'Completados']"
+                            :key="status"
+                            :value="status"
+                            :selected="ticket.status === status"
                         >
-                            <option v-for="status in ['Nuevos', 'En Proceso', 'En Revisión', 'Ajustes', 'Completados']" 
-                                :key="status" 
-                                :value="status"
-                                :selected="ticket.status === status"
-                            >
-                                {{ status }}
-                            </option>
-                        </select>
-                        <div v-else class="px-4 py-2 rounded-xl font-bold text-sm border-2 transition-all" :class="statusColors[ticket.status]">
-                            {{ ticket.status }}
-                        </div>
-                    </div>
-                    
-                    <!-- Admin Assign -->
-                    <div v-if="canAssign" class="relative">
-                        <select 
-                            v-model="assignForm.assigned_id"
-                            @change="updateAssignee"
-                            class="text-sm border-gray-300 dark:border-zinc-800 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl bg-blue-50 dark:bg-zinc-950 text-blue-700 dark:text-blue-400 font-bold"
-                        >
-                            <option :value="null">Asignar Ticket</option>
-                            <option v-for="user in assignableUsers" :key="user.id" :value="user.id">
-                                {{ user.name }}
-                            </option>
-                        </select>
+                            {{ status }}
+                        </option>
+                    </select>
+                    <div v-else class="px-2.5 py-1 rounded-lg font-bold text-xs border" :class="statusColors[ticket.status]">
+                        {{ ticket.status }}
                     </div>
 
-                    <!-- Delete Button -->
-                    <button 
+                    <select
+                        v-if="canAssign"
+                        v-model="assignForm.assigned_id"
+                        @change="updateAssignee"
+                        class="text-xs border-gray-300 dark:border-zinc-800 rounded-lg bg-blue-50 dark:bg-zinc-950 text-blue-700 dark:text-blue-400 font-bold py-1 max-w-[160px]"
+                    >
+                        <option :value="null">Asignar…</option>
+                        <option v-for="user in assignableUsers" :key="user.id" :value="user.id">
+                            {{ user.name }}
+                        </option>
+                    </select>
+
+                    <button
                         v-if="canDelete"
                         @click="deleteTicket"
-                        class="p-2.5 bg-red-50 dark:bg-rose-900/20 text-red-600 dark:text-rose-400 rounded-xl border border-red-100 dark:border-rose-900/40 hover:bg-red-600 dark:hover:bg-rose-600 hover:text-white transition-all flex items-center group"
+                        class="p-1.5 bg-red-50 dark:bg-rose-900/20 text-red-600 dark:text-rose-400 rounded-lg border border-red-100 dark:border-rose-900/40 hover:bg-red-600 hover:text-white transition-all"
                         title="Eliminar Ticket"
                     >
-                        <TrashIcon class="h-5 w-5" />
+                        <TrashIcon class="h-4 w-4" />
                     </button>
                 </div>
             </div>
+
+            <!-- Tabs nav -->
+            <div class="mt-3 border-b border-gray-200 dark:border-zinc-800 flex gap-1">
+                <button @click="activeTab = 'conversation'"
+                    :class="[
+                        'px-3 py-1.5 text-xs font-bold border-b-2 transition-all inline-flex items-center gap-1.5',
+                        activeTab === 'conversation'
+                            ? 'border-[#264ab3] text-[#264ab3] dark:text-blue-400'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    ]">
+                    <ChatBubbleLeftRightIcon class="h-4 w-4" /> Conversación
+                </button>
+                <button @click="activeTab = 'canvas'"
+                    :class="[
+                        'px-3 py-1.5 text-xs font-bold border-b-2 transition-all inline-flex items-center gap-1.5',
+                        activeTab === 'canvas'
+                            ? 'border-[#264ab3] text-[#264ab3] dark:text-blue-400'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    ]">
+                    <PhotoIcon class="h-4 w-4" /> Lienzo
+                    <span v-if="canvasItems.length"
+                        class="rounded-full bg-[#264ab3] text-white px-2 text-[10px] font-black shadow ring-2 ring-blue-200 dark:ring-blue-900/50 animate-pulse">
+                        {{ canvasItems.length }}
+                    </span>
+                </button>
+                <button v-if="ticket.client || ticket.creator?.client"
+                    @click="activeTab = 'documents'"
+                    :class="[
+                        'px-3 py-1.5 text-xs font-bold border-b-2 transition-all inline-flex items-center gap-1.5',
+                        activeTab === 'documents'
+                            ? 'border-[#264ab3] text-[#264ab3] dark:text-blue-400'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                    ]">
+                    <PaperClipIcon class="h-4 w-4" /> Documentos del cliente
+                    <span v-if="clientForCanvas?.assets?.length"
+                        class="rounded-full bg-gray-100 dark:bg-zinc-700 px-1.5 text-[9px] text-gray-600 dark:text-zinc-300">
+                        {{ clientForCanvas.assets.length }}
+                    </span>
+                </button>
+            </div>
         </template>
 
-        <div class="py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[calc(100vh-160px)]">
+        <div class="py-6 grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[calc(100vh-200px)]"
+             v-show="activeTab === 'conversation'">
             <!-- LEFT: CONVERSATION -->
             <div class="lg:col-span-2 flex flex-col bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 overflow-hidden min-h-[70vh] lg:min-h-0">
                 <!-- Chat Messages -->
                 <div ref="messageContainer" class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-gray-50/50 dark:bg-zinc-950/50">
+                    <!-- Aviso de Lienzo con contenido -->
+                    <button v-if="canvasItems.length"
+                        type="button"
+                        @click="activeTab = 'canvas'"
+                        class="w-full flex items-center gap-3 p-3 rounded-xl border border-blue-200 dark:border-blue-900/50 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-all text-left group">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-[#264ab3] text-white shrink-0 shadow">
+                            <PhotoIcon class="h-5 w-5" />
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-black text-[#264ab3] dark:text-blue-300">
+                                {{ canvasItems.length }} {{ canvasItems.length === 1 ? 'pieza disponible' : 'piezas disponibles' }} en el lienzo
+                            </p>
+                            <p class="text-[11px] text-gray-600 dark:text-zinc-300 mt-0.5">
+                                {{ isClient ? 'Revisa las propuestas, deja comentarios con pines y aprueba o solicita cambios.' : 'Revisa el storyboard, comenta con pines o ajusta el estado de aprobación.' }}
+                            </p>
+                        </div>
+                        <span class="text-[11px] font-bold text-[#264ab3] dark:text-blue-300 group-hover:underline">Abrir lienzo →</span>
+                    </button>
                     <!-- Ticket Description as First Message -->
                     <div 
                         v-if="ticket" 
@@ -1036,6 +1105,32 @@ const saveEdit = (msg) => {
                     <h4 class="font-bold text-green-900 dark:text-green-300 text-lg">Ticket Finalizado</h4>
                     <p class="text-sm text-green-700 dark:text-green-400 mt-2">Este ticket ha sido resuelto y aceptado satisfactoriamente.</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- TAB: CANVAS / STORYBOARD -->
+        <div v-show="activeTab === 'canvas'" class="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-5">
+                <TicketCanvas
+                    :ticket-id="ticket.id"
+                    :items="canvasItems"
+                    :can-edit="!isClient"
+                    :can-approve="true"
+                />
+            </div>
+        </div>
+
+        <!-- TAB: DOCUMENTOS DEL CLIENTE -->
+        <div v-show="activeTab === 'documents'" class="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div v-if="clientForCanvas" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-5">
+                <ClientAssetsManager
+                    :client-id="clientForCanvas.id"
+                    :assets="clientForCanvas.assets || []"
+                    :can-edit="!isClient"
+                />
+            </div>
+            <div v-else class="text-center text-sm text-gray-500 dark:text-zinc-400 italic py-10">
+                Este ticket no tiene un cliente vinculado.
             </div>
         </div>
     </AuthenticatedLayout>

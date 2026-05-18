@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SocialPostTarget extends Model
 {
@@ -35,5 +36,10 @@ class SocialPostTarget extends Model
     public function account(): BelongsTo
     {
         return $this->belongsTo(SocialAccount::class, 'social_account_id');
+    }
+
+    public function metric(): HasOne
+    {
+        return $this->hasOne(SocialPostMetric::class, 'social_post_target_id');
     }
 }

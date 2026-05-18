@@ -120,4 +120,9 @@ class Client extends Model
     {
         return $this->hasMany(SocialPost::class);
     }
+
+    public function assets()
+    {
+        return $this->hasMany(ClientAsset::class)->latest();
+    }
 }

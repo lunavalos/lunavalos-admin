@@ -433,7 +433,7 @@ class ClientController extends Controller implements HasMiddleware
 
     public function edit(Client $client)
     {
-        $client->load(['costs', 'services']);
+        $client->load(['costs', 'services', 'assets.creator']);
         return \Inertia\Inertia::render('Clients/Edit', [
             'client' => $client,
             'services' => \App\Models\Service::all(),

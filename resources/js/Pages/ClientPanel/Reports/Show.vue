@@ -15,11 +15,15 @@ import {
     PlayIcon,
     CheckCircleIcon,
     ListBulletIcon,
+    PhotoIcon,
+    PaperClipIcon,
+    LinkIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
-    report:  Object,
-    tickets: { type: Array, default: () => [] },
+    report:       Object,
+    tickets:      { type: Array, default: () => [] },
+    clientAssets: { type: Array, default: () => [] },
 });
 
 const statusColors = {
@@ -246,6 +250,82 @@ const duration = (from, to) => {
                                     Sin bitácora de cambios registrada.
                                 </div>
 
+                                <!-- Lienzo / Storyboard del ticket -->
+                                <div v-if="ticket.canvas_items && ticket.canvas_items.length">
+                                    <div class="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                        <PhotoIcon class="h-3 w-3" />
+                                        Lienzo · {{ ticket.canvas_items.length }} {{ ticket.canvas_items.length === 1 ? 'pieza' : 'piezas' }}
+                                    </div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                        <div v-for="item in ticket.canvas_items" :key="item.id"
+                                            class="rounded-lg border border-gray-200 dark:border-zinc-700 overflow-hidden bg-white dark:bg-zinc-900">
+                                            <div class="aspect-video bg-gray-100 dark:bg-zinc-950 flex items-center justify-center overflow-hidden">
+                                                <img v-if="item.type === 'image' && item.file_path"
+                                                    :src="'/storage/' + item.file_path" class="w-full h-full object-cover" />
+                                                <video v-else-if="item.type === 'video' && item.file_path"
+                                                    :src="'/storage/' + item.file_path" class="w-full h-full object-cover" muted autoplay loop playsinline></video>
+                                                <span v-else class="text-[10px] text-gray-400 px-2 text-center">{{ item.type === 'url' ? item.url : (item.file_name || item.type) }}</span>
+                                            </div>
+                                            <div class="p-2 text-[10px]">
+                                                <p v-if="item.caption" class="text-gray-700 dark:text-zinc-200 line-clamp-2">{{ item.caption }}</p>
+                                                <div class="flex items-center justify-between mt-1">
+                                                    <span class="px-1.5 py-0.5 rounded font-bold"
+                                                        :class="{
+                                                            'bg-green-100 text-green-700': item.approval_status === 'approved',
+                                                            'bg-orange-100 text-orange-700': item.approval_status === 'changes_requested',
+                                                            'bg-gray-100 text-gray-600': !item.approval_status || item.approval_status === 'pending',
+                                                        }">
+                                                        {{ item.approval_status === 'approved' ? 'Aprobado' : item.approval_status === 'changes_requested' ? 'Cambios' : 'Pendiente' }}
+                                                    </span>
+                                                    <span v-if="item.pins?.length || item.children?.some(c => c.pins?.length)" class="text-gray-400">
+                                                        💬 {{ (item.pins?.length || 0) + (item.children?.reduce((s, c) => s + (c.pins?.length || 0), 0) || 0) }}
+                                                    </span>
+                                                </div>
+                                                <span v-if="item.children?.length" class="text-[9px] text-gray-400">+{{ item.children.length }} en stack</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documentos del cliente -->
+                <div v-if="clientAssets.length" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 p-5">
+                    <h3 class="text-xs font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                        <PaperClipIcon class="h-3.5 w-3.5" />
+                        Documentos del cliente · {{ clientAssets.length }}
+                    </h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <div v-for="a in clientAssets" :key="a.id"
+                            class="rounded-lg border border-gray-200 dark:border-zinc-700 p-3 bg-gray-50/40 dark:bg-zinc-950/50 flex items-start gap-2">
+                            <div class="shrink-0">
+                                <img v-if="a.kind === 'logo' && a.file_path && a.mime?.startsWith('image/')"
+                                    :src="'/storage/' + a.file_path"
+                                    class="h-10 w-10 rounded object-contain bg-white dark:bg-zinc-900 border border-gray-100 dark:border-zinc-700" />
+                                <div v-else-if="a.kind === 'color_palette' && a.value?.colors?.length"
+                                    class="h-10 w-10 rounded overflow-hidden flex flex-wrap border border-gray-100 dark:border-zinc-700">
+                                    <span v-for="(c, i) in a.value.colors.slice(0,4)" :key="i" class="flex-1 min-w-[50%]" :style="{ background: c }"></span>
+                                </div>
+                                <div v-else class="h-10 w-10 rounded bg-gray-100 dark:bg-zinc-900 flex items-center justify-center">
+                                    <PaperClipIcon class="h-4 w-4 text-gray-400" />
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold text-gray-800 dark:text-zinc-100 truncate">{{ a.label }}</p>
+                                <p class="text-[10px] uppercase text-gray-400 tracking-wider">{{ a.kind }}</p>
+                                <a v-if="a.url" :href="a.url" target="_blank"
+                                    class="text-[10px] text-[#264ab3] hover:underline inline-flex items-center gap-0.5 truncate">
+                                    <LinkIcon class="h-3 w-3" /> <span class="truncate">{{ a.url }}</span>
+                                </a>
+                                <a v-else-if="a.file_path" :href="'/storage/' + a.file_path" target="_blank"
+                                    class="text-[10px] text-[#264ab3] hover:underline truncate inline-block">
+                                    {{ a.file_name || 'Archivo' }}
+                                </a>
+                                <p v-else-if="a.kind === 'note' && a.value?.text" class="text-[10px] text-gray-600 dark:text-zinc-300 italic line-clamp-2">{{ a.value.text }}</p>
+                                <p v-else-if="a.kind === 'typography' && a.value?.family" class="text-[10px] text-gray-600 dark:text-zinc-300" :style="{ fontFamily: a.value.family }">{{ a.value.family }}</p>
                             </div>
                         </div>
                     </div>

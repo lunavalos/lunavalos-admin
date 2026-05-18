@@ -135,14 +135,15 @@ class ClientReportController extends Controller
         $clientId = $this->clientId();
         if ($report->client_id !== $clientId) abort(403);
 
-        $report->load(['client', 'creator']);
+        $report->load(['client.assets', 'creator']);
         $report->period_label = $report->period_label;
 
         $tickets = collect($report->tickets_snapshot ?? [])->values()->toArray();
 
         return Inertia::render('ClientPanel/Reports/Show', [
-            'report'  => $report,
-            'tickets' => $tickets,
+            'report'       => $report,
+            'tickets'      => $tickets,
+            'clientAssets' => $report->client?->assets?->values()->toArray() ?? [],
         ]);
     }
 
@@ -154,16 +155,17 @@ class ClientReportController extends Controller
         $clientId = $this->clientId();
         if ($report->client_id !== $clientId) abort(403);
 
-        $report->load(['client', 'creator']);
+        $report->load(['client.assets', 'creator']);
         $report->period_label = $report->period_label;
 
         $tickets  = collect($report->tickets_snapshot ?? [])->values()->toArray();
         $settings = Setting::pluck('value', 'key')->toArray();
 
         $pdf = Pdf::loadView('reports.pdf', [
-            'report'   => $report,
-            'tickets'  => $tickets,
-            'settings' => $settings,
+            'report'       => $report,
+            'tickets'      => $tickets,
+            'clientAssets' => $report->client?->assets?->values()->toArray() ?? [],
+            'settings'     => $settings,
         ])
         ->setPaper('letter', 'portrait')
         ->setOption('defaultFont', 'sans-serif')
@@ -227,7 +229,15 @@ class ClientReportController extends Controller
 
         return Ticket::withTrashed()
             ->whereIn('id', $ticketIds)
-            ->with(['clientService:id,service_name', 'assigned:id,name', 'creator:id,name'])
+            ->with([
+                'clientService:id,service_name',
+                'assigned:id,name',
+                'creator:id,name',
+                'canvasItems.children',
+                'canvasItems.uploader:id,name',
+                'canvasItems.pins.user:id,name',
+                'canvasItems.children.pins.user:id,name',
+            ])
             ->get()
             ->map(function ($t) use ($systemMessages) {
                 $log = $systemMessages->get($t->id) ?? collect();
@@ -256,8 +266,36 @@ class ClientReportController extends Controller
                         'message'    => $m->message,
                         'created_at' => $m->created_at,
                     ])->values()->toArray(),
+                    'canvas_items'     => $t->canvasItems->map(fn($it) => $this->serializeCanvasItem($it))->values()->toArray(),
                 ];
             })
             ->toArray();
+    }
+
+    private function serializeCanvasItem($it): array
+    {
+        return [
+            'id'              => $it->id,
+            'type'            => $it->type,
+            'file_path'       => $it->file_path,
+            'file_name'       => $it->file_name,
+            'mime'            => $it->mime,
+            'url'             => $it->url,
+            'caption'         => $it->caption,
+            'approval_status' => $it->approval_status,
+            'approval_note'   => $it->approval_note,
+            'position'        => $it->position,
+            'stack_position'  => $it->stack_position,
+            'uploader'        => $it->uploader ? ['id' => $it->uploader->id, 'name' => $it->uploader->name] : null,
+            'pins'            => $it->pins?->map(fn($p) => [
+                'id'       => $p->id,
+                'x_pct'    => $p->x_pct,
+                'y_pct'    => $p->y_pct,
+                'comment'  => $p->comment,
+                'resolved' => $p->resolved,
+                'user'     => $p->user ? ['id' => $p->user->id, 'name' => $p->user->name] : null,
+            ])->values()->toArray() ?? [],
+            'children'        => $it->children?->map(fn($c) => $this->serializeCanvasItem($c))->values()->toArray() ?? [],
+        ];
     }
 }

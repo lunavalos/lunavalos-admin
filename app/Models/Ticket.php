@@ -170,4 +170,9 @@ class Ticket extends Model
     {
         return $this->hasMany(TicketAttachment::class);
     }
+
+    public function canvasItems()
+    {
+        return $this->hasMany(TicketCanvasItem::class)->whereNull('parent_id')->orderBy('position');
+    }
 }

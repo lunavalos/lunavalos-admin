@@ -2,6 +2,7 @@
 
 namespace App\Services\SocialPublishing;
 
+use App\Models\SocialAccount;
 use App\Models\SocialPostTarget;
 
 interface Publisher
@@ -15,4 +16,22 @@ interface Publisher
      * y devolver el SocialPostTarget actualizado.
      */
     public function publish(SocialPostTarget $target): SocialPostTarget;
+
+    /**
+     * Obtiene métricas (insights) de un post ya publicado.
+     * Devuelve un array con keys normalizadas:
+     *   impressions, reach, likes, comments, shares, saves, clicks,
+     *   video_views, engagement_rate, raw
+     * Cualquier key faltante se asume 0.
+     */
+    public function fetchInsights(SocialPostTarget $target): array;
+
+    /**
+     * Estadísticas a nivel cuenta (followers, alcance, etc.).
+     * Devuelve un array con keys normalizadas:
+     *   followers, following, posts_count, profile_views,
+     *   page_impressions, page_reach, raw
+     */
+    public function fetchAccountStats(SocialAccount $account): array;
 }
+

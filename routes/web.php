@@ -152,6 +152,7 @@ Route::middleware('auth')->group(function () {
     Route::get('recurring/clients/{client}', [\App\Http\Controllers\RecurringClientController::class, 'show'])->name('recurring.clients.show');
     Route::post('recurring/clients/{client}/open-cycle', [\App\Http\Controllers\RecurringClientController::class, 'openCycle'])->name('recurring.clients.openCycle');
     Route::post('recurring/clients/{client}/deliverables', [\App\Http\Controllers\RecurringClientController::class, 'createDeliverable'])->name('recurring.clients.deliverables.store');
+    Route::post('recurring/clients/{client}/sync-analytics', [\App\Http\Controllers\RecurringClientController::class, 'syncAnalytics'])->name('recurring.clients.syncAnalytics');
 
     // Configuración de entregables recurrentes dentro de un contrato
     Route::post('contracts/{contract}/services',                       [\App\Http\Controllers\ContractServiceController::class, 'store'])->name('contracts.services.store');
@@ -186,6 +187,21 @@ Route::middleware('auth')->group(function () {
     Route::post('tickets/{ticket}/start-work', [\App\Http\Controllers\TicketController::class, 'startWork'])->name('tickets.startWork');
     Route::post('tickets/send-team-report', [\App\Http\Controllers\TicketController::class, 'sendTeamReport'])->name('tickets.sendTeamReport');
     Route::put('tickets/messages/{message}', [\App\Http\Controllers\TicketController::class, 'updateMessage'])->name('tickets.messages.update');
+
+    // Activos del cliente (documentos, paletas, tipografías, urls)
+    Route::post('clients/{client}/assets',        [\App\Http\Controllers\ClientAssetController::class, 'store'])->name('clients.assets.store');
+    Route::post('client-assets/{asset}',          [\App\Http\Controllers\ClientAssetController::class, 'update'])->name('clients.assets.update');
+    Route::delete('client-assets/{asset}',        [\App\Http\Controllers\ClientAssetController::class, 'destroy'])->name('clients.assets.destroy');
+
+    // Lienzo / Storyboard del ticket
+    Route::post('tickets/{ticket}/canvas',                   [\App\Http\Controllers\TicketCanvasController::class, 'store'])->name('tickets.canvas.store');
+    Route::post('tickets/{ticket}/canvas/reorder',           [\App\Http\Controllers\TicketCanvasController::class, 'reorder'])->name('tickets.canvas.reorder');
+    Route::post('ticket-canvas-items/{item}/stack/reorder',  [\App\Http\Controllers\TicketCanvasController::class, 'reorderStack'])->name('tickets.canvas.stack.reorder');
+    Route::post('ticket-canvas-items/{item}',                [\App\Http\Controllers\TicketCanvasController::class, 'update'])->name('tickets.canvas.update');
+    Route::delete('ticket-canvas-items/{item}',              [\App\Http\Controllers\TicketCanvasController::class, 'destroy'])->name('tickets.canvas.destroy');
+    Route::post('ticket-canvas-items/{item}/pins',           [\App\Http\Controllers\TicketCanvasController::class, 'addPin'])->name('tickets.canvas.pins.store');
+    Route::post('ticket-canvas-pins/{pin}/toggle',           [\App\Http\Controllers\TicketCanvasController::class, 'togglePin'])->name('tickets.canvas.pins.toggle');
+    Route::delete('ticket-canvas-pins/{pin}',                [\App\Http\Controllers\TicketCanvasController::class, 'destroyPin'])->name('tickets.canvas.pins.destroy');
     // Reportes (admin)
     Route::resource('reports', \App\Http\Controllers\ReportController::class);
     Route::get('clients/{client}/tickets-json', [\App\Http\Controllers\ReportController::class, 'clientTickets'])->name('clients.tickets-json');
