@@ -9,6 +9,7 @@ use App\Models\QuoteAddon;
 use App\Models\QuoteItem;
 use App\Models\Service;
 use App\Models\ServiceAddon;
+use App\Support\Money\CurrencyService;
 use App\Support\QuoteStateMachine;
 use App\Support\QuoteTaxCalculator;
 use Illuminate\Http\Request;
@@ -40,7 +41,7 @@ class QuoteWizardController extends Controller implements HasMiddleware
             ])
             ->orderBy('name')
             ->get([
-                'id', 'name', 'description', 'price', 'renewal_price',
+                'id', 'name', 'description', 'price', 'renewal_price', 'currency',
                 'billing_type', 'is_package', 'required_addon_category',
                 'required_addon_categories', 'payment_plan_months',
             ]);
@@ -79,29 +80,39 @@ class QuoteWizardController extends Controller implements HasMiddleware
      * Guarda la cotización con paquete + addons + items derivados,
      * congelando precios. Todo en una sola transacción.
      */
-    public function store(StoreQuoteWizardRequest $request)
+    public function store(StoreQuoteWizardRequest $request, CurrencyService $fx)
     {
         $data = $request->validated();
 
-        $quote = DB::transaction(function () use ($data) {
+        $currency = $fx->normalize($data['currency'] ?? $fx->default());
+        $fx->assertSupported($currency);
+        $exchangeRate = $fx->snapshotRate($currency, $data['issue_date'] ?? null);
+
+        $quote = DB::transaction(function () use ($data, $currency, $exchangeRate, $fx) {
             $service = Service::findOrFail($data['package_service_id']);
 
-            // Precio del paquete (snapshot)
-            $packagePrice = (float) $service->price;
+            // Snapshot del precio del paquete convertido a la moneda de la cotización.
+            $svcCurrency  = strtoupper($service->currency ?: $fx->default());
+            $packagePrice = (float) $fx->convert((string) $service->price, $svcCurrency, $currency, $data['issue_date'] ?? null);
+            $packageRenewalPrice = $service->renewal_price !== null
+                ? (float) $fx->convert((string) $service->renewal_price, $svcCurrency, $currency, $data['issue_date'] ?? null)
+                : null;
             $subtotal     = $packagePrice;
 
-            // Snapshots de addons
+            // Snapshots de addons (cada addon puede tener su moneda nativa).
             $addonRows = [];
             foreach ($data['addons'] ?? [] as $row) {
                 $addon = ServiceAddon::findOrFail($row['service_addon_id']);
                 $qty   = (int) $row['quantity'];
-                $line  = $qty * (float) $addon->price;
+                $addonCurrency = strtoupper($addon->currency ?: $fx->default());
+                $unit  = (float) $fx->convert((string) $addon->price, $addonCurrency, $currency, $data['issue_date'] ?? null);
+                $line  = $qty * $unit;
                 $subtotal += $line;
 
                 $addonRows[] = [
                     'service_addon_id'     => $addon->id,
                     'quantity'             => $qty,
-                    'unit_price'           => $addon->price,
+                    'unit_price'           => $unit,
                     'billing_cycle'        => $addon->billing_cycle,
                     'billing_cycle_months' => $addon->billing_cycle_months ?? null,
                     'is_required'          => (bool) ($addon->is_required ?? false),
@@ -132,6 +143,8 @@ class QuoteWizardController extends Controller implements HasMiddleware
                 'issue_date'                  => $data['issue_date'],
                 'valid_until'                 => $data['valid_until'],
                 'duration'                    => $data['duration']      ?? null,
+                'currency'                    => $currency,
+                'exchange_rate'               => $exchangeRate,
                 'subtotal'                    => $subtotal,
                 'discount_amount'             => $discount,
                 'tax_regime'                  => $data['tax_regime']    ?? null,
@@ -159,8 +172,8 @@ class QuoteWizardController extends Controller implements HasMiddleware
                 'concept'            => $service->name,
                 'description'        => $service->description,
                 'quantity'           => 1,
-                'unit_price'         => $service->price,
-                'unit_renewal_price' => $service->renewal_price,
+                'unit_price'         => $packagePrice,
+                'unit_renewal_price' => $packageRenewalPrice,
                 'billing_type'       => $service->billing_type ?? 'unique',
             ]);
 
@@ -200,7 +213,7 @@ class QuoteWizardController extends Controller implements HasMiddleware
             ])
             ->orderBy('name')
             ->get([
-                'id', 'name', 'description', 'price', 'renewal_price',
+                'id', 'name', 'description', 'price', 'renewal_price', 'currency',
                 'billing_type', 'is_package', 'required_addon_category',
                 'required_addon_categories', 'payment_plan_months',
             ]);
@@ -240,7 +253,7 @@ class QuoteWizardController extends Controller implements HasMiddleware
      * Actualiza una cotización existente reutilizando la misma validación del store.
      * Reemplaza el QuoteItem espejo y todos los addons.
      */
-    public function update(StoreQuoteWizardRequest $request, Quote $quote)
+    public function update(StoreQuoteWizardRequest $request, Quote $quote, CurrencyService $fx)
     {
         if ($quote->legacy) {
             return back()->withErrors(['edit' => 'Las cotizaciones legacy son de solo lectura.']);
@@ -251,23 +264,35 @@ class QuoteWizardController extends Controller implements HasMiddleware
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($data, $quote) {
+        $currency = $fx->normalize($data['currency'] ?? $quote->currency ?? $fx->default());
+        $fx->assertSupported($currency);
+        $exchangeRate = ($currency === ($quote->currency ?? null) && $quote->exchange_rate)
+            ? (string) $quote->exchange_rate
+            : $fx->snapshotRate($currency, $data['issue_date'] ?? null);
+
+        DB::transaction(function () use ($data, $quote, $currency, $exchangeRate, $fx) {
             $service = Service::findOrFail($data['package_service_id']);
 
-            $packagePrice = (float) $service->price;
+            $svcCurrency  = strtoupper($service->currency ?: $fx->default());
+            $packagePrice = (float) $fx->convert((string) $service->price, $svcCurrency, $currency, $data['issue_date'] ?? null);
+            $packageRenewalPrice = $service->renewal_price !== null
+                ? (float) $fx->convert((string) $service->renewal_price, $svcCurrency, $currency, $data['issue_date'] ?? null)
+                : null;
             $subtotal     = $packagePrice;
 
             $addonRows = [];
             foreach ($data['addons'] ?? [] as $row) {
                 $addon = ServiceAddon::findOrFail($row['service_addon_id']);
                 $qty   = (int) $row['quantity'];
-                $line  = $qty * (float) $addon->price;
+                $addonCurrency = strtoupper($addon->currency ?: $fx->default());
+                $unit  = (float) $fx->convert((string) $addon->price, $addonCurrency, $currency, $data['issue_date'] ?? null);
+                $line  = $qty * $unit;
                 $subtotal += $line;
 
                 $addonRows[] = [
                     'service_addon_id'     => $addon->id,
                     'quantity'             => $qty,
-                    'unit_price'           => $addon->price,
+                    'unit_price'           => $unit,
                     'billing_cycle'        => $addon->billing_cycle,
                     'billing_cycle_months' => $addon->billing_cycle_months ?? null,
                     'is_required'          => (bool) ($addon->is_required ?? false),
@@ -298,6 +323,8 @@ class QuoteWizardController extends Controller implements HasMiddleware
                 'issue_date'                  => $data['issue_date'],
                 'valid_until'                 => $data['valid_until'],
                 'duration'                    => $data['duration']      ?? null,
+                'currency'                    => $currency,
+                'exchange_rate'               => $exchangeRate,
                 'subtotal'                    => $subtotal,
                 'discount_amount'             => $discount,
                 'tax_regime'                  => $data['tax_regime']    ?? null,
@@ -326,8 +353,8 @@ class QuoteWizardController extends Controller implements HasMiddleware
                 'concept'            => $service->name,
                 'description'        => $service->description,
                 'quantity'           => 1,
-                'unit_price'         => $service->price,
-                'unit_renewal_price' => $service->renewal_price,
+                'unit_price'         => $packagePrice,
+                'unit_renewal_price' => $packageRenewalPrice,
                 'billing_type'       => $service->billing_type ?? 'unique',
             ]);
 

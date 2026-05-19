@@ -227,6 +227,12 @@
             $receiptDate = $grouped
                 ? \Carbon\Carbon::parse($group_date ?? ($services[0]['next_renewal_date'] ?? now()))
                 : \Carbon\Carbon::parse($client->next_renewal_date);
+            // Moneda del recibo. Si no viene en el payload, intentamos inferirla
+            // del primer servicio agrupado, luego del cliente, y por último la default.
+            $receiptCurrency = $currency
+                ?? ($grouped ? ($services[0]['currency'] ?? null) : null)
+                ?? ($client->currency ?? null)
+                ?? config('currencies.default', 'MXN');
         @endphp
 
         <!-- Receipt Table -->
@@ -251,7 +257,7 @@
                         </td>
                         <td>{{ ucfirst($service['billing_type'] ?? 'único') }}</td>
                         <td class="amount-col">
-                            ${{ number_format($service['renewal_amount'], 2) }}
+                            @money($service['renewal_amount'], $service['currency'] ?? $receiptCurrency)
                         </td>
                     </tr>
                 @endforeach
@@ -270,7 +276,7 @@
                         </td>
                         <td>{{ ucfirst($billing_type) }}</td>
                         <td class="amount-col">
-                            ${{ number_format($amount, 2) }}
+                            @money($amount, $receiptCurrency)
                         </td>
                     </tr>
                 @else
@@ -287,7 +293,7 @@
                         </td>
                         <td>{{ ucfirst($billing_type) }}</td>
                         <td class="amount-col">
-                            ${{ number_format($amount, 2) }}
+                            @money($amount, $receiptCurrency)
                         </td>
                     </tr>
                 @endif
@@ -298,7 +304,7 @@
         <div class="totals-container">
             <div class="total-box">
                 <div class="total-label">Total a Pagar</div>
-                <div class="total-value">${{ number_format($total, 2) }}</div>
+                <div class="total-value">@money($total, $receiptCurrency)</div>
             </div>
         </div>
 

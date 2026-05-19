@@ -105,12 +105,14 @@ class ServiceController extends Controller implements HasMiddleware
     {
         $addonCategories = array_keys(config('service_addons.categories', []));
         $maxMonths       = (int) config('quotes.max_payment_plan_months', 24);
+        $supportedCurrencies = array_keys((array) config('currencies.supported', []));
 
         $validated = $request->validate([
             'name'                          => 'required|string|max:255',
             'description'                   => 'nullable|string',
             'price'                         => 'required|numeric|min:0',
             'renewal_price'                 => 'nullable|numeric|min:0',
+            'currency'                      => ['nullable', 'string', 'size:3', \Illuminate\Validation\Rule::in($supportedCurrencies)],
             'billing_type'                  => 'required|in:unique,monthly,annual',
             'is_package'                    => 'boolean',
             'required_addon_categories'     => 'nullable|array',
@@ -134,6 +136,7 @@ class ServiceController extends Controller implements HasMiddleware
                 'description'                => $validated['description'] ?? null,
                 'price'                      => $validated['price'],
                 'renewal_price'              => $validated['renewal_price'] ?? null,
+                'currency'                   => strtoupper($validated['currency'] ?? config('currencies.default')),
                 'billing_type'               => $validated['billing_type'],
                 'is_package'                 => $validated['is_package'] ?? false,
                 // Mantenemos la columna heredada en sync con el primer valor del array.

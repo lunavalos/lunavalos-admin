@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { Head } from '@inertiajs/vue3';
 import { onMounted } from 'vue';
 
@@ -10,9 +11,8 @@ const props = defineProps({
     }
 });
 
-const formatCurrency = (val) => {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(val);
-};
+const { fmt: _formatCurrency } = useMoney();
+const formatCurrency = (val, currency) => _formatCurrency(val, currency);
 
 const formatDate = (date) => {
     return new Date(date).toLocaleDateString('es-MX', {

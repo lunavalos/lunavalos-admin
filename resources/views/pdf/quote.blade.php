@@ -209,6 +209,9 @@
         $logoData = file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : '';
         $logoSrc = 'data:image/svg+xml;base64,' . $logoData;
 
+        // Moneda activa de esta cotización (fallback a la default configurada).
+        $qcur = $quote->currency ?? config('currencies.default');
+
         // Calculations
         $uniqueTotal = 0;
         $monthlyTotal = 0;
@@ -331,10 +334,10 @@
                         {{ $item->quantity }}
                     </td>
                     <td class="text-right" style="vertical-align: middle;">
-                        ${{ number_format($item->unit_price * $item->quantity, 2) }}
+                        @money($item->unit_price * $item->quantity, $qcur)
                         @if($item->billing_type == 'annual' && ($item->unit_renewal_price ?? 0) > 0)
                             <div style="font-size: 10px; font-weight: normal; color: #b45309; margin-top: 4px;">
-                                Renovaci&oacute;n: ${{ number_format($item->unit_renewal_price * $item->quantity, 2) }}
+                                Renovaci&oacute;n: @money($item->unit_renewal_price * $item->quantity, $qcur)
                             </div>
                         @endif
                     </td>
@@ -372,7 +375,7 @@
                         {{ $addon->quantity }}
                     </td>
                     <td class="text-right" style="vertical-align: middle;">
-                        ${{ number_format($addon->unit_price * $addon->quantity, 2) }}
+                        @money($addon->unit_price * $addon->quantity, $qcur)
                     </td>
                 </tr>
             @endforeach
@@ -384,14 +387,14 @@
                 @if($monthlyTotal > 0)
                     <tr>
                         <td class="totals-label">INVERSIÓN MENSUAL</td>
-                        <td class="totals-value">${{ number_format($monthlyTotal, 2) }}</td>
+                        <td class="totals-value">@money($monthlyTotal, $qcur)</td>
                     </tr>
                 @endif
     
                 @if($annualTotal > 0)
                     <tr>
                         <td class="totals-label">TOTAL PAGO ANUAL <span style="font-weight:normal; font-size:10px;">(renovaciones)</span></td>
-                        <td class="totals-value">${{ number_format($annualTotal, 2) }}</td>
+                        <td class="totals-value">@money($annualTotal, $qcur)</td>
                     </tr>
                     @if($annualRenewalTotal > 0)
                         <tr>
@@ -399,7 +402,7 @@
                                 RENOVACI&Oacute;N ANUAL
                             </td>
                             <td class="totals-value" style="color: #b45309; background-color: #fffbeb;">
-                                ${{ number_format($annualRenewalTotal, 2) }}
+                                @money($annualRenewalTotal, $qcur)
                             </td>
                         </tr>
                     @endif
@@ -408,7 +411,7 @@
                 @if($uniqueTotal > 0)
                     <tr>
                         <td class="totals-label">TOTAL PAGO &Uacute;NICO <span style="font-weight:normal; font-size:10px;">(un solo pago)</span></td>
-                        <td class="totals-value">${{ number_format($uniqueTotal, 2) }}</td>
+                        <td class="totals-value">@money($uniqueTotal, $qcur)</td>
                     </tr>
                 @endif
     
@@ -430,35 +433,35 @@
             <table class="totals-table" style="margin-top: 20px;">
                 <tr>
                     <td class="totals-label" style="background-color:#eff3f9; color:#264ab3;">SUBTOTAL</td>
-                    <td class="totals-value" style="color:#111;">${{ number_format($quote->subtotal, 2) }}</td>
+                    <td class="totals-value" style="color:#111;">@money($quote->subtotal, $qcur)</td>
                 </tr>
                 @if((float) $quote->discount_amount > 0)
                     <tr>
                         <td class="totals-label">DESCUENTO</td>
-                        <td class="totals-value" style="color:#b45309;">- ${{ number_format($quote->discount_amount, 2) }}</td>
+                        <td class="totals-value" style="color:#b45309;">- @money($quote->discount_amount, $qcur)</td>
                     </tr>
                 @endif
                 @if($quote->applies_iva && (float) $quote->iva_amount > 0)
                     <tr>
                         <td class="totals-label">IVA TRASLADADO ({{ rtrim(rtrim(number_format($quote->iva_rate, 4), '0'), '.') }}%)</td>
-                        <td class="totals-value" style="color:#264ab3;">+ ${{ number_format($quote->iva_amount, 2) }}</td>
+                        <td class="totals-value" style="color:#264ab3;">+ @money($quote->iva_amount, $qcur)</td>
                     </tr>
                 @endif
                 @if($quote->applies_isr_retention && (float) $quote->isr_retention_amount > 0)
                     <tr>
                         <td class="totals-label">RET. ISR ({{ rtrim(rtrim(number_format($quote->isr_retention_rate, 4), '0'), '.') }}%)</td>
-                        <td class="totals-value" style="color:#b91c1c;">- ${{ number_format($quote->isr_retention_amount, 2) }}</td>
+                        <td class="totals-value" style="color:#b91c1c;">- @money($quote->isr_retention_amount, $qcur)</td>
                     </tr>
                 @endif
                 @if($quote->applies_iva_retention && (float) $quote->iva_retention_amount > 0)
                     <tr>
                         <td class="totals-label">RET. IVA ({{ rtrim(rtrim(number_format($quote->iva_retention_rate, 4), '0'), '.') }}%)</td>
-                        <td class="totals-value" style="color:#b91c1c;">- ${{ number_format($quote->iva_retention_amount, 2) }}</td>
+                        <td class="totals-value" style="color:#b91c1c;">- @money($quote->iva_retention_amount, $qcur)</td>
                     </tr>
                 @endif
                 <tr>
                     <td class="totals-label" style="background-color:#ecfdf5; color:#065f46; font-size:15px;">TOTAL A PAGAR</td>
-                    <td class="totals-value" style="color:#16a34a; font-size:18px;">${{ number_format($quote->total, 2) }}</td>
+                    <td class="totals-value" style="color:#16a34a; font-size:18px;">@money($quote->total, $qcur)</td>
                 </tr>
                 @if($quote->tax_regime)
                     @php $regimes = config('sat.tax_regimes'); $regLabel = $regimes[$quote->tax_regime]['label'] ?? null; @endphp
@@ -485,8 +488,8 @@
             @elseif($uniqueTotal > 0)
                 <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
                     <strong>Condiciones de Proyecto ("Pago Único"):</strong> 50% de anticipo al inicio
-                    (${{ number_format($uniqueTotal / 2, 2) }}) y 50% restante al entregar
-                    (${{ number_format($uniqueTotal / 2, 2) }}).
+                    (@money($uniqueTotal / 2, $qcur)) y 50% restante al entregar
+                    (@money($uniqueTotal / 2, $qcur)).
                 </div>
             @endif
         @endif

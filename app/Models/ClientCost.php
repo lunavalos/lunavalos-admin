@@ -10,7 +10,14 @@ class ClientCost extends Model
         'client_id',
         'concept',
         'amount',
+        'currency',
+        'exchange_rate',
         'billing_frequency'
+    ];
+
+    protected $casts = [
+        'amount'        => 'decimal:2',
+        'exchange_rate' => 'decimal:8',
     ];
 
     public function client()

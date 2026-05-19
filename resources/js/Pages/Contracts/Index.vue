@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
@@ -19,7 +20,8 @@ const props = defineProps({
     kpis: Object,
 });
 
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const { fmt: _fmt } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
 const fmtDate = (d) => d ? new Intl.DateTimeFormat('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(d)) : '—';
 
 const search        = ref(props.filters?.search ?? '');

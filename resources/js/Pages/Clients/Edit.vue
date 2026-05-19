@@ -1,4 +1,6 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
+const { fmt: _fmt } = useMoney();
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import TextInput from '@/Components/TextInput.vue';
@@ -239,10 +241,7 @@ const deleteCost = (costId) => {
 
 const formatCurrency = (value) => {
     if (!value) return '$0.00';
-    return new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN'
-    }).format(value);
+    return _fmt(value);
 };
 
 const totalMonthlyCosts = computed(() => {

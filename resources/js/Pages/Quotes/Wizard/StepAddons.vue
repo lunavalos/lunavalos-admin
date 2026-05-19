@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -10,7 +11,15 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:modelValue', 'next', 'back']);
 
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const { fmt: _fmt, convert, defaultCurrency } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
+const addonCurrency = (a) => (a?.currency || 'MXN').toUpperCase();
+const quoteCurrency = computed(() => (props.modelValue.currency || defaultCurrency.value || 'MXN').toUpperCase());
+const convertedAddonPrice = (a) => {
+    const f = addonCurrency(a);
+    if (f === quoteCurrency.value) return null;
+    return convert(Number(a.price || 0), f, quoteCurrency.value);
+};
 
 const findRow = (id) => props.modelValue.addons.find(a => a.service_addon_id === id);
 
@@ -80,7 +89,10 @@ const allRequiredMet = computed(() => categoryStatus.value.every(c => c.met));
                     />
                     <div class="flex-1">
                         <div class="font-medium text-gray-900 dark:text-gray-100">{{ addon.name }}</div>
-                        <div class="text-xs text-gray-500">{{ cycleLabels[addon.billing_cycle] || addon.billing_cycle }} · {{ fmt(addon.price) }}</div>
+                        <div class="text-xs text-gray-500">
+                            {{ cycleLabels[addon.billing_cycle] || addon.billing_cycle }} · {{ fmt(addon.price, addonCurrency(addon)) }}
+                            <span v-if="convertedAddonPrice(addon) !== null" class="ml-1 text-gray-400">(≈ {{ fmt(convertedAddonPrice(addon), quoteCurrency) }})</span>
+                        </div>
                     </div>
                     <input
                         v-if="findRow(addon.id)"

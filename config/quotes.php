@@ -48,6 +48,11 @@ return [
         'mark_overdue_after_days' => 7,
         // Correo de copia para el equipo administrativo (opcional).
         'admin_cc' => env('CONTRACTS_RENEWAL_CC'),
+        // Horizonte de años hacia adelante para generar cuotas de renovación
+        // (anualidades + items con precio de renovación). El cliente puede
+        // cancelar en cualquier momento; estas cuotas se programan para que
+        // cobranza pueda solicitar los pagos a futuro.
+        'forecast_years' => (int) env('CONTRACTS_RENEWAL_FORECAST_YEARS', 10),
     ],
 
 ];

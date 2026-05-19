@@ -14,6 +14,8 @@ class ClientService extends Model
         'renewal_amount',
         'initial_payment',
         'initial_cost',
+        'currency',
+        'exchange_rate',
         'status',
         'billing_type',
         'renewal_email_sent_at',
@@ -24,6 +26,7 @@ class ClientService extends Model
         'renewal_amount'         => 'decimal:2',
         'initial_payment'        => 'decimal:2',
         'initial_cost'           => 'decimal:2',
+        'exchange_rate'          => 'decimal:8',
         'renewal_email_sent_at'  => 'datetime',
     ];
 

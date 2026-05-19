@@ -17,6 +17,7 @@ class ClientPayment extends Model
         'concept',
         'amount',
         'currency',
+        'exchange_rate',
         'payment_method',
         'reference',
         'paid_at',
@@ -28,10 +29,20 @@ class ClientPayment extends Model
 
     protected $casts = [
         'amount'             => 'decimal:2',
+        'exchange_rate'      => 'decimal:8',
         'paid_at'            => 'date:Y-m-d',
         'due_date'           => 'date:Y-m-d',
         'installment_number' => 'integer',
     ];
+
+    /**
+     * Importe normalizado a la moneda base usando el snapshot de FX.
+     * Útil para KPIs/reportes. NUNCA sumes `amount` directo entre divisas.
+     */
+    public function getAmountInBaseAttribute(): float
+    {
+        return round((float) $this->amount * (float) ($this->exchange_rate ?: 1), 2);
+    }
 
     public const TYPES    = ['anticipo', 'mensualidad', 'pago_unico', 'ajuste', 'reembolso'];
     public const METHODS  = ['efectivo', 'transferencia', 'tarjeta', 'cheque', 'otro'];

@@ -26,6 +26,15 @@ class AppServiceProvider extends ServiceProvider
         Carbon::setLocale('es');
         Vite::prefetch(concurrency: 3);
 
+        // Blade directive central para formatear importes con moneda.
+        //   @money($amount)              -> usa moneda default (MXN)
+        //   @money($amount, 'USD')       -> formato USD
+        //   @money($amount, $doc->currency)
+        // Toda vista (PDF, email) DEBE pasar por aquí en lugar de hardcodear " MXN".
+        \Illuminate\Support\Facades\Blade::directive('money', function ($expression) {
+            return "<?php echo app(\\App\\Support\\Money\\CurrencyService::class)->format($expression); ?>";
+        });
+
         // Super-admin bypass: any user holding the configured admin role
         // implicitly passes every Gate/policy check. This keeps
         // authorization permission-driven everywhere else and avoids

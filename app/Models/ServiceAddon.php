@@ -13,6 +13,7 @@ class ServiceAddon extends Model
         'category',
         'description',
         'price',
+        'currency',
         'billing_cycle',
         'billing_cycle_months',
         'is_active',

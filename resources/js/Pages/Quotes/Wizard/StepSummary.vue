@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { computed } from 'vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -13,12 +14,26 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:modelValue', 'submit', 'back']);
 
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const { fmt: _fmt, convert, defaultCurrency } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
 const pct = (n) => `${Number(n || 0).toFixed(2)}%`;
 
+// Moneda activa de la cotización y helper para convertir desde la moneda nativa.
+const quoteCurrency = computed(() => (props.modelValue.currency || defaultCurrency.value || 'MXN').toUpperCase());
+const toQuote = (amount, from) => {
+    const f = (from || quoteCurrency.value).toUpperCase();
+    if (f === quoteCurrency.value) return Number(amount || 0);
+    const c = convert(Number(amount || 0), f, quoteCurrency.value);
+    return c == null ? Number(amount || 0) : c;
+};
+const packagePriceQuote = computed(() => props.selectedPackage
+    ? toQuote(props.selectedPackage.price, props.selectedPackage.currency)
+    : 0);
+const addonLineQuote = (a) => toQuote(Number(a.unit_price) * Number(a.quantity), a.currency);
+
 const subtotal = computed(() => {
-    const pkg = Number(props.selectedPackage?.price || 0);
-    const adds = props.selectedAddons.reduce((s, a) => s + Number(a.unit_price) * Number(a.quantity), 0);
+    const pkg = packagePriceQuote.value;
+    const adds = props.selectedAddons.reduce((s, a) => s + addonLineQuote(a), 0);
     return pkg + adds;
 });
 const taxableBase = computed(() => Math.max(0, subtotal.value - Number(props.modelValue.discount_amount || 0)));
@@ -44,8 +59,11 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
                         <div>
                             <div class="font-bold">{{ selectedPackage.name }}</div>
                             <div class="text-xs text-gray-500">Plan: {{ modelValue.package_payment_plan_months }} meses</div>
+                            <div v-if="(selectedPackage.currency || 'MXN').toUpperCase() !== quoteCurrency" class="text-[11px] text-gray-400">
+                                Precio nativo: {{ fmt(selectedPackage.price, selectedPackage.currency) }} → convertido a {{ quoteCurrency }}
+                            </div>
                         </div>
-                        <div class="font-bold text-primary">{{ fmt(selectedPackage.price) }}</div>
+                        <div class="font-bold text-primary">{{ fmt(packagePriceQuote, quoteCurrency) }}</div>
                     </div>
                 </div>
 
@@ -56,8 +74,11 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
                             <div>
                                 <span class="font-medium">{{ a.name }}</span>
                                 <span class="text-xs text-gray-500 ml-2">{{ cycleLabels[a.billing_cycle] || a.billing_cycle }} · x{{ a.quantity }}</span>
+                                <span v-if="(a.currency || 'MXN').toUpperCase() !== quoteCurrency" class="block text-[11px] text-gray-400">
+                                    Precio nativo: {{ fmt(a.unit_price, a.currency) }} → {{ quoteCurrency }}
+                                </span>
                             </div>
-                            <div class="font-semibold">{{ fmt(a.unit_price * a.quantity) }}</div>
+                            <div class="font-semibold">{{ fmt(addonLineQuote(a), quoteCurrency) }}</div>
                         </li>
                     </ul>
                     <p v-else class="text-sm text-gray-400">Sin addons.</p>
@@ -90,10 +111,10 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
             </div>
 
             <aside class="rounded-lg border border-gray-200 dark:border-zinc-700 p-4 bg-gray-50 dark:bg-zinc-800/40 h-fit sticky top-4 space-y-3">
-                <h4 class="font-semibold">Totales</h4>
+                <h4 class="font-semibold">Totales <span class="text-xs text-gray-500 font-normal">({{ quoteCurrency }})</span></h4>
 
                 <div class="flex justify-between text-sm">
-                    <span>Subtotal</span><span>{{ fmt(subtotal) }}</span>
+                    <span>Subtotal</span><span>{{ fmt(subtotal, quoteCurrency) }}</span>
                 </div>
 
                 <div>
@@ -105,21 +126,21 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
                 </div>
 
                 <div class="flex justify-between text-sm border-t pt-2 border-gray-200 dark:border-zinc-700">
-                    <span>Base gravable</span><span>{{ fmt(taxableBase) }}</span>
+                    <span>Base gravable</span><span>{{ fmt(taxableBase, quoteCurrency) }}</span>
                 </div>
 
                 <div v-if="modelValue.applies_iva" class="flex justify-between text-sm text-blue-700 dark:text-blue-300">
-                    <span>+ IVA {{ pct(modelValue.iva_rate) }}</span><span>{{ fmt(ivaAmount) }}</span>
+                    <span>+ IVA {{ pct(modelValue.iva_rate) }}</span><span>{{ fmt(ivaAmount, quoteCurrency) }}</span>
                 </div>
                 <div v-if="modelValue.applies_isr_retention" class="flex justify-between text-sm text-rose-600 dark:text-rose-400">
-                    <span>− Ret. ISR {{ pct(modelValue.isr_retention_rate) }}</span><span>-{{ fmt(isrRet) }}</span>
+                    <span>− Ret. ISR {{ pct(modelValue.isr_retention_rate) }}</span><span>-{{ fmt(isrRet, quoteCurrency) }}</span>
                 </div>
                 <div v-if="modelValue.applies_iva_retention" class="flex justify-between text-sm text-rose-600 dark:text-rose-400">
-                    <span>− Ret. IVA {{ pct(modelValue.iva_retention_rate) }}</span><span>-{{ fmt(ivaRet) }}</span>
+                    <span>− Ret. IVA {{ pct(modelValue.iva_retention_rate) }}</span><span>-{{ fmt(ivaRet, quoteCurrency) }}</span>
                 </div>
 
                 <div class="flex justify-between text-base font-bold border-t pt-2 border-gray-200 dark:border-zinc-700">
-                    <span>Total</span><span class="text-green-600">{{ fmt(total) }}</span>
+                    <span>Total</span><span class="text-green-600">{{ fmt(total, quoteCurrency) }}</span>
                 </div>
 
                 <div>

@@ -1,4 +1,6 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
+const { fmt: _fmt } = useMoney();
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { 
@@ -170,10 +172,7 @@ const renewClient = (id) => {
 
 const formatCurrency = (value) => {
     if (!value) return '$0.00';
-    return new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN'
-    }).format(value);
+    return _fmt(value);
 };
 
 const formatDate = (dateString) => {

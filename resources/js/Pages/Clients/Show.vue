@@ -1,4 +1,6 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
+const { fmt } = useMoney();
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref, nextTick } from 'vue';
@@ -272,8 +274,8 @@ const closePasswordModal = () => {
                                         <div>{{ c.start_date ? new Date(c.start_date).toLocaleDateString('es-MX') : '—' }}</div>
                                         <div class="text-[11px] text-gray-400">→ {{ c.end_date ? new Date(c.end_date).toLocaleDateString('es-MX') : '—' }}</div>
                                     </td>
-                                    <td class="px-4 py-3 text-right font-semibold">{{ new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN'}).format(Number(c.total_amount) || 0) }}</td>
-                                    <td class="px-4 py-3 text-right">{{ new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN'}).format(Number(c.monthly_amount) || 0) }}</td>
+                                    <td class="px-4 py-3 text-right font-semibold">{{ fmt(c.total_amount, c.currency) }}</td>
+                                    <td class="px-4 py-3 text-right">{{ fmt(c.monthly_amount, c.currency) }}</td>
                                     <td class="px-4 py-3">
                                         <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
                                               :class="c.status === 'signed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'

@@ -126,15 +126,16 @@
 
     <!-- SEGUNDA -->
     <h3 class="clause">Segunda. Monto y Forma de Pago</h3>
+    @php $cur = $contract->currency ?? config('currencies.default'); @endphp
     <p>El monto total de los servicios es:</p>
     <ul>
-        <li>Subtotal: <strong>${{ number_format($contract->subtotal, 2) }} MXN</strong></li>
-        <li>IVA: <strong>${{ number_format($contract->iva_amount, 2) }} MXN</strong></li>
-        <li>Total: <strong>${{ number_format($contract->total_amount, 2) }} MXN</strong></li>
+        <li>Subtotal: <strong>@money($contract->subtotal, $cur)</strong></li>
+        <li>IVA: <strong>@money($contract->iva_amount, $cur)</strong></li>
+        <li>Total: <strong>@money($contract->total_amount, $cur)</strong></li>
     </ul>
-    <p><strong>Forma de pago:</strong> Anticipo de <strong>${{ number_format($contract->anticipo_amount, 2) }} MXN</strong>
+    <p><strong>Forma de pago:</strong> Anticipo de <strong>@money($contract->anticipo_amount, $cur)</strong>
     @if($contract->payment_plan_months > 1)
-    más <strong>{{ $contract->payment_plan_months }} mensualidades</strong> de <strong>${{ number_format($contract->monthly_amount, 2) }} MXN</strong>.
+    más <strong>{{ $contract->payment_plan_months }} mensualidades</strong> de <strong>@money($contract->monthly_amount, $cur)</strong>.
     @endif
     Los trabajos iniciarán una vez confirmado el anticipo.</p>
 

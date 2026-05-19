@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
@@ -25,6 +26,7 @@ const form = useForm({
     issue_date: props.quote.issue_date ? String(props.quote.issue_date).substring(0, 10) : '',
     valid_until: props.quote.valid_until ? String(props.quote.valid_until).substring(0, 10) : '',
     duration: props.quote.duration || '',
+    currency: props.quote.currency || defaultCurrency,
     notes: props.quote.notes || '',
     include_payment_terms: props.quote.include_payment_terms === 1 || props.quote.include_payment_terms === true,
     is_multiple_choice: props.quote.is_multiple_choice === 1 || props.quote.is_multiple_choice === true,
@@ -119,12 +121,8 @@ const removeQuoteItem = (index) => {
     form.items.splice(index, 1);
 };
 
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN'
-    }).format(value);
-};
+const { fmt: _formatCurrency, options: currencyOptions, defaultCurrency } = useMoney();
+const formatCurrency = (value, currency) => _formatCurrency(value, currency);
 
 // Computeds for dynamic totals
 const uniqueTotal = computed(() => {
@@ -286,6 +284,24 @@ const submit = () => {
                                     v-model="form.valid_until"
                                 />
                                 <InputError class="mt-2" :message="form.errors.valid_until" />
+                            </div>
+
+                            <div>
+                                <InputLabel for="currency" value="Moneda" class="font-bold text-gray-700" />
+                                <select
+                                    id="currency"
+                                    v-model="form.currency"
+                                    class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 rounded-md bg-gray-50 dark:bg-zinc-950 dark:text-gray-100"
+                                    required
+                                >
+                                    <option v-for="opt in currencyOptions" :key="opt.value" :value="opt.value">
+                                        {{ opt.label }}
+                                    </option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    El contrato y los pagos heredarán esta moneda. El CFDI siempre se emite en MXN.
+                                </p>
+                                <InputError class="mt-2" :message="form.errors.currency" />
                             </div>
                         </div>
                     </div>

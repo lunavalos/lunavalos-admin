@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -31,11 +32,15 @@ const initialCategories = (() => {
     return [];
 })();
 
+const { fmt: _fmt, options: currencyOptions, defaultCurrency } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
+
 const form = useForm({
     name: props.service.name,
     description: props.service.description || '',
     price: props.service.price,
     renewal_price: props.service.renewal_price !== null ? props.service.renewal_price : 0,
+    currency: props.service.currency || defaultCurrency.value,
     billing_type: props.service.billing_type,
     is_package: props.service.is_package === 1 || props.service.is_package === true,
     required_addon_categories: initialCategories,
@@ -51,8 +56,6 @@ const addCost = () => form.costs.push({ title: '', quantity: 1, price: 0 });
 const removeCost = (index) => form.costs.splice(index, 1);
 const addFeature = () => form.features.push({ label: '', sort_order: form.features.length });
 const removeFeature = (index) => form.features.splice(index, 1);
-
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
 
 // Resumen agregado del paquete (precio + costos + utilidad de sub-servicios).
 const bundleDetail = computed(() =>
@@ -229,7 +232,20 @@ const submit = () => {
                                 </div>
 
                                 <div>
-                                    <InputLabel for="price" value="Precio Base ($ MXN)" class="font-bold text-gray-700 dark:text-gray-300" />
+                                    <InputLabel for="currency" value="Moneda" class="font-bold text-gray-700 dark:text-gray-300" />
+                                    <select
+                                        id="currency"
+                                        v-model="form.currency"
+                                        class="mt-1 block w-full border-gray-300 dark:border-zinc-800 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-200"
+                                        required
+                                    >
+                                        <option v-for="opt in currencyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                                    </select>
+                                    <InputError class="mt-2" :message="form.errors.currency" />
+                                </div>
+
+                                <div>
+                                    <InputLabel for="price" :value="`Precio Base (${form.currency})`" class="font-bold text-gray-700 dark:text-gray-300" />
                                     <div class="relative mt-1">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <span class="text-gray-500 dark:text-zinc-400 sm:text-sm">$</span>

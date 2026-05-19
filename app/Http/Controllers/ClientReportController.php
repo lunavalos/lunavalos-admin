@@ -201,6 +201,7 @@ class ClientReportController extends Controller
             'amount'              => (float) $clientService->renewal_amount,
             'billing_type'        => $clientService->billing_type ?? 'unique',
             'service_description' => null,
+            'currency'            => strtoupper($clientService->currency ?: config('currencies.default', 'MXN')),
         ];
 
         $pdf = Pdf::loadView('pdf.receipt', $receiptData)

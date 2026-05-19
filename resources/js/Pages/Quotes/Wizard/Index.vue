@@ -7,6 +7,9 @@ import StepPackage from './StepPackage.vue';
 import StepAddons from './StepAddons.vue';
 import StepClient from './StepClient.vue';
 import StepSummary from './StepSummary.vue';
+import { useMoney } from '@/Composables/useMoney';
+
+const { defaultCurrency } = useMoney();
 
 const props = defineProps({
     services: Array,
@@ -43,6 +46,7 @@ const initial = isEdit
         issue_date: props.quote.issue_date ? String(props.quote.issue_date).slice(0, 10) : today,
         valid_until: props.quote.valid_until ? String(props.quote.valid_until).slice(0, 10) : validUntil,
         duration: props.quote.duration || '',
+        currency: props.quote.currency || defaultCurrency.value,
         discount_amount: Number(props.quote.discount_amount || 0),
         notes: props.quote.notes || '',
         observations: props.quote.observations || '',
@@ -72,6 +76,7 @@ const initial = isEdit
         issue_date: today,
         valid_until: validUntil,
         duration: '',
+        currency: defaultCurrency.value,
         discount_amount: 0,
         notes: '',
         observations: '',

@@ -102,6 +102,46 @@ class HandleInertiaRequests extends Middleware
                 'error'   => $request->session()->get('error'),
                 'warning' => $request->session()->get('warning'),
             ],
+            // Configuración de divisas para el composable useMoney() del frontend.
+            'currencies' => [
+                'base'      => config('currencies.base'),
+                'default'   => config('currencies.default'),
+                'supported' => config('currencies.supported'),
+                // Tasas vigentes (de la moneda base a cada divisa soportada).
+                // Permite al frontend convertir sin round-trips. Usamos `Closure`
+                // para evaluarlo perezosamente solo cuando Inertia hace render.
+                'rates'     => fn () => $this->latestRatesMap(),
+            ],
         ];
+    }
+
+    /**
+     * Devuelve el mapa { CURRENCY => rate-to-base } con la última tasa disponible.
+     * La base contra sí misma siempre es 1.
+     * Se cachea por 30 min para no consultar `exchange_rates` en cada request.
+     */
+    protected function latestRatesMap(): array
+    {
+        $base = (string) config('currencies.base', 'MXN');
+        $supported = array_keys((array) config('currencies.supported', []));
+
+        return \Illuminate\Support\Facades\Cache::remember(
+            'inertia.fx.rates.' . $base,
+            now()->addMinutes(30),
+            function () use ($base, $supported) {
+                $out = [$base => 1.0];
+                foreach ($supported as $code) {
+                    if ($code === $base) continue;
+                    // Buscamos la tasa más reciente FROM=$code TO=$base.
+                    $row = \App\Models\ExchangeRate::query()
+                        ->where('from_currency', $code)
+                        ->where('to_currency', $base)
+                        ->orderByDesc('rate_date')
+                        ->first();
+                    $out[$code] = $row ? (float) $row->rate : null;
+                }
+                return $out;
+            }
+        );
     }
 }

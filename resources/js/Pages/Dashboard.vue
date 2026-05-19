@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { 
@@ -36,12 +37,8 @@ const props = defineProps({
     },
 });
 
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN'
-    }).format(value || 0);
-};
+const { fmt: _formatCurrency } = useMoney();
+const formatCurrency = (value, currency) => _formatCurrency(value, currency);
 
 const formatDate = (dateString) => {
     if (!dateString) return '';

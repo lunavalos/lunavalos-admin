@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -26,7 +27,8 @@ const form = useForm({
 const addCost = () => form.costs.push({ title: '', quantity: 1, price: 0 });
 const removeCost = (i) => form.costs.splice(i, 1);
 
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const { fmt: _fmt } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
 const costsTotal = computed(() => form.costs.reduce((a, c) => a + Number(c.price || 0) * Number(c.quantity || 1), 0));
 const margin = computed(() => Number(form.price || 0) - costsTotal.value);
 const marginPct = computed(() => {

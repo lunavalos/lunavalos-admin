@@ -117,15 +117,19 @@ class FinanceController extends Controller implements HasMiddleware
         $startOfMonth = Carbon::now()->startOfMonth();
         $endOfMonth   = Carbon::now()->endOfMonth();
 
-        // Ingresos del mes en curso (usando próxima fecha de cobro efectiva)
+        // Ingresos del mes en curso (usando próxima fecha de cobro efectiva).
+        // Multi-moneda: cada servicio puede estar en distinta divisa; normalizamos
+        // a la moneda base usando el exchange_rate snapshot del propio servicio.
+        $toBase = fn ($s) => (float) ($s->renewal_amount ?? 0) * (float) ($s->exchange_rate ?: 1);
+
         $incomeThisMonth = $allServices->filter(function ($s) use ($startOfMonth, $endOfMonth) {
             return $s->next_billing_date->between($startOfMonth, $endOfMonth);
-        })->sum('renewal_amount');
+        })->sum($toBase);
 
         // Ingresos próximos 30 días
         $incomeNext30 = $allServices->filter(function ($s) use ($today) {
             return $s->next_billing_date->between($today, $today->copy()->addDays(30));
-        })->sum('renewal_amount');
+        })->sum($toBase);
 
         // Servicios activos (próxima fecha de cobro futura o presente)
         $activeServicesCount = $allServices->filter(function ($s) use ($today) {
@@ -140,24 +144,28 @@ class FinanceController extends Controller implements HasMiddleware
             ->whereHas('client', fn($q) => $q->where('is_historical', false))
             ->count();
 
-        // Ingreso anual proyectado basado en frecuencia
+        // Ingreso anual proyectado basado en frecuencia (normalizado a base).
         $annualProjected = $allServices->sum(function ($s) {
+            $base = (float) ($s->exchange_rate ?: 1);
+            $amount = (float) $s->renewal_amount * $base;
             return match ($s->billing_type) {
-                'monthly' => (float)$s->renewal_amount * 12,
-                'annual'  => (float)$s->renewal_amount,
-                'once'    => 0, // Pagos únicos no son recurrentes proyectados
-                default   => (float)$s->renewal_amount,
+                'monthly' => $amount * 12,
+                'annual'  => $amount,
+                'once'    => 0,
+                default   => $amount,
             };
         });
 
-        // Costos internos totales anualizados
+        // Costos internos totales anualizados (normalizados a base).
         $allCosts = ClientCost::all();
         $totalServiceCostsAnnual = $allCosts->sum(function ($cost) {
+            $base = (float) ($cost->exchange_rate ?: 1);
+            $amount = (float) $cost->amount * $base;
             return match ($cost->billing_frequency) {
-                'monthly'  => $cost->amount * 12,
-                'annual'   => $cost->amount,
+                'monthly'  => $amount * 12,
+                'annual'   => $amount,
                 'one_time' => 0,
-                default    => $cost->amount,
+                default    => $amount,
             };
         });
 
@@ -184,6 +192,8 @@ class FinanceController extends Controller implements HasMiddleware
             $monthEnd     = $month->copy()->endOfMonth();
 
             $income = $allRawServices->sum(function ($s) use ($monthStart, $monthEnd) {
+                $rate = (float) ($s->exchange_rate ?: 1);
+                $amount = (float) $s->renewal_amount * $rate;
                 if ($s->billing_type === 'monthly') {
                     // El servicio mensual cobra este mes si:
                     // 1. El contrato (renewal_date) aún no ha vencido al inicio del mes
@@ -195,12 +205,12 @@ class FinanceController extends Controller implements HasMiddleware
                         $billingDay = $monthEnd->copy();
                     }
                     if ($billingDay->between($monthStart, $monthEnd) && $billingDay->lte($s->renewal_date)) {
-                        return (float) $s->renewal_amount;
+                        return $amount;
                     }
                     return 0;
                 }
                 // Para servicios no mensuales, usar renewal_date directamente
-                return $s->renewal_date->between($monthStart, $monthEnd) ? (float) $s->renewal_amount : 0;
+                return $s->renewal_date->between($monthStart, $monthEnd) ? $amount : 0;
             });
 
             $monthlyIncome[] = [
@@ -227,6 +237,8 @@ class FinanceController extends Controller implements HasMiddleware
             $monthEnd   = $month->copy()->endOfMonth();
 
             $income = $allRawServices->sum(function ($s) use ($monthStart, $monthEnd) {
+                $rate = (float) ($s->exchange_rate ?: 1);
+                $amount = (float) $s->renewal_amount * $rate;
                 if ($s->billing_type === 'monthly') {
                     $dayOfMonth = (int) $s->renewal_date->format('d');
                     $billingDay = $monthStart->copy()->addDays($dayOfMonth - 1);
@@ -234,17 +246,19 @@ class FinanceController extends Controller implements HasMiddleware
                         $billingDay = $monthEnd->copy();
                     }
                     if ($billingDay->between($monthStart, $monthEnd) && $billingDay->lte($s->renewal_date)) {
-                        return (float) $s->renewal_amount;
+                        return $amount;
                     }
                     return 0;
                 }
-                return $s->renewal_date->between($monthStart, $monthEnd) ? (float) $s->renewal_amount : 0;
+                return $s->renewal_date->between($monthStart, $monthEnd) ? $amount : 0;
             });
 
             $costsServices = $allCosts->sum(function ($cost) {
+                $rate = (float) ($cost->exchange_rate ?: 1);
+                $amount = (float) $cost->amount * $rate;
                 return match ($cost->billing_frequency) {
-                    'monthly'  => $cost->amount,
-                    'annual'   => $cost->amount / 12,
+                    'monthly'  => $amount,
+                    'annual'   => $amount / 12,
                     default    => 0,
                 };
             });
@@ -297,12 +311,20 @@ class FinanceController extends Controller implements HasMiddleware
             $services = $this->findServicesForDateGroup($client, $groupDate);
             $total     = $services->sum('renewal_amount');
 
+            // Si todos los servicios comparten moneda usamos esa; si hay mezcla,
+            // caemos a la default y dejamos la conversión para el detalle por línea.
+            $currencies = $services->pluck('currency')->unique()->values();
+            $receiptCurrency = $currencies->count() === 1
+                ? $currencies->first()
+                : (string) ($request->query('currency') ?: config('currencies.default', 'MXN'));
+
             $receiptData = [
                 'client'       => $client,
                 'services'     => $services->toArray(),
                 'total_amount' => $total,
                 'group_date'   => $groupDate,
                 'receipt_date' => $groupDate,
+                'currency'     => $receiptCurrency,
             ];
         } else {
             $serviceName   = $request->query('service', $client->package_services ?: 'Renovación de Cuenta');
@@ -316,6 +338,11 @@ class FinanceController extends Controller implements HasMiddleware
             $serviceDescription = $clientService?->service?->description ?? null;
             $receiptDate = $clientService ? $this->getNextBillingDate($clientService) : ($request->query('date') ? \Carbon\Carbon::parse($request->query('date')) : now());
 
+            $receiptCurrency = strtoupper(
+                $request->query('currency')
+                    ?: ($clientService?->currency ?: ($client->currency ?? config('currencies.default', 'MXN')))
+            );
+
             $receiptData = [
                 'client'              => $client,
                 'service_name'        => $serviceName,
@@ -323,6 +350,7 @@ class FinanceController extends Controller implements HasMiddleware
                 'billing_type'        => $billingType,
                 'service_description' => $serviceDescription,
                 'receipt_date'       => $receiptDate?->format('Y-m-d'),
+                'currency'            => $receiptCurrency,
             ];
         }
 
@@ -350,6 +378,11 @@ class FinanceController extends Controller implements HasMiddleware
             $serviceLabel  = 'Servicio(s) de renovación ' . \Carbon\Carbon::parse($groupDate)->translatedFormat('d / m / Y');
             $billingType   = 'grouped';
 
+            $currencies = $services->pluck('currency')->unique()->values();
+            $receiptCurrency = $currencies->count() === 1
+                ? $currencies->first()
+                : (string) ($request->input('currency') ?: config('currencies.default', 'MXN'));
+
             $receiptData = [
                 'client'       => $client,
                 'services'     => $services->toArray(),
@@ -357,6 +390,7 @@ class FinanceController extends Controller implements HasMiddleware
                 'group_date'   => $groupDate,
                 'grouped'      => true,
                 'receipt_date' => $groupDate,
+                'currency'     => $receiptCurrency,
             ];
         } else {
             $serviceName   = $request->input('service', $client->package_services ?: 'Renovación de Cuenta');
@@ -371,6 +405,11 @@ class FinanceController extends Controller implements HasMiddleware
 
             $receiptDate = $clientService ? $this->getNextBillingDate($clientService) : ($request->input('date') ? \Carbon\Carbon::parse($request->input('date')) : now());
 
+            $receiptCurrency = strtoupper(
+                $request->input('currency')
+                    ?: ($clientService?->currency ?: ($client->currency ?? config('currencies.default', 'MXN')))
+            );
+
             $receiptData = [
                 'client'              => $client,
                 'service_name'        => $serviceName,
@@ -378,6 +417,7 @@ class FinanceController extends Controller implements HasMiddleware
                 'billing_type'        => $billingType,
                 'service_description' => $serviceDescription,
                 'receipt_date'       => $receiptDate?->format('Y-m-d'),
+                'currency'            => $receiptCurrency,
             ];
         }
 
@@ -395,7 +435,8 @@ class FinanceController extends Controller implements HasMiddleware
                     $request->input('service', $groupByDate ? 'Recibo de Servicios Agrupados' : 'Recibo de Servicios'),
                     $groupByDate ? $totalAmount : $serviceAmount,
                     $request->input('type', $billingType ?? 'unique'),
-                    $pdfContent
+                    $pdfContent,
+                    $receiptCurrency
                 ));
 
             if (!empty($services)) {
@@ -436,6 +477,7 @@ class FinanceController extends Controller implements HasMiddleware
                 'billing_type'        => $service->billing_type ?? 'unique',
                 'service_description' => $service->service?->description,
                 'next_renewal_date'   => optional($this->getNextBillingDate($service))->format('Y-m-d'),
+                'currency'            => strtoupper($service->currency ?: config('currencies.default', 'MXN')),
             ];
         });
     }

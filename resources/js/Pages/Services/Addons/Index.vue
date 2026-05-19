@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -14,8 +15,8 @@ const form = useForm({});
 const page = usePage();
 const flashMessage = computed(() => page.props.flash?.message);
 
-const formatCurrency = (value) =>
-    new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value);
+const { fmt: _fmtMoney } = useMoney();
+const formatCurrency = (amount, currency) => _fmtMoney(amount, currency);
 
 const cycleLabel = (addon) => {
     if (addon.billing_cycle === 'custom_months' && addon.billing_cycle_months) {

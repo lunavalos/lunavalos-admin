@@ -6,9 +6,11 @@ use App\Models\Quote;
 use App\Models\QuoteItem;
 use App\Models\Service;
 use App\Models\Client;
+use App\Support\Money\CurrencyService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class QuoteController extends Controller
 {
@@ -37,7 +39,7 @@ class QuoteController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, CurrencyService $fx)
     {
         $request->validate([
             'client_id' => 'nullable|exists:clients,id',
@@ -50,6 +52,7 @@ class QuoteController extends Controller
             'valid_until' => 'nullable|date|after_or_equal:issue_date',
             'duration' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'currency' => ['nullable', 'string', 'size:3', Rule::in($fx->codes())],
             'include_payment_terms' => 'boolean',
             'is_multiple_choice' => 'boolean',
             'items' => 'required|array|min:1',
@@ -66,7 +69,12 @@ class QuoteController extends Controller
             'items.*.costs.*.price' => 'required|numeric|min:0',
         ]);
 
-        $quote = DB::transaction(function () use ($request) {
+        $currency = $fx->normalize($request->input('currency') ?: $fx->default());
+        $fx->assertSupported($currency);
+        // Snapshot FX al momento de crear la cotización (a moneda base).
+        $exchangeRate = $fx->snapshotRate($currency, $request->input('issue_date'));
+
+        $quote = DB::transaction(function () use ($request, $currency, $exchangeRate) {
             $quote = Quote::create([
                 'client_id' => $request->client_id,
                 'client_name' => $request->client_name,
@@ -78,6 +86,8 @@ class QuoteController extends Controller
                 'valid_until' => $request->valid_until,
                 'duration' => $request->duration,
                 'notes' => $request->notes,
+                'currency' => $currency,
+                'exchange_rate' => $exchangeRate,
                 'include_payment_terms' => $request->include_payment_terms ?? false,
                 'is_multiple_choice' => $request->is_multiple_choice ?? false,
             ]);
@@ -133,7 +143,7 @@ class QuoteController extends Controller
         ]);
     }
 
-    public function update(Request $request, Quote $quote)
+    public function update(Request $request, Quote $quote, CurrencyService $fx)
     {
         $request->validate([
             'client_id' => 'nullable|exists:clients,id',
@@ -146,6 +156,7 @@ class QuoteController extends Controller
             'valid_until' => 'nullable|date|after_or_equal:issue_date',
             'duration' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
+            'currency' => ['nullable', 'string', 'size:3', Rule::in($fx->codes())],
             'include_payment_terms' => 'boolean',
             'is_multiple_choice' => 'boolean',
             'items' => 'required|array|min:1',
@@ -163,7 +174,14 @@ class QuoteController extends Controller
             'items.*.costs.*.price' => 'required|numeric|min:0',
         ]);
 
-        DB::transaction(function () use ($request, $quote) {
+        // Si la moneda cambió, re-snapshotear FX; si no, conservar.
+        $currency = $fx->normalize($request->input('currency') ?: $quote->currency ?: $fx->default());
+        $fx->assertSupported($currency);
+        $exchangeRate = $currency === ($quote->currency ?? null) && $quote->exchange_rate
+            ? $quote->exchange_rate
+            : $fx->snapshotRate($currency, $request->input('issue_date'));
+
+        DB::transaction(function () use ($request, $quote, $currency, $exchangeRate) {
             $quote->update([
                 'client_id' => $request->client_id,
                 'client_name' => $request->client_name,
@@ -175,6 +193,8 @@ class QuoteController extends Controller
                 'valid_until' => $request->valid_until,
                 'duration' => $request->duration,
                 'notes' => $request->notes,
+                'currency' => $currency,
+                'exchange_rate' => $exchangeRate,
                 'include_payment_terms' => $request->include_payment_terms ?? false,
                 'is_multiple_choice' => $request->is_multiple_choice ?? false,
             ]);
@@ -254,6 +274,8 @@ class QuoteController extends Controller
                         'service_name' => $item->concept,
                         'renewal_date' => now()->addYear(), // Default renewal date
                         'renewal_amount' => $item->unit_price,
+                        'currency'       => $quote->currency ?? config('currencies.default'),
+                        'exchange_rate'  => $quote->exchange_rate ?? 1,
                         'billing_type' => $item->billing_type === 'unique' ? 'once' : ($item->billing_type === 'monthly' ? 'monthly' : 'annual'),
                         'status' => 'active',
                     ]);

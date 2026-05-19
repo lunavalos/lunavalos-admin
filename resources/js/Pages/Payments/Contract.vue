@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { ref, computed } from 'vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -12,7 +13,8 @@ const props = defineProps({
     types:          { type: Array,  default: () => [] },
 });
 
-const fmtMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n || 0));
+const { fmt: _fmtMoney } = useMoney();
+const fmtMoney = (n, c) => _fmtMoney(n, c);
 const fmtDate  = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
 const statusColors = {
@@ -105,10 +107,26 @@ const cancelPayment = (p) => {
     router.post(route('payments.cancel', p.id), {}, { preserveScroll: true });
 };
 
+// El CFDI sólo se permite cuando el contrato/pago está en MXN. Facturama
+// opera únicamente en MXN; las cobranzas en USD u otras divisas se manejan
+// con el recibo de pago / solicitud de cobro.
+const canInvoice = (p) => {
+    const cur = (p?.currency || props.contract.currency || 'MXN').toUpperCase();
+    if (cur !== 'MXN') return false;
+    return ['programado', 'registrado', 'conciliado'].includes(p.status);
+};
+
 const issueInvoice = (p) => {
-    if (! confirm(`¿Emitir CFDI para «${p.concept}»? El cliente debe tener RFC, código postal y régimen fiscal capturados.`)) return;
+    if (! canInvoice(p)) return;
+    const msg = p.status === 'programado'
+        ? `¿Emitir CFDI por adelantado para «${p.concept}»? El pago quedará marcado como facturado; cuando recibas el depósito podrás registrarlo y conciliarlo.`
+        : `¿Emitir CFDI para «${p.concept}»? El cliente debe tener RFC, código postal y régimen fiscal capturados.`;
+    if (! confirm(msg)) return;
     router.post(route('invoices.issueForPayment', p.id), {}, { preserveScroll: true });
 };
+
+// Solicitud de pago / recibo (PDF en la moneda original del pago).
+const paymentReceiptUrl = (p) => route('payments.receipt', p.id);
 </script>
 
 <template>
@@ -218,7 +236,9 @@ const issueInvoice = (p) => {
                                             <button v-if="p.status === 'programado'"
                                                 @click="openSettle(p)"
                                                 class="text-emerald-700 hover:underline text-xs font-semibold">Cobrar</button>
-                                            <button v-if="(p.status === 'registrado' || p.status === 'conciliado') && !invoiceByPaymentId[p.id]"
+                                            <a :href="paymentReceiptUrl(p)" target="_blank"
+                                                class="text-amber-700 hover:underline text-xs font-semibold">Solicitud / Recibo</a>
+                                            <button v-if="canInvoice(p) && !invoiceByPaymentId[p.id]"
                                                 @click="issueInvoice(p)"
                                                 class="text-purple-700 hover:underline text-xs font-semibold">Facturar</button>
                                             <a v-if="p.evidence_file_path"

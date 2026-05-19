@@ -100,6 +100,7 @@ Route::middleware('auth')->group(function () {
     Route::post('payments',                 [\App\Http\Controllers\PaymentController::class, 'store'])->name('payments.store');
     Route::post('payments/{payment}/settle',[\App\Http\Controllers\PaymentController::class, 'settle'])->name('payments.settle');
     Route::post('payments/{payment}/cancel',[\App\Http\Controllers\PaymentController::class, 'cancel'])->name('payments.cancel');
+    Route::get('payments/{payment}/receipt',[\App\Http\Controllers\PaymentController::class, 'receipt'])->name('payments.receipt');
 
     // Renovaciones de contratos
     Route::get('contracts',                                [\App\Http\Controllers\ContractController::class, 'index'])->name('contracts.index');

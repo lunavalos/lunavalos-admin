@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { ref, computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -12,7 +13,8 @@ const props = defineProps({
 const tab = ref(props.filters.tab || 'pendientes');
 const q   = ref(props.filters.q   || '');
 
-const fmtMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n || 0));
+const { fmt: _fmtMoney } = useMoney();
+const fmtMoney = (n, c) => _fmtMoney(n, c);
 
 const tabs = [
     { key: 'pendientes', label: 'Pendientes' },

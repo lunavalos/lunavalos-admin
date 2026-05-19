@@ -49,7 +49,7 @@
     <div style="background-color: #f7f9fd; border-left: 4px solid #264ab3; padding: 15px; margin: 20px 0;">
         <p style="margin: 0; font-size: 16px;">
             <strong>Servicio:</strong> {{ $serviceName }}<br>
-            <strong>Monto a Pagar:</strong> ${{ number_format($amount, 2) }} MXN<br>
+            <strong>Monto a Pagar:</strong> @money($amount, $currency ?? ($client->currency ?? config('currencies.default')))<br>
             <strong>Fecha de Vencimiento:</strong> {{ \Carbon\Carbon::parse($client->next_renewal_date)->format('d/m/Y') }}
         </p>
     </div>

@@ -7,6 +7,7 @@ use App\Http\Requests\StorePaymentRequest;
 use App\Models\Client;
 use App\Models\ClientPayment;
 use App\Models\Contract;
+use App\Support\Money\CurrencyService;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -63,6 +64,8 @@ class PaymentController extends Controller implements HasMiddleware
                 'id'                  => $c->id,
                 'contract_number'     => $c->contract_number,
                 'status'              => $c->status,
+                'currency'            => $c->currency ?? config('currencies.default'),
+                'exchange_rate'       => (float) ($c->exchange_rate ?? 1),
                 'client'              => $c->client ? [
                     'id'            => $c->client->id,
                     'business_name' => $c->client->business_name,
@@ -87,18 +90,47 @@ class PaymentController extends Controller implements HasMiddleware
         };
 
         // KPIs globales (de toda la cartera, no del tab).
+        // Multi-moneda: agrupamos por moneda y además entregamos un total
+        // normalizado a la moneda base usando el exchange_rate snapshot de
+        // cada contrato. NUNCA sumes amount entre divisas sin convertir.
         $totals = Contract::query()
             ->withSum([
                 'payments as collected_amount' => fn ($q) => $q->whereIn('status', ['registrado', 'conciliado', 'facturado']),
             ], 'amount')
-            ->get(['id', 'total_amount']);
+            ->get(['id', 'total_amount', 'currency', 'exchange_rate']);
+
+        $base = config('currencies.base', 'MXN');
+        $byCurrency = [];
+        foreach ($totals as $c) {
+            $cur = $c->currency ?? $base;
+            $byCurrency[$cur] ??= ['currency' => $cur, 'expected' => 0.0, 'collected' => 0.0, 'pending' => 0.0, 'count' => 0];
+            $expected  = (float) ($c->total_amount ?? 0);
+            $collected = (float) ($c->collected_amount ?? 0);
+            $byCurrency[$cur]['expected']  += $expected;
+            $byCurrency[$cur]['collected'] += $collected;
+            $byCurrency[$cur]['pending']   += max(0, $expected - $collected);
+            $byCurrency[$cur]['count']     += 1;
+        }
+        // Total normalizado a base
+        $expectedBase = $collectedBase = 0.0;
+        foreach ($totals as $c) {
+            $rate = (float) ($c->exchange_rate ?: 1);
+            $expectedBase  += (float) ($c->total_amount ?? 0) * $rate;
+            $collectedBase += (float) ($c->collected_amount ?? 0) * $rate;
+        }
 
         $kpis = [
-            'contracts_count' => $totals->count(),
-            'expected_total'  => (float) $totals->sum('total_amount'),
-            'collected_total' => (float) $totals->sum(fn ($c) => (float) ($c->collected_amount ?? 0)),
+            'contracts_count'           => $totals->count(),
+            'base_currency'             => $base,
+            'expected_total_base'       => round($expectedBase, 2),
+            'collected_total_base'      => round($collectedBase, 2),
+            'pending_total_base'        => round(max(0, $expectedBase - $collectedBase), 2),
+            'by_currency'               => array_values($byCurrency),
+            // Retro-compat con la UI actual (asume MXN). DEPRECATED.
+            'expected_total'            => round($expectedBase, 2),
+            'collected_total'           => round($collectedBase, 2),
         ];
-        $kpis['pending_total'] = max(0, $kpis['expected_total'] - $kpis['collected_total']);
+        $kpis['pending_total'] = $kpis['pending_total_base'];
 
         return Inertia::render('Payments/Index', [
             'contracts' => $contracts,
@@ -136,6 +168,8 @@ class PaymentController extends Controller implements HasMiddleware
                 'id'              => $contract->id,
                 'contract_number' => $contract->contract_number,
                 'status'          => $contract->status,
+                'currency'        => $contract->currency ?? config('currencies.default'),
+                'exchange_rate'   => (float) ($contract->exchange_rate ?? 1),
                 'start_date'      => optional($contract->start_date)->toDateString(),
                 'end_date'        => optional($contract->end_date)->toDateString(),
                 'total_amount'    => $total,
@@ -157,13 +191,23 @@ class PaymentController extends Controller implements HasMiddleware
         ]);
     }
 
-    public function store(StorePaymentRequest $request)
+    public function store(StorePaymentRequest $request, CurrencyService $fx)
     {
         $data = $request->validated();
 
+        // Inferir moneda del contrato si no se mandó; sino, validador ya forzó
+        // que coincidan. Snapshot FX al día del pago para reportes consolidados.
+        $contract = $data['contract_id'] ? Contract::find($data['contract_id']) : null;
+        $currency = strtoupper($data['currency']
+            ?? ($contract?->currency)
+            ?? config('currencies.default'));
+        $data['currency']      = $currency;
+        $data['exchange_rate'] = $contract && $contract->currency === $currency
+            ? ($contract->exchange_rate ?: 1)
+            : $fx->snapshotRate($currency, $data['paid_at'] ?? null);
+
         $data['registered_by_user_id'] = $request->user()->id;
         $data['status']  = 'registrado';
-        $data['currency'] = $data['currency'] ?? 'MXN';
 
         if ($request->hasFile('evidence_file')) {
             $data['evidence_file_path'] = $request->file('evidence_file')
@@ -177,16 +221,22 @@ class PaymentController extends Controller implements HasMiddleware
     }
 
     /**
-     * Marca como pagada una mensualidad programada (status='programado').
+     * Marca como pagada una mensualidad programada (status='programado') o
+     * una mensualidad facturada por adelantado (status='facturado'). En el
+     * segundo caso el CFDI ya existe y sólo registramos el cobro/conciliación.
      */
     public function settle(SettlePaymentRequest $request, ClientPayment $payment)
     {
-        if ($payment->status !== 'programado') {
-            return back()->withErrors(['payment' => 'Solo se pueden cobrar pagos programados.']);
+        if (! in_array($payment->status, ['programado', 'facturado'], true)) {
+            return back()->withErrors(['payment' => 'Solo se pueden cobrar pagos programados o facturados por adelantado.']);
         }
 
+        // Si ya estaba facturado, lo dejamos como conciliado (CFDI + pago);
+        // si era programado, queda como registrado para timbrar después.
+        $nextStatus = $payment->status === 'facturado' ? 'conciliado' : 'registrado';
+
         $payload = [
-            'status'                => 'registrado',
+            'status'                => $nextStatus,
             'paid_at'               => $request->paid_at,
             'payment_method'        => $request->payment_method,
             'reference'             => $request->reference,
@@ -220,5 +270,43 @@ class PaymentController extends Controller implements HasMiddleware
         ]);
 
         return back()->with('success', 'Pago cancelado.');
+    }
+
+    /**
+     * Genera el PDF de solicitud de pago / recibo para un ClientPayment.
+     * Funciona en cualquier moneda (incluye USD) y para pagos programados
+     * (aún no cobrados) — sirve como "factura proforma" o solicitud de cobro.
+     */
+    public function receipt(ClientPayment $payment)
+    {
+        $payment->loadMissing('client', 'contract');
+
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            abort(500, 'DomPDF no está instalado.');
+        }
+
+        $client = $payment->client;
+        if (! $client) {
+            abort(404, 'Pago sin cliente asociado.');
+        }
+
+        $client->next_renewal_date = $payment->due_date ?? $payment->paid_at ?? now()->toDateString();
+
+        $receiptData = [
+            'client'              => $client,
+            'service_name'        => $payment->concept ?: ('Pago contrato ' . ($payment->contract?->contract_number ?? '')),
+            'amount'              => (float) $payment->amount,
+            'billing_type'        => $payment->type,
+            'service_description' => $payment->reference ? 'Referencia: ' . $payment->reference : null,
+            'currency'            => strtoupper($payment->currency ?: ($client->currency ?? config('currencies.default', 'MXN'))),
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.receipt', $receiptData)
+            ->setPaper('letter', 'portrait');
+
+        $filename = 'solicitud-pago-' . str_replace(' ', '-', strtolower($client->business_name ?? 'cliente'))
+                  . '-' . $payment->id . '.pdf';
+
+        return $pdf->stream($filename);
     }
 }

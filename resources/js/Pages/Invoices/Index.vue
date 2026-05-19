@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -14,7 +15,8 @@ const filterForm = ref({
     q:      props.filters.q      ?? '',
 });
 
-const fmtMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n || 0));
+const { fmt: _fmtMoney } = useMoney();
+const fmtMoney = (n, c) => _fmtMoney(n, c);
 const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('es-MX') : '—';
 
 const apply = () => router.get(route('invoices.index'), filterForm.value, { preserveScroll: true, preserveState: true });

@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { computed, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -14,7 +15,8 @@ const props = defineProps({
     canConvert: { type: Boolean, default: false },
 });
 
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const { fmt: _fmt } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
 const pct = (n) => `${Number(n || 0).toFixed(2)}%`;
 
 const statusColor = computed(() => ({
@@ -46,25 +48,73 @@ const showConvert = ref(false);
 const planMonths = computed(() => Math.max(1, Number(props.quote.package_payment_plan_months) || 1));
 const total = computed(() => Number(props.quote.total) || 0);
 
+// Buckets por tipo de cobro (vienen como appends del modelo Quote).
+const totalUnique  = computed(() => Number(props.quote.total_unique)  || 0);
+const totalMonthly = computed(() => Number(props.quote.total_monthly) || 0);
+const totalAnnual  = computed(() => Number(props.quote.total_annual)  || 0);
+
 /**
- * Si el plan es a N>1 meses, el anticipo sugerido es 1 mensualidad (total / N).
- * Si es a 1 mes, se sugiere el total completo.
- * Si la cotización no tiene plan de meses (legacy), cae al porcentaje configurado.
+ * Tipo de cobro dominante del contrato.
+ * 1) Del paquete (si viene cargado).
+ * 2) Inferido del mix de items: monthly > annual > unique.
+ */
+const packageBilling = computed(() => {
+    const fromPackage = props.quote.package?.billing_type;
+    if (fromPackage) return fromPackage;
+    if (totalMonthly.value > 0) return 'monthly';
+    if (totalAnnual.value  > 0) return 'annual';
+    return 'unique';
+});
+
+/**
+ * Anticipo sugerido SEGÚN el tipo de cobro:
+ *   - monthly: 1 mes (total_monthly o total/N como fallback)
+ *   - annual:  1 año (total_annual o total)
+ *   - unique:  total/N si hay plan a meses, total si N=1, o porcentaje configurado.
  */
 const suggestedAnticipo = computed(() => {
+    const round2 = (n) => Math.round(n * 100) / 100;
+
+    if (packageBilling.value === 'monthly') {
+        return round2(totalMonthly.value > 0 ? totalMonthly.value : total.value / planMonths.value);
+    }
+    if (packageBilling.value === 'annual') {
+        return round2(totalAnnual.value > 0 ? totalAnnual.value : total.value);
+    }
+    // unique / fallback histórico
     if (planMonths.value > 1) {
-        return Math.round((total.value / planMonths.value) * 100) / 100;
+        return round2(total.value / planMonths.value);
     }
     if (planMonths.value === 1) {
         return total.value;
     }
-    return Math.round(((total.value * props.downPaymentPercent) / 100) * 100) / 100;
+    return round2((total.value * props.downPaymentPercent) / 100);
 });
 
-const remainingInstallments = computed(() => Math.max(0, planMonths.value - 1));
+// Cuántas cuotas adicionales se programarán y por cuánto.
+const remainingInstallments = computed(() => {
+    if (packageBilling.value === 'annual') {
+        return Math.max(0, Math.floor(planMonths.value / 12) - 1);
+    }
+    return Math.max(0, planMonths.value - 1);
+});
 const remainingPerMonth = computed(() => {
     if (remainingInstallments.value === 0) return 0;
-    const bal = Math.max(0, total.value - Number(convertForm?.anticipo_amount || suggestedAnticipo.value));
+    const anticipo = Number(convertForm?.anticipo_amount || suggestedAnticipo.value);
+
+    if (packageBilling.value === 'monthly') {
+        // La cuota recurrente es el monto mensual; el remanente del componente
+        // único se distribuye entre las cuotas restantes.
+        const recurring = totalMonthly.value > 0 ? totalMonthly.value : total.value / planMonths.value;
+        const excess = Math.max(0, anticipo - recurring);
+        const uniqueRemainder = Math.max(0, totalUnique.value - excess);
+        return Math.round((recurring + uniqueRemainder / remainingInstallments.value) * 100) / 100;
+    }
+    if (packageBilling.value === 'annual') {
+        const bal = Math.max(0, total.value - anticipo);
+        return Math.round((bal / remainingInstallments.value) * 100) / 100;
+    }
+    const bal = Math.max(0, total.value - anticipo);
     return Math.round((bal / remainingInstallments.value) * 100) / 100;
 });
 
@@ -346,10 +396,24 @@ const submitConvert = () => {
                             Primer pago / Anticipo
                         </h4>
                         <p class="text-xs text-emerald-900/80 dark:text-emerald-300/80 mb-3">
-                            <template v-if="planMonths > 1">
-                                Plan a <strong>{{ planMonths }} mensualidades</strong> de <strong>{{ fmt(total / planMonths) }}</strong> cada una.
+                            <template v-if="packageBilling === 'monthly'">
+                                Plan <strong>mensual</strong> a <strong>{{ planMonths }} meses</strong> de
+                                <strong>{{ fmt(totalMonthly || total / planMonths) }}</strong> cada mes.
                                 Este pago cuenta como la <strong>mensualidad 1 de {{ planMonths }}</strong>.
-                                Se programarán automáticamente {{ remainingInstallments }} cuotas restantes de {{ fmt(remainingPerMonth) }}.
+                                Se programarán automáticamente {{ remainingInstallments }} cuotas mensuales restantes de {{ fmt(remainingPerMonth) }}.
+                            </template>
+                            <template v-else-if="packageBilling === 'annual'">
+                                Plan <strong>anual</strong> por <strong>{{ fmt(totalAnnual || total) }}</strong> al año.
+                                Este pago cuenta como el <strong>año 1</strong>.
+                                <template v-if="remainingInstallments > 0">
+                                    Se programarán {{ remainingInstallments }} cuota(s) anual(es) restantes de {{ fmt(remainingPerMonth) }}.
+                                </template>
+                            </template>
+                            <template v-else-if="planMonths > 1">
+                                Pago único de <strong>{{ fmt(total) }}</strong> diferido a
+                                <strong>{{ planMonths }} mensualidades</strong>. Este pago cuenta como la
+                                <strong>mensualidad 1 de {{ planMonths }}</strong>. Se programarán
+                                {{ remainingInstallments }} cuotas restantes de {{ fmt(remainingPerMonth) }}.
                             </template>
                             <template v-else>
                                 Cotización a un solo pago: monto total {{ fmt(total) }}.

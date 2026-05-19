@@ -40,6 +40,9 @@ class StoreQuoteWizardRequest extends FormRequest
             'include_payment_terms'        => ['boolean'],
             'status'                       => ['nullable', Rule::in($statuses)],
 
+            // Moneda de la cotización (la conversión por línea se hace en el controller).
+            'currency'                     => ['nullable', 'string', 'size:3', Rule::in(array_keys((array) config('currencies.supported', [])))],
+
             // Snapshot fiscal (opcionalmente heredado del cliente).
             'tax_regime'                   => ['nullable', Rule::in(array_keys(config('sat.tax_regimes')))],
             'applies_iva'                  => ['boolean'],

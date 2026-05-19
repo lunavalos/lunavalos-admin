@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -9,7 +10,8 @@ const props = defineProps({
     kpis:      { type: Object, default: () => ({}) },
 });
 
-const fmtMoney = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n || 0));
+const { fmt: _fmtMoney } = useMoney();
+const fmtMoney = (n, c) => _fmtMoney(n, c);
 const fmtDate  = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('es-MX') : '—';
 
 const statusColors = {

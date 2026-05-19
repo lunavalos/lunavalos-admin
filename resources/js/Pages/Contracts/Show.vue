@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { ref, computed } from 'vue';
 import ContractBody from '@/Components/ContractBody.vue';
 import { Head, useForm } from '@inertiajs/vue3';
@@ -25,7 +26,8 @@ const form = useForm({
     accept_terms: false,
 });
 
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const { fmt: _fmt } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
 const fmtDate = (d) => {
     if (!d) return '—';
     const part = String(d).split('T')[0].split(' ')[0]; // handles both 'YYYY-MM-DD' and 'YYYY-MM-DD HH:MM:SS'

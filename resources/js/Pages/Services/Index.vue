@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
@@ -12,12 +13,8 @@ const form = useForm({});
 const page = usePage();
 const flashMessage = computed(() => page.props.flash?.message);
 
-const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN'
-    }).format(value);
-};
+const { fmt: _formatCurrency } = useMoney();
+const formatCurrency = (value, currency) => _formatCurrency(value, currency);
 
 const calculateProfit = (service) => {
     const totalCosts = service.costs ? service.costs.reduce((sum, c) => sum + (Number(c.price) * Number(c.quantity)), 0) : 0;

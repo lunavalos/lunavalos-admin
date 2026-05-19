@@ -12,6 +12,7 @@ class Service extends Model
         'description',
         'price',
         'renewal_price',
+        'currency',
         'billing_type',
         'is_package',
         'required_addon_category',

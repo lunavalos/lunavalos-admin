@@ -30,6 +30,7 @@ class QuoteManagementController extends Controller implements HasMiddleware
         $quote->load([
             'addons.serviceAddon',
             'items',
+            'package',
             'contract.payments' => function ($q) {
                 $q->orderByRaw('COALESCE(paid_at, due_date) ASC');
             },

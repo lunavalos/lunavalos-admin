@@ -33,6 +33,8 @@ class Contract extends Model
         'payment_plan_months',
         'subtotal',
         'discount_amount',
+        'currency',
+        'exchange_rate',
         'iva_amount',
         'retentions_total',
         'total_amount',
@@ -59,6 +61,7 @@ class Contract extends Model
         'total_amount'        => 'decimal:2',
         'monthly_amount'      => 'decimal:2',
         'anticipo_amount'     => 'decimal:2',
+        'exchange_rate'       => 'decimal:8',
         'renewal_last_notified_at'  => 'datetime',
         'renewal_notifications_sent' => 'array',
     ];

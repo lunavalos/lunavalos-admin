@@ -1,4 +1,5 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -9,7 +10,25 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:modelValue', 'next']);
 
-const fmt = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(n) || 0);
+const { fmt: _fmt, convert, options: currencyOptions, defaultCurrency, hasRate } = useMoney();
+const fmt = (n, c) => _fmt(n, c);
+
+// Moneda activa de la cotización (la del modelValue).
+const quoteCurrency = computed(() => (props.modelValue.currency || defaultCurrency.value || 'MXN').toUpperCase());
+
+// Devuelve la moneda nativa del servicio (default MXN si el catálogo es viejo).
+const svcCurrency = (svc) => (svc?.currency || 'MXN').toUpperCase();
+
+// Devuelve el precio convertido a la moneda de la cotización (o null si falta tasa).
+const convertedPrice = (svc) => {
+    const f = svcCurrency(svc);
+    if (f === quoteCurrency.value) return null;
+    return convert(Number(svc.price || 0), f, quoteCurrency.value);
+};
+
+const setCurrency = (cur) => {
+    emit('update:modelValue', { ...props.modelValue, currency: cur });
+};
 
 const packages = computed(() => props.services.filter(s => s.is_package));
 const others = computed(() => props.services.filter(s => !s.is_package));
@@ -43,6 +62,21 @@ const setMonths = (v) => {
 <template>
     <div class="space-y-6">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">1. Selecciona el paquete o servicio</h3>
+
+        <!-- Selector global de moneda de la cotización -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/60">
+            <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">Moneda de la cotización</label>
+            <select
+                :value="quoteCurrency"
+                @change="setCurrency($event.target.value)"
+                class="border-gray-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-950"
+            >
+                <option v-for="opt in currencyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
+            <p class="text-xs text-gray-500 dark:text-zinc-400">
+                Los servicios y addons en otra moneda se convertirán automáticamente a {{ quoteCurrency }} usando la tasa Banxico más reciente.
+            </p>
+        </div>
 
         <div v-if="packages.length === 0" class="p-4 rounded bg-yellow-50 text-yellow-800 text-sm">
             No hay servicios marcados como paquete. Marca un servicio con <code>is_package</code> para mostrarlo aquí.
@@ -83,7 +117,15 @@ const setMonths = (v) => {
                 </ul>
 
                 <div class="mt-4 flex items-end justify-between gap-2">
-                    <div class="text-lg font-bold text-primary">{{ fmt(svc.price) }}</div>
+                    <div>
+                        <div class="text-lg font-bold text-primary">{{ fmt(svc.price, svcCurrency(svc)) }}</div>
+                        <div v-if="convertedPrice(svc) !== null" class="text-[11px] text-gray-500 dark:text-zinc-400">
+                            ≈ {{ fmt(convertedPrice(svc), quoteCurrency) }}
+                        </div>
+                        <div v-else-if="svcCurrency(svc) !== quoteCurrency && !hasRate(svcCurrency(svc))" class="text-[10px] text-amber-600">
+                            Sin tasa para {{ svcCurrency(svc) }} → {{ quoteCurrency }}
+                        </div>
+                    </div>
                     <div v-if="requiredCategoriesOf(svc).length" class="text-right">
                         <div class="text-[9px] uppercase font-bold text-amber-700">Requiere addon de:</div>
                         <div class="text-[10px] text-amber-600 font-semibold">

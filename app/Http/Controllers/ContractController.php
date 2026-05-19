@@ -38,14 +38,44 @@ class ContractController extends Controller
 
         $contracts = $query->get();
 
-        // KPIs
+        // ---------- KPIs multi-moneda ----------
+        // Estrategia: agrupamos por moneda (vista fiel del negocio) y además
+        // calculamos un total NORMALIZADO a la moneda base usando el
+        // exchange_rate snapshot guardado en cada contrato. Esto evita el
+        // error clásico de sumar MXN+USD como si fueran la misma cifra.
+        $base = config('currencies.base', 'MXN');
         $signed   = $contracts->where('status', 'signed');
         $pending  = $contracts->where('status', 'pending');
-        $totalSigned    = $signed->sum(fn ($c) => (float) $c->total_amount);
-        $totalPending   = $pending->sum(fn ($c) => (float) $c->total_amount);
-        $mrr = $signed
-            ->filter(fn ($c) => ! in_array($c->renewal_status, ['renewed', 'declined']))
-            ->sum(fn ($c) => (float) $c->monthly_amount);
+
+        $groupTotals = function ($collection, string $field) use ($base) {
+            $by = [];
+            foreach ($collection as $c) {
+                $cur = $c->currency ?? $base;
+                $by[$cur] ??= 0.0;
+                $by[$cur] += (float) ($c->{$field} ?? 0);
+            }
+            return $by;
+        };
+        $normalizeToBase = function ($collection, string $field) {
+            return (float) $collection->sum(fn ($c) => (float) ($c->{$field} ?? 0) * (float) ($c->exchange_rate ?: 1));
+        };
+
+        $mrrSigned = $signed->filter(fn ($c) => ! in_array($c->renewal_status, ['renewed', 'declined']));
+
+        $kpis = [
+            'base_currency'              => $base,
+            'total_signed_amount_base'   => round($normalizeToBase($signed, 'total_amount'), 2),
+            'total_pending_amount_base'  => round($normalizeToBase($pending, 'total_amount'), 2),
+            'mrr_base'                   => round($normalizeToBase($mrrSigned, 'monthly_amount'), 2),
+            'total_signed_by_currency'   => $groupTotals($signed, 'total_amount'),
+            'total_pending_by_currency'  => $groupTotals($pending, 'total_amount'),
+            'mrr_by_currency'            => $groupTotals($mrrSigned, 'monthly_amount'),
+            // Retro-compat con la UI actual (asume MXN). DEPRECATED.
+            'total_signed_amount'        => round($normalizeToBase($signed, 'total_amount'), 2),
+            'total_pending_amount'       => round($normalizeToBase($pending, 'total_amount'), 2),
+            'mrr'                        => round($normalizeToBase($mrrSigned, 'monthly_amount'), 2),
+        ];
+
         $upcoming90 = $signed->filter(function ($c) {
             if (! $c->end_date) return false;
             $days = now()->startOfDay()->diffInDays($c->end_date->startOfDay(), false);
@@ -56,19 +86,18 @@ class ContractController extends Controller
             return $c->end_date->isPast() && ! in_array($c->renewal_status, ['renewed', 'declined']);
         })->count();
 
+        $kpis = array_merge($kpis, [
+            'upcoming_90d'  => $upcoming90,
+            'overdue'       => $overdue,
+            'count_total'   => $contracts->count(),
+            'count_signed'  => $signed->count(),
+            'count_pending' => $pending->count(),
+        ]);
+
         return Inertia::render('Contracts/Index', [
             'contracts' => $contracts,
             'filters'   => $request->only(['status', 'renewal_status', 'search', 'client_id']),
-            'kpis'      => [
-                'total_signed_amount'  => $totalSigned,
-                'total_pending_amount' => $totalPending,
-                'mrr'                  => $mrr,
-                'upcoming_90d'         => $upcoming90,
-                'overdue'              => $overdue,
-                'count_total'          => $contracts->count(),
-                'count_signed'         => $signed->count(),
-                'count_pending'        => $pending->count(),
-            ],
+            'kpis'      => $kpis,
         ]);
     }
 

@@ -1,4 +1,6 @@
 <script setup>
+import { useMoney } from '@/Composables/useMoney';
+const { fmt: _fmt } = useMoney();
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
@@ -118,7 +120,7 @@ const groupedRenewals = computed(() => {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const formatCurrency = (amount) => {
     if (!amount) return '$0.00';
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+    return _fmt(amount);
 };
 
 const formatDate = (dateString) => {

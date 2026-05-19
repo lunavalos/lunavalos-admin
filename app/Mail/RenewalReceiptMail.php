@@ -19,17 +19,19 @@ class RenewalReceiptMail extends Mailable
     public $amount;
     public $billingType;
     public $pdfContent;
+    public $currency;
 
     /**
      * Create a new message instance.
      */
-    public function __construct($client, $serviceName, $amount, $billingType, $pdfContent)
+    public function __construct($client, $serviceName, $amount, $billingType, $pdfContent, $currency = null)
     {
         $this->client = $client;
         $this->serviceName = $serviceName;
         $this->amount = $amount;
         $this->billingType = $billingType;
         $this->pdfContent = $pdfContent;
+        $this->currency = strtoupper((string) ($currency ?: ($client->currency ?? config('currencies.default', 'MXN'))));
     }
 
     /**
