@@ -16,7 +16,7 @@ class ContractController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Contract::with(['client:id,name,email', 'quote:id,client_id,billing_type', 'payments:id,contract_id,amount,status'])
+        $query = Contract::with(['client:id,name,email', 'quote:id,client_id', 'payments:id,contract_id,amount,status'])
             ->orderByDesc('created_at');
 
         if ($status = $request->input('status')) {
@@ -179,7 +179,7 @@ class ContractController extends Controller
     public function adminShow(Contract $contract)    {
         $contract->load([
             'client:id,name,email',
-            'quote:id,client_name,contact_name,email,phone,status,total,billing_type,issue_date',
+            'quote:id,client_name,contact_name,email,phone,status,total,issue_date',
             'payments' => fn ($q) => $q->orderBy('due_date')->orderBy('created_at'),
             'createdBy:id,name',
             'renewedContract:id,contract_number',
