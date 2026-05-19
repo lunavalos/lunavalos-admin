@@ -338,6 +338,16 @@ class ConvertQuoteToContract
             return;
         }
 
+        // Si la cotización aplicó IVA/retenciones, las cuotas de renovación
+        // deben reflejar el mismo factor fiscal (la renovación se factura
+        // bajo el mismo régimen). factor = total / subtotal de la cotización.
+        $subtotal = (float) ($quote->subtotal ?? 0);
+        $totalWithTax = (float) ($quote->total ?? 0);
+        if ($subtotal > 0 && $totalWithTax > 0) {
+            $taxFactor = $totalWithTax / $subtotal;
+            $perYear = round($perYear * $taxFactor, 2);
+        }
+
         // Años ya cubiertos por el cronograma principal:
         //   - annual:  payment_plan_months / 12
         //   - resto:   1 (año 1 vía anticipo + plan mensual o pago único)

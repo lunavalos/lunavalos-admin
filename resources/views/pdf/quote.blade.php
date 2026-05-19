@@ -6,13 +6,13 @@
     <title>Cotización #{{ $quote->id }}</title>
     <style>
         @page {
-            margin: 140px 0px 50px 0px;
+            margin: 110px 0px 40px 0px;
         }
 
         body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             color: #333;
-            font-size: 14px;
+            font-size: 12px;
             margin: 0;
             padding: 0;
             background-color: #ffffff;
@@ -21,13 +21,13 @@
         /* HEADER BANNER */
         .header {
             position: fixed;
-            top: -140px;
+            top: -110px;
             left: 0px;
             right: 0px;
             background-color: #193074;
             color: #ffffff;
-            padding: 20px 40px;
-            height: 70px;
+            padding: 14px 32px;
+            height: 60px;
             z-index: 1000;
         }
 
@@ -41,39 +41,39 @@
         }
 
         .logo-container img {
-            height: 55px;
+            height: 46px;
         }
 
         .year {
-            font-size: 48px;
+            font-size: 38px;
             font-weight: bold;
             text-align: right;
         }
 
         /* CONTENT WRAPPER */
         .content {
-            padding: 40px;
+            padding: 24px 32px;
         }
 
         /* INFO SECTION */
         .info-table {
             width: 100%;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             border-collapse: collapse;
         }
 
         .info-table td {
-            padding: 8px 0;
+            padding: 5px 0;
             border-bottom: 1px solid #eaeaea;
         }
 
         .info-title {
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 700;
         }
 
         .info-client {
-            font-size: 16px;
+            font-size: 13px;
         }
 
         .text-right {
@@ -84,13 +84,13 @@
         .quote-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 12px;
         }
 
         .quote-table th {
-            padding: 12px;
+            padding: 7px 8px;
             text-align: center;
-            font-size: 14px;
+            font-size: 12px;
             color: #264ab3;
             border: 1px solid #eaeaea;
             background-color: #f7f9fd;
@@ -101,21 +101,21 @@
         }
 
         .quote-table td {
-            padding: 12px;
+            padding: 6px 8px;
             border: 1px solid #eaeaea;
             vertical-align: top;
         }
 
         .concept-title {
             font-weight: 700;
-            font-size: 14px;
+            font-size: 12px;
             color: #111;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .concept-desc {
             font-style: italic;
-            font-size: 12px;
+            font-size: 11px;
             color: #777;
         }
 
@@ -157,7 +157,7 @@
         }
 
         .totals-table td {
-            padding: 12px;
+            padding: 6px 10px;
             border: 1px solid #eaeaea;
         }
 
@@ -174,26 +174,26 @@
             font-weight: bold;
             color: #16a34a;
             width: 20%;
-            font-size: 16px;
+            font-size: 13px;
         }
 
         .notes-section {
-            margin-top: 30px;
+            margin-top: 16px;
             color: #555;
-            font-size: 12px;
-            line-height: 1.5;
+            font-size: 11px;
+            line-height: 1.35;
         }
         .notes-section h1, .notes-section h2, .notes-section h3 {
             color: #333;
-            margin-bottom: 5px;
-            margin-top: 10px;
+            margin-bottom: 4px;
+            margin-top: 8px;
         }
         .notes-section ul, .notes-section ol {
-            margin-left: 20px;
-            margin-bottom: 10px;
+            margin-left: 18px;
+            margin-bottom: 6px;
         }
         .notes-section li {
-            margin-bottom: 3px;
+            margin-bottom: 2px;
         }
         .notes-section strong {
             color: #333;
@@ -232,10 +232,10 @@
         // Mapeo billing_cycle (addon) → bucket totales/badge.
         $addonBucket = function ($cycle) {
             return match ($cycle) {
-                'monthly'              => 'monthly',
-                'annual', 'semiannual' => 'annual',
-                'unique', 'one_time'   => 'unique',
-                default                => 'monthly',
+                'monthly'                       => 'monthly',
+                'annual', 'semiannual'          => 'annual',
+                'unique', 'one_time', 'once'    => 'unique',
+                default                         => 'monthly',
             };
         };
 
@@ -383,14 +383,38 @@
 
         <!-- Totals Table -->
         @if(!$quote->is_multiple_choice)
+            @php
+                $planMonths       = (int) ($quote->package_payment_plan_months ?? 0);
+                // El plan de pagos sólo aplica para financiar paquetes únicos/anuales en cuotas.
+                // Si la cotización ya tiene servicios mensuales recurrentes, NO se divide: se muestra IGUALA MENSUAL.
+                $usePlanSplit     = $planMonths > 1 && $monthlyTotal <= 0;
+                $monthlyPlanNet   = $usePlanSplit ? round(((float) $quote->subtotal) / $planMonths, 2) : 0;
+                $monthlyPlanGross = $usePlanSplit ? round(((float) $quote->total)    / $planMonths, 2) : 0;
+                $hasIvaBreakdown  = $quote->applies_iva && (float) $quote->iva_amount > 0;
+                // Factor para equivalentes "con impuestos" en cifras agregadas.
+                $taxFactor        = ((float) $quote->subtotal) > 0
+                    ? ((float) $quote->total) / ((float) $quote->subtotal)
+                    : 1;
+            @endphp
+
+            {{-- 1) Totales SIN impuestos (flujo natural del cliente). --}}
             <table class="totals-table">
-                @if($monthlyTotal > 0)
+                @if($monthlyPlanNet > 0)
                     <tr>
-                        <td class="totals-label">INVERSIÓN MENSUAL</td>
+                        <td class="totals-label">INVERSI&Oacute;N MENSUAL
+                            <span style="font-weight:normal; font-size:10px;">(plan a {{ $planMonths }} meses)</span>
+                        </td>
+                        <td class="totals-value">@money($monthlyPlanNet, $qcur)</td>
+                    </tr>
+                @elseif($monthlyTotal > 0)
+                    <tr>
+                        <td class="totals-label">IGUALA MENSUAL
+                            <span style="font-weight:normal; font-size:10px;">(servicios recurrentes)</span>
+                        </td>
                         <td class="totals-value">@money($monthlyTotal, $qcur)</td>
                     </tr>
                 @endif
-    
+
                 @if($annualTotal > 0)
                     <tr>
                         <td class="totals-label">TOTAL PAGO ANUAL <span style="font-weight:normal; font-size:10px;">(renovaciones)</span></td>
@@ -407,14 +431,14 @@
                         </tr>
                     @endif
                 @endif
-    
+
                 @if($uniqueTotal > 0)
                     <tr>
                         <td class="totals-label">TOTAL PAGO &Uacute;NICO <span style="font-weight:normal; font-size:10px;">(un solo pago)</span></td>
                         <td class="totals-value">@money($uniqueTotal, $qcur)</td>
                     </tr>
                 @endif
-    
+
                 @if($uniqueTotal <= 0 && $monthlyTotal <= 0 && $annualTotal <= 0)
                     <tr>
                         <td class="totals-label">TOTAL</td>
@@ -429,8 +453,9 @@
                 || ((float)($quote->subtotal ?? 0) > 0);
         @endphp
 
+        {{-- 2) Desglose fiscal: SUBTOTAL → IVA/retenciones → TOTAL A PAGAR. --}}
         @if(!$quote->is_multiple_choice && !$quote->legacy && $hasTaxSnapshot)
-            <table class="totals-table" style="margin-top: 20px;">
+            <table class="totals-table" style="margin-top: 14px;">
                 <tr>
                     <td class="totals-label" style="background-color:#eff3f9; color:#264ab3;">SUBTOTAL</td>
                     <td class="totals-value" style="color:#111;">@money($quote->subtotal, $qcur)</td>
@@ -460,18 +485,60 @@
                     </tr>
                 @endif
                 <tr>
-                    <td class="totals-label" style="background-color:#ecfdf5; color:#065f46; font-size:15px;">TOTAL A PAGAR</td>
-                    <td class="totals-value" style="color:#16a34a; font-size:18px;">@money($quote->total, $qcur)</td>
+                    <td class="totals-label" style="background-color:#ecfdf5; color:#065f46; font-size:14px;">TOTAL A PAGAR</td>
+                    <td class="totals-value" style="color:#16a34a; font-size:15px;">@money($quote->total, $qcur)</td>
                 </tr>
                 @if($quote->tax_regime)
                     @php $regimes = config('sat.tax_regimes'); $regLabel = $regimes[$quote->tax_regime]['label'] ?? null; @endphp
                     <tr>
-                        <td colspan="2" style="font-size:11px; color:#555; background-color:#fafafa; text-align:right;">
+                        <td colspan="2" style="font-size:10px; color:#555; background-color:#fafafa; text-align:right;">
                             Régimen fiscal: <strong>{{ $quote->tax_regime }}</strong>@if($regLabel) · {{ $regLabel }}@endif
                         </td>
                     </tr>
                 @endif
             </table>
+
+            {{-- 3) Equivalentes CON impuestos (sólo si aplica IVA). --}}
+            @if(!$quote->is_multiple_choice && $hasIvaBreakdown && ($monthlyPlanGross > 0 || $monthlyTotal > 0 || $annualTotal > 0 || $uniqueTotal > 0))
+                <table class="totals-table" style="margin-top: 14px;">
+                    <tr>
+                        <td colspan="2" style="background-color:#fffbeb; color:#92400e; font-size:11px; padding:6px 10px; text-align:right;">
+                            <strong>Equivalente con impuestos</strong>
+                        </td>
+                    </tr>
+                    @if($monthlyPlanGross > 0)
+                        <tr>
+                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">INVERSI&Oacute;N MENSUAL
+                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
+                            </td>
+                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money($monthlyPlanGross, $qcur)</td>
+                        </tr>
+                    @elseif($monthlyTotal > 0)
+                        <tr>
+                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">IGUALA MENSUAL
+                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
+                            </td>
+                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money(round($monthlyTotal * $taxFactor, 2), $qcur)</td>
+                        </tr>
+                    @endif
+                    @if($annualTotal > 0)
+                        <tr>
+                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">TOTAL PAGO ANUAL
+                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
+                            </td>
+                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money(round($annualTotal * $taxFactor, 2), $qcur)</td>
+                        </tr>
+                    @endif
+                    {{-- @if($uniqueTotal > 0)
+                        <tr>
+                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">TOTAL PAGO &Uacute;NICO
+                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
+                            </td>
+                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money(round($uniqueTotal * $taxFactor, 2), $qcur)</td>
+                        </tr>
+                    @endif --}}
+                </table>
+            @endif
         @endif
 
         <!-- Notes Section underneath -->
