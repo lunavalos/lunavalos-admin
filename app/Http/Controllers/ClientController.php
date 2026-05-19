@@ -139,8 +139,13 @@ class ClientController extends Controller implements HasMiddleware
                 );
 
                 // Ensure Customer Role exists, then assign
-                $role = Role::firstOrCreate(['name' => 'Cliente']);
-                $user->assignRole($role);
+                $role = Role::firstOrCreate([
+                    'name'       => config('roles.client', 'Cliente'),
+                    'guard_name' => 'web',
+                ]);
+                if (!$user->hasRole($role)) {
+                    $user->assignRole($role);
+                }
                 $userId = $user->id;
             }
 
@@ -331,8 +336,13 @@ class ClientController extends Controller implements HasMiddleware
                     'password' => Hash::make(trim($validated['login_password'])),
                 ]
             );
-            $role = Role::firstOrCreate(['name' => 'Cliente']);
-            $user->assignRole($role);
+            $role = Role::firstOrCreate([
+                'name'       => config('roles.client', 'Cliente'),
+                'guard_name' => 'web',
+            ]);
+            if (!$user->hasRole($role)) {
+                $user->assignRole($role);
+            }
             $userId = $user->id;
         }
 
@@ -513,8 +523,13 @@ class ClientController extends Controller implements HasMiddleware
                     'password' => Hash::make(trim($validated['login_password'])),
                 ]
             );
-            $role = Role::firstOrCreate(['name' => 'Cliente']);
-            $user->assignRole($role);
+            $role = Role::firstOrCreate([
+                'name'       => config('roles.client', 'Cliente'),
+                'guard_name' => 'web',
+            ]);
+            if (!$user->hasRole($role)) {
+                $user->assignRole($role);
+            }
             $validated['user_id'] = $user->id;
         }
 

@@ -93,12 +93,23 @@ class ConvertQuoteToContract
 
         if (!$user) {
             $user = User::create([
-                'name' => $quote->contact_name,
-                'email' => $quote->email,
-                'password' => Hash::make(Str::random(12)),
+                'name'      => $quote->contact_name,
+                'email'     => $quote->email,
+                'password'  => Hash::make(Str::random(12)),
                 'client_id' => $client->id,
-                'role' => 'client',
             ]);
+        } elseif (!$user->client_id) {
+            $user->forceFill(['client_id' => $client->id])->save();
+        }
+
+        // Ensure the configured client role is assigned (idempotent).
+        $clientRole = \Spatie\Permission\Models\Role::firstOrCreate([
+            'name'       => config('roles.client', 'Cliente'),
+            'guard_name' => 'web',
+        ]);
+
+        if (!$user->hasRole($clientRole)) {
+            $user->assignRole($clientRole);
         }
 
         return $user;

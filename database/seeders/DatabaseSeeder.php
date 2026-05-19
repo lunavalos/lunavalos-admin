@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $permissions = [
+            'Ver Dashboard',
             'Ver Clientes',
             'Crear Clientes',
             'Editar Clientes',
@@ -83,13 +84,63 @@ class DatabaseSeeder extends Seeder
             'Ver Social',
             'Gestionar Social',
             'Publicar Social',
+            'Ver Tickets',
+            'Crear Tickets',
+            'Editar Tickets',
+            'Eliminar Tickets',
         ];
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
+        // Admin: full access (also reinforced via Gate::before in AppServiceProvider).
         $adminRoleModel = Role::firstOrCreate(['name' => $adminRole, 'guard_name' => 'web']);
-        $adminRoleModel->givePermissionTo($permissions);
+        $adminRoleModel->syncPermissions($permissions);
+
+        // Default permission matrix for non-admin roles. Edit this map (or the
+        // role permissions in the UI) instead of hardcoding role checks in code.
+        $ticketPermissions = [
+            'Ver Tickets',
+            'Crear Tickets',
+            'Editar Tickets',
+            'Eliminar Tickets',
+        ];
+
+        $rolePermissions = [
+            $clientRole => $ticketPermissions,
+            'Web Developer' => array_merge([
+                'Ver Dashboard',
+                'Ver Servicios',
+                'Ver Clientes',
+            ], $ticketPermissions),
+            'Designer' => array_merge([
+                'Ver Dashboard',
+                'Ver Servicios',
+                'Ver Clientes',
+            ], $ticketPermissions),
+            'RRHH' => [
+                'Ver Dashboard',
+                'Ver Roles',
+                'Crear Roles',
+                'Editar Roles',
+                'Eliminar Roles',
+                'Ver Usuarios',
+                'Crear Usuarios',
+                'Editar Usuarios',
+                'Eliminar Usuarios',
+                'Ver RRHH',
+                'Gestionar Empleados',
+                'Gestionar Salarios',
+                'Gestionar Documentos RRHH',
+            ],
+        ];
+
+        foreach ($rolePermissions as $roleName => $perms) {
+            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+            $role->syncPermissions($perms);
+        }
+
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }
