@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
@@ -24,6 +25,18 @@ class AppServiceProvider extends ServiceProvider
     {
         Carbon::setLocale('es');
         Vite::prefetch(concurrency: 3);
+
+        // Super-admin bypass: any user holding the configured admin role
+        // implicitly passes every Gate/policy check. This keeps
+        // authorization permission-driven everywhere else and avoids
+        // sprinkling hardcoded role names through the codebase.
+        Gate::before(function ($user, $ability) {
+            try {
+                return $user->hasRole(config('roles.admin', 'Administrador')) ? true : null;
+            } catch (\Throwable $e) {
+                return null;
+            }
+        });
 
         // Registrar provider de Socialite para TikTok (paquete socialiteproviders/tiktok)
         if (class_exists(\SocialiteProviders\Manager\SocialiteWasCalled::class)) {

@@ -48,7 +48,7 @@ class CheckQuotesFollowUp extends Command
         }
 
         // Obtener administradores para notificarles
-        $admins = User::role(['Administrador', 'Administrador Master'])->get();
+        $admins = User::admins()->get();
 
         if ($admins->isEmpty()) {
             $this->warn('No admins found to notify.');

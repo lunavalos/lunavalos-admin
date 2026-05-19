@@ -22,15 +22,12 @@ class ReportPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
 
-        // Assign all 4 to admin roles
-        $adminRoles = ['Administrador Master', 'Administrador'];
-
-        foreach ($adminRoles as $roleName) {
-            $role = Role::where('name', $roleName)->first();
-            if ($role) {
-                $role->givePermissionTo($permissions);
-                $this->command?->info("✓ {$roleName} → permisos de Reportes asignados.");
-            }
+        // Assign all 4 to the configured admin role
+        $adminRoleName = config('roles.admin', 'Administrador');
+        $role = Role::where('name', $adminRoleName)->first();
+        if ($role) {
+            $role->givePermissionTo($permissions);
+            $this->command?->info("✓ {$adminRoleName} → permisos de Reportes asignados.");
         }
 
         $this->command?->info('Permisos de Reportes creados correctamente.');

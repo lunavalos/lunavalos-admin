@@ -11,7 +11,7 @@ class ConvertQuoteRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()?->can('Crear Cotizaciones')
-            || $this->user()?->hasAnyRole(['Administrador', 'Administrador Master']);
+            || (bool) $this->user()?->isAdmin();
     }
 
     public function rules(): array

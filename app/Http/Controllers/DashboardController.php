@@ -14,7 +14,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+        $isAdmin = $user->isAdmin();
 
         if ($isAdmin) {
             // Stats for Admin

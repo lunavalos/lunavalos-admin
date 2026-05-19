@@ -6,7 +6,7 @@ use Spatie\Permission\Models\Role;
 
 /**
  * Permisos para el módulo de Service Addons.
- * Se asignan automáticamente a Administrador y Administrador Master.
+ * Se asignan automáticamente al rol admin configurado en config/roles.php.
  */
 return new class extends Migration {
     public function up(): void
@@ -24,10 +24,9 @@ return new class extends Migration {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
 
-        foreach (['Administrador', 'Administrador Master'] as $roleName) {
-            if ($role = Role::where(['name' => $roleName, 'guard_name' => 'web'])->first()) {
-                $role->givePermissionTo($permissions);
-            }
+        $adminRoleName = config('roles.admin', 'Administrador');
+        if ($role = Role::where(['name' => $adminRoleName, 'guard_name' => 'web'])->first()) {
+            $role->givePermissionTo($permissions);
         }
     }
 

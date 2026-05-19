@@ -18,14 +18,16 @@ class DatabaseSeeder extends Seeder
     {
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $roles = [
-            'Administrador',
-            'Administrador Master',
-            'Cliente',
+        $adminRole = config('roles.admin', 'Administrador');
+        $clientRole = config('roles.client', 'Cliente');
+
+        $roles = array_values(array_unique([
+            $adminRole,
+            $clientRole,
             'Web Developer',
             'RRHH',
             'Designer',
-        ];
+        ]));
 
         foreach ($roles as $roleName) {
             Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
@@ -87,10 +89,7 @@ class DatabaseSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        $adminRoles = ['Administrador', 'Administrador Master'];
-        foreach ($adminRoles as $roleName) {
-            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
-            $role->givePermissionTo($permissions);
-        }
+        $adminRoleModel = Role::firstOrCreate(['name' => $adminRole, 'guard_name' => 'web']);
+        $adminRoleModel->givePermissionTo($permissions);
     }
 }

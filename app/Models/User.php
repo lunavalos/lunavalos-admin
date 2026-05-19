@@ -74,16 +74,46 @@ class User extends Authenticatable implements TwoFactorContract
         return $this->hasOne(Employee::class);
     }
 
-    /** Returns true if this user has the Cliente role. */
+    /** Returns true if this user has the client role (config-driven). */
     public function getIsClientAttribute(): bool
     {
-        return $this->hasRole('Cliente');
+        return $this->isClient();
     }
 
-    /** Returns true if this user has an admin role. */
+    /** Returns true if this user has the admin role (config-driven). */
     public function getIsAdminAttribute(): bool
     {
-        return $this->hasAnyRole(['Administrador', 'Administrador Master']);
+        return $this->isAdmin();
+    }
+
+    /** Whether this user holds the configured client role. */
+    public function isClient(): bool
+    {
+        return $this->hasRole(config('roles.client', 'Cliente'));
+    }
+
+    /** Whether this user holds the configured admin role. */
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(config('roles.admin', 'Administrador'));
+    }
+
+    /** Whether this user holds any of the configured staff roles. */
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(config('roles.staff', []));
+    }
+
+    /** Scope: users with the configured admin role. */
+    public function scopeAdmins($query)
+    {
+        return $query->role(config('roles.admin', 'Administrador'));
+    }
+
+    /** Scope: users with any configured staff role. */
+    public function scopeStaff($query)
+    {
+        return $query->role(config('roles.staff', []));
     }
 
     /**

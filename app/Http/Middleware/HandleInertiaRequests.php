@@ -51,8 +51,8 @@ class HandleInertiaRequests extends Middleware
                     $permissions = collect();
 
                     try {
-                        $isClient    = $user->hasRole('Cliente');
-                        $isAdmin     = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+                        $isClient    = $user->isClient();
+                        $isAdmin     = $user->isAdmin();
                         $permissions = $user->getAllPermissions()->pluck('name');
                     } catch (\Throwable $e) {
                         // Spatie not ready — leave as safe defaults

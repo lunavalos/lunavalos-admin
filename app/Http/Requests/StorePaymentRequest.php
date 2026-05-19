@@ -11,7 +11,7 @@ class StorePaymentRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()?->can('Registrar Pagos')
-            || $this->user()?->hasAnyRole(['Administrador', 'Administrador Master']);
+            || (bool) $this->user()?->isAdmin();
     }
 
     public function rules(): array

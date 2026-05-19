@@ -14,7 +14,7 @@ class SettingController extends Controller
     public function edit()
     {
         // Require admin, or if you don't have roles middleware, check here
-        if (!auth()->user()->hasAnyRole(['Administrador', 'Administrador Master'])) {
+        if (!auth()->user()->isAdmin()) {
             abort(403);
         }
 
@@ -35,7 +35,7 @@ class SettingController extends Controller
      */
     public function update(Request $request)
     {
-        if (!auth()->user()->hasAnyRole(['Administrador', 'Administrador Master'])) {
+        if (!auth()->user()->isAdmin()) {
             abort(403);
         }
 

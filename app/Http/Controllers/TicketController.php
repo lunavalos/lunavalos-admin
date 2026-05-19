@@ -51,7 +51,7 @@ class TicketController extends Controller
         $tickets = $query->latest()->get();
 
         // Solo usuarios internos pueden ser asignados — los clientes usan ClientIndex.vue
-        $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])
+        $assignableUsers = User::staff()
             ->orderBy('name')
             ->get();
 
@@ -110,7 +110,7 @@ class TicketController extends Controller
 
         // Si el creador es un cliente, notificar a todos los administradores
         if (Auth::user()->hasRole('Cliente')) {
-            $admins = User::role(['Administrador', 'Administrador Master'])->get();
+            $admins = User::admins()->get();
             $notifMsg = '📩 Nuevo ticket de ' . Auth::user()->name . ': ' . $ticket->title;
             foreach ($admins as $admin) {
                 $admin->notify(new TicketNotification($ticket, 'created', $notifMsg));
@@ -332,7 +332,7 @@ class TicketController extends Controller
             'canvasItems.children.uploader',
         ]);
 
-        $assignableUsers = User::role(['Administrador', 'Administrador Master', 'Web Developer', 'RRHH', 'Designer'])->get();
+        $assignableUsers = User::staff()->get();
 
         // If the ticket creator is a client, add them to the assignable list so they can be manually assigned for review/status tracking
         if ($ticket->creator && $ticket->creator->hasRole('Cliente')) {
@@ -360,7 +360,7 @@ class TicketController extends Controller
         $user = Auth::user();
 
         // Admin can soft-delete anytime
-        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+        $isAdmin = $user->isAdmin();
 
         // Client can only delete their own tickets AND if not assigned yet
         $isOwner = $ticket->creator_id === $user->id;
@@ -415,7 +415,7 @@ class TicketController extends Controller
     public function trash()
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+        $isAdmin = $user->isAdmin();
 
         if (!$isAdmin) {
             return redirect()->route('tickets.index')->with('error', 'No tienes permisos para ver la papelera.');
@@ -434,7 +434,7 @@ class TicketController extends Controller
     public function restore($id)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+        $isAdmin = $user->isAdmin();
 
         if (!$isAdmin) {
             return redirect()->back()->with('error', 'No tienes permisos para restaurar tickets.');
@@ -449,7 +449,7 @@ class TicketController extends Controller
     public function emptyTrash()
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+        $isAdmin = $user->isAdmin();
 
         if (!$isAdmin) {
             return redirect()->back()->with('error', 'No tienes permisos para vaciar la papelera.');
@@ -466,7 +466,7 @@ class TicketController extends Controller
      */
     public function sendTeamReport(Request $request)
     {
-        if (!Auth::user()->hasAnyRole(['Administrador', 'Administrador Master'])) {
+        if (!Auth::user()->isAdmin()) {
             abort(403);
         }
 
@@ -530,7 +530,7 @@ class TicketController extends Controller
             'message' => 'required|string',
         ]);
 
-        $isAdmin = $user->hasAnyRole(['Administrador', 'Administrador Master']);
+        $isAdmin = $user->isAdmin();
 
         // Check if the message author is a client — nobody can edit client messages
         $messageAuthor = $message->user;
