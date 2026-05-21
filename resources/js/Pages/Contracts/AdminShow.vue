@@ -257,7 +257,7 @@ function openCurrentCycle() {
                                 <dd class="text-gray-700 dark:text-gray-200 font-medium">
                                     <Link v-if="c.client" :href="route('clients.show', c.client.id)"
                                           class="text-primary hover:underline">
-                                        {{ c.client.name }}
+                                        {{ c.client.business_name }}
                                     </Link>
                                     <span v-else>—</span>
                                     <span v-if="c.client?.email" class="text-gray-400 ml-1">· {{ c.client.email }}</span>

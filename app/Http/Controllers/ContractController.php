@@ -16,7 +16,7 @@ class ContractController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Contract::with(['client:id,name,email', 'quote:id,client_id', 'payments:id,contract_id,amount,status'])
+        $query = Contract::with(['client:id,business_name,email', 'quote:id,client_id', 'payments:id,contract_id,amount,status'])
             ->orderByDesc('created_at');
 
         if ($status = $request->input('status')) {
@@ -29,7 +29,7 @@ class ContractController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('contract_number', 'like', "%{$search}%")
                   ->orWhere('legal_name', 'like', "%{$search}%")
-                  ->orWhereHas('client', fn ($c) => $c->where('name', 'like', "%{$search}%"));
+                  ->orWhereHas('client', fn ($c) => $c->where('business_name', 'like', "%{$search}%"));
             });
         }
         if ($clientId = $request->input('client_id')) {
@@ -207,7 +207,7 @@ class ContractController extends Controller
      */
     public function adminShow(Contract $contract)    {
         $contract->load([
-            'client:id,name,email',
+            'client:id,business_name,email',
             'quote:id,client_name,contact_name,email,phone,status,total,issue_date',
             'payments' => fn ($q) => $q->orderBy('due_date')->orderBy('created_at'),
             'createdBy:id,name',
