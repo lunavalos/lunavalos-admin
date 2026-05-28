@@ -329,6 +329,17 @@
                                 {!! nl2br(e($item->description)) !!}
                             </div>
                         @endif
+                        @if($item->service && $item->service->features->isNotEmpty())
+                            <div class="concept-features" style="margin-top: 6px; padding-left: 6px;">
+                                <ul style="margin: 0; padding: 0; list-style: none;">
+                                    @foreach($item->service->features as $feature)
+                                        <li style="font-size: 10px; color: #555; margin-bottom: 2px; line-height: 1.2;">
+                                            <span style="color: #10b981; font-weight: bold; margin-right: 4px;">&bull;</span> {{ $feature->label }}
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
                     </td>
                     <td class="text-center" style="vertical-align: middle;">
                         {{ $item->quantity }}

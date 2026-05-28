@@ -123,7 +123,7 @@ class QuoteController extends Controller
 
     public function show(Quote $quote)
     {
-        $quote->load(['items', 'addons.serviceAddon']);
+        $quote->load(['items.service.features', 'addons.serviceAddon']);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.quote', compact('quote'));
 

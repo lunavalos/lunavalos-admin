@@ -98,13 +98,18 @@ const selectedPackage = computed(() => props.services.find(s => s.id === form.pa
 const requiredCategories = computed(() => {
     const svc = selectedPackage.value;
     if (!svc) return [];
+    
+    let list = [];
     if (Array.isArray(svc.required_addon_categories_list) && svc.required_addon_categories_list.length) {
-        return svc.required_addon_categories_list;
+        list = svc.required_addon_categories_list;
+    } else if (Array.isArray(svc.required_addon_categories) && svc.required_addon_categories.length) {
+        list = svc.required_addon_categories;
+    } else if (svc.required_addon_category) {
+        list = [svc.required_addon_category];
     }
-    if (Array.isArray(svc.required_addon_categories) && svc.required_addon_categories.length) {
-        return svc.required_addon_categories;
-    }
-    return svc.required_addon_category ? [svc.required_addon_category] : [];
+    
+    // Solo requerir categorías que tengan al menos un addon activo en el catálogo
+    return list.filter(cat => props.addonsByCategory[cat] && props.addonsByCategory[cat].length > 0);
 });
 
 const selectedAddons = computed(() =>

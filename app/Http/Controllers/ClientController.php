@@ -352,7 +352,7 @@ class ClientController extends Controller implements HasMiddleware
         if ($request->hasFile('quote_file')) {
             $validated['quote_file_path'] = $request->file('quote_file')->store('client-files', 'public');
         } elseif (!empty($validated['quote_id'])) {
-            $quote = \App\Models\Quote::with('contract', 'items')->find($validated['quote_id']);
+            $quote = \App\Models\Quote::with(['contract', 'items.service.features', 'addons.serviceAddon'])->find($validated['quote_id']);
             if ($quote) {
                 // Auto-generar y adjuntar el PDF de la cotización
                 $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.quote', compact('quote'));

@@ -76,6 +76,19 @@ class StoreQuoteWizardRequest extends FormRequest
                 return;
             }
 
+            // Solo exigir categorías que tengan al menos un addon activo en el catálogo.
+            $availableRequiredCategories = ServiceAddon::whereIn('category', $required)
+                ->where('is_active', true)
+                ->pluck('category')
+                ->unique()
+                ->all();
+
+            $required = array_intersect($required, $availableRequiredCategories);
+
+            if (empty($required)) {
+                return;
+            }
+
             $addons = $this->input('addons', []);
             $ids    = array_filter(array_map(fn ($a) => $a['service_addon_id'] ?? null, $addons));
 
