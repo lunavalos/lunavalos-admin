@@ -609,6 +609,8 @@ const saveEdit = (msg) => {
                         <img v-else-if="ticket.creator?.profile_photo_url"
                             :src="ticket.creator.profile_photo_url" 
                             :alt="displayName(ticket.creator)"
+                            width="40"
+                            height="40"
                             class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white"
                             :class="[
                                 ticket.creator_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'
@@ -691,6 +693,8 @@ const saveEdit = (msg) => {
                             <img v-else-if="msg.user?.profile_photo_url"
                                 :src="msg.user.profile_photo_url" 
                                 :alt="displayName(msg.user)"
+                                width="40"
+                                height="40"
                                 class="h-10 w-10 rounded-2xl object-cover shrink-0 shadow-sm border-2 border-white"
                                 :class="[
                                     msg.user_id === $page.props.auth.user.id ? 'ml-4' : 'mr-4'
@@ -876,6 +880,8 @@ const saveEdit = (msg) => {
                                 <img v-if="ticket.creator?.profile_photo_url"
                                     :src="ticket.creator.profile_photo_url" 
                                     :alt="ticket.creator.name"
+                                    width="24"
+                                    height="24"
                                     class="h-6 w-6 rounded-full object-cover border border-gray-100 dark:border-zinc-800 shadow-sm mr-2"
                                 />
                                 <span v-else class="h-6 w-6 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 flex items-center justify-center text-[10px] font-bold mr-2">
@@ -891,6 +897,8 @@ const saveEdit = (msg) => {
                                 <img v-if="ticket.assigned?.profile_photo_url"
                                     :src="ticket.assigned.profile_photo_url" 
                                     :alt="ticket.assigned.name"
+                                    width="24"
+                                    height="24"
                                     class="h-6 w-6 rounded-full object-cover border border-gray-100 dark:border-zinc-800 shadow-sm mr-2"
                                 />
                                 <span v-else class="h-6 w-6 rounded-full bg-[#264ab3] dark:bg-blue-600 text-white flex items-center justify-center text-[10px] font-bold mr-2">

@@ -591,9 +591,11 @@ const submitReport = () => {
                                             :src="ticket.assigned.profile_photo_url"
                                             :alt="ticket.assigned.name"
                                             :title="ticket.assigned.name"
-                                            class="h-4.5 w-4.5 rounded-full object-cover border border-gray-100 dark:border-zinc-800 shadow-sm"
+                                            width="20"
+                                            height="20"
+                                            class="h-5 w-5 rounded-full object-cover border border-gray-100 dark:border-zinc-800 shadow-sm"
                                         />
-                                        <div v-else class="h-4.5 w-4.5 rounded-full bg-[#264ab3] dark:bg-blue-600 text-white flex items-center justify-center text-[8px] font-bold border border-gray-100 dark:border-zinc-800" :title="ticket.assigned.name">
+                                        <div v-else class="h-5 w-5 rounded-full bg-[#264ab3] dark:bg-blue-600 text-white flex items-center justify-center text-[8px] font-bold border border-gray-100 dark:border-zinc-800" :title="ticket.assigned.name">
                                             {{ ticket.assigned.name.charAt(0) }}
                                         </div>
                                     </div>

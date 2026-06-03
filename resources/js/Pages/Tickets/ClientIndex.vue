@@ -303,6 +303,8 @@ const deleteTicket = (ticketId) => {
                                             :src="ticket.assigned.profile_photo_url"
                                             :alt="ticket.assigned.name"
                                             :title="ticket.assigned.name"
+                                            width="32"
+                                            height="32"
                                             class="h-8 w-8 rounded-full object-cover border-2 border-white shadow-sm"
                                         />
                                         <div v-else class="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-[#264ab3] dark:text-blue-400 flex items-center justify-center text-xs font-bold border-2 border-white dark:border-zinc-800 shadow-sm" :title="ticket.assigned.name">

@@ -207,6 +207,8 @@ onMounted(() => {
                                     <img 
                                         :src="$page.props.auth.user.profile_photo_url" 
                                         :alt="$page.props.auth.user.name" 
+                                        width="32"
+                                        height="32"
                                         class="h-8 w-8 rounded-full border border-gray-200 dark:border-zinc-800 object-cover"
                                     />
                                     <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
