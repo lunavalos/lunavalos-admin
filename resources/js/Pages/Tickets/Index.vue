@@ -20,6 +20,7 @@ import {
     BriefcaseIcon,
     ArchiveBoxXMarkIcon,
     EnvelopeIcon,
+    ArchiveBoxIcon,
 } from '@heroicons/vue/24/outline';
 import Modal from '@/Components/Modal.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -57,8 +58,27 @@ const priorityColors = {
 };
 
 // For filtering
-const showOnlyMyTickets = ref(false);
-const selectedUserId = ref(null);
+const showOnlyMyTickets = ref(localStorage.getItem('ticket_filter_only_my') === 'true');
+const selectedUserId = ref(localStorage.getItem('ticket_filter_user_id') ? parseInt(localStorage.getItem('ticket_filter_user_id')) : null);
+const selectedClientId = ref(localStorage.getItem('ticket_filter_client_id') ? parseInt(localStorage.getItem('ticket_filter_client_id')) : null);
+
+watch(showOnlyMyTickets, (val) => {
+    localStorage.setItem('ticket_filter_only_my', val ? 'true' : 'false');
+});
+watch(selectedUserId, (val) => {
+    if (val === null) {
+        localStorage.removeItem('ticket_filter_user_id');
+    } else {
+        localStorage.setItem('ticket_filter_user_id', val.toString());
+    }
+});
+watch(selectedClientId, (val) => {
+    if (val === null) {
+        localStorage.removeItem('ticket_filter_client_id');
+    } else {
+        localStorage.setItem('ticket_filter_client_id', val.toString());
+    }
+});
 
 const filteredTickets = computed(() => {
     let result = props.tickets;
@@ -72,6 +92,11 @@ const filteredTickets = computed(() => {
             result = result.filter(t => t.assigned_id === page.props.auth.user.id || t.creator_id === page.props.auth.user.id);
         }
     }
+
+    if (selectedClientId.value) {
+        result = result.filter(t => t.client_id === selectedClientId.value || (t.creator && t.creator.client_id === selectedClientId.value));
+    }
+
     return result;
 });
 
@@ -149,8 +174,55 @@ const handleClickOutsideClient = (e) => {
     }
 };
 
-onMounted(()  => document.addEventListener('mousedown', handleClickOutsideClient));
-onUnmounted(() => document.removeEventListener('mousedown', handleClickOutsideClient));
+// ── Combobox buscador para Filtro de Clientes ─────────────────────────────────
+const filterClientSearch       = ref('');
+const filterClientDropdownOpen = ref(false);
+const filterClientComboRef     = ref(null);
+
+const selectedFilterClientLabel = computed(() => {
+    if (!selectedClientId.value) return 'Todos los clientes';
+    return props.clients?.find(c => c.id === selectedClientId.value)?.business_name ?? 'Todos los clientes';
+});
+
+const filteredClientsForFilter = computed(() => {
+    const q = filterClientSearch.value.trim().toLowerCase();
+    if (!q) return props.clients ?? [];
+    return (props.clients ?? []).filter(c =>
+        c.business_name?.toLowerCase().includes(q)
+    );
+});
+
+const openFilterClientDropdown = () => {
+    filterClientSearch.value = '';
+    filterClientDropdownOpen.value = true;
+};
+
+const selectFilterClient = (client) => {
+    selectedClientId.value = client ? client.id : null;
+    filterClientSearch.value = '';
+    filterClientDropdownOpen.value = false;
+};
+
+const clearFilterClient = () => {
+    selectedClientId.value = null;
+    filterClientSearch.value = '';
+    filterClientDropdownOpen.value = false;
+};
+
+const handleClickOutsideFilterClient = (e) => {
+    if (filterClientComboRef.value && !filterClientComboRef.value.contains(e.target)) {
+        filterClientDropdownOpen.value = false;
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('mousedown', handleClickOutsideClient);
+    document.addEventListener('mousedown', handleClickOutsideFilterClient);
+});
+onUnmounted(() => {
+    document.removeEventListener('mousedown', handleClickOutsideClient);
+    document.removeEventListener('mousedown', handleClickOutsideFilterClient);
+});
 
 const openCreateModal = () => {
     isCreateModalOpen.value = true;
@@ -234,6 +306,14 @@ const deleteTicket = (ticketId) => {
     }
 };
 
+const archiveTicket = (ticketId) => {
+    if (confirm('¿Archivar este ticket completado?')) {
+        router.post(route('tickets.toggleArchive', ticketId), {}, {
+            preserveScroll: true,
+        });
+    }
+};
+
 // ── Team Report Modal ─────────────────────────────────────────────────────────
 const isReportModalOpen = ref(false);
 const reportForm = useForm({
@@ -288,6 +368,90 @@ const submitReport = () => {
                             </option>
                         </select>
                     </div>
+
+                    <!-- Dropdown for client filter -->
+                    <div ref="filterClientComboRef" class="relative w-[220px]">
+                        <!-- Trigger button -->
+                        <button
+                            v-if="!filterClientDropdownOpen"
+                            type="button"
+                            @click="openFilterClientDropdown"
+                            class="border border-gray-200 dark:border-zinc-800 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 bg-white dark:bg-zinc-900 focus:border-[#264ab3] focus:ring-1 focus:ring-[#264ab3] px-4 py-2 flex items-center justify-between w-full transition"
+                        >
+                            <span class="truncate" :class="!selectedClientId ? 'text-gray-500 dark:text-zinc-400' : ''">
+                                {{ selectedFilterClientLabel }}
+                            </span>
+                            <svg class="h-4 w-4 text-gray-400 dark:text-zinc-500 shrink-0 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+
+                        <!-- Search input (visible when open) -->
+                        <div v-else class="relative w-full">
+                            <input
+                                id="filter_client_search"
+                                v-model="filterClientSearch"
+                                type="text"
+                                autofocus
+                                placeholder="Buscar cliente…"
+                                class="w-full border border-[#264ab3] dark:border-blue-500 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#264ab3] transition"
+                            />
+                            <svg class="absolute right-3 top-2.5 h-4 w-4 text-gray-400 dark:text-zinc-500 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+                            </svg>
+                        </div>
+
+                        <!-- Dropdown list -->
+                        <div
+                            v-if="filterClientDropdownOpen"
+                            class="absolute right-0 z-50 mt-1 w-[240px] bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-xl shadow-xl overflow-y-auto"
+                            style="max-height: 220px;"
+                        >
+                            <!-- Clear option (Todos los clientes) -->
+                            <button
+                                type="button"
+                                @click="clearFilterClient"
+                                class="w-full text-left px-4 py-2.5 text-sm text-gray-400 dark:text-zinc-500 italic hover:bg-gray-50 dark:hover:bg-zinc-800 transition flex items-center justify-between"
+                                :class="!selectedClientId ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold' : ''"
+                            >
+                                <span>Todos los clientes</span>
+                                <svg v-if="!selectedClientId" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+                            <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                            <!-- Client options -->
+                            <button
+                                v-for="client in filteredClientsForFilter"
+                                :key="client.id"
+                                type="button"
+                                @click="selectFilterClient(client)"
+                                class="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-[#264ab3] dark:hover:text-blue-400 transition flex items-center justify-between group"
+                                :class="selectedClientId === client.id ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold' : ''"
+                            >
+                                <span class="truncate">{{ client.business_name }}</span>
+                                <svg v-if="selectedClientId === client.id" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                </svg>
+                            </button>
+
+                            <!-- Empty state -->
+                            <div v-if="filteredClientsForFilter.length === 0" class="px-4 py-6 text-center text-sm text-gray-400 dark:text-zinc-500 italic">
+                                No se encontraron clientes
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Archive link for staff and admins -->
+                    <Link
+                        v-if="!$page.props.auth.user.is_client"
+                        :href="route('tickets.archive')"
+                        class="flex items-center gap-1.5 bg-white dark:bg-zinc-900 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-gray-200 dark:border-zinc-800 hover:border-blue-200 dark:hover:border-blue-800 text-gray-500 dark:text-zinc-400 hover:text-blue-500 dark:hover:text-blue-400 px-4 py-2.5 rounded-xl transition-all font-bold text-sm"
+                    >
+                        <ArchiveBoxIcon class="h-5 w-5" />
+                        Archivados
+                    </Link>
 
                     <!-- Trash link for admins -->
                     <Link
@@ -350,79 +514,87 @@ const submitReport = () => {
                             yet (reordering index), we just show them. 
                             Users can click to open or move.
                         -->
-                        <div class="flex-1 overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                        <div class="flex-1 overflow-y-auto p-2.5 space-y-2 custom-scrollbar">
                             <Link 
                                 v-for="ticket in column.tickets" 
                                 :key="ticket.id"
                                 :href="route('tickets.show', ticket.id)"
-                                class="block bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-100 dark:border-zinc-800/50 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all group relative cursor-pointer"
+                                class="block bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-gray-100 dark:border-zinc-800/50 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all group relative cursor-pointer"
                             >
-                                <!-- Ticket Priority Badge -->
-                                <div class="flex justify-between items-start mb-2">
-                                    <span 
-                                        class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest"
-                                        :class="priorityColors[ticket.priority]"
-                                    >
-                                        {{ ticket.priority }}
-                                    </span>
-                                    <div class="flex -space-x-2">
-                                        <div v-if="ticket.assigned" class="relative group/avatar">
-                                            <img v-if="ticket.assigned.profile_photo_url"
-                                                :src="ticket.assigned.profile_photo_url"
-                                                :alt="ticket.assigned.name"
-                                                :title="ticket.assigned.name"
-                                                class="h-6 w-6 rounded-full object-cover border-2 border-white shadow-sm"
-                                            />
-                                            <div v-else class="h-6 w-6 rounded-full bg-[#264ab3] dark:bg-blue-600 text-white flex items-center justify-center text-[10px] border-2 border-white dark:border-zinc-900 font-bold" :title="ticket.assigned.name">
-                                                {{ ticket.assigned.name.charAt(0) }}
-                                            </div>
-                                        </div>
+                                <!-- Header: ID, Priority, and Quick actions -->
+                                <div class="flex justify-between items-center mb-1.5 text-[10px]">
+                                    <div class="flex items-center space-x-1.5">
+                                        <span class="font-mono font-bold text-gray-400 dark:text-zinc-600">
+                                            #{{ ticket.id }}
+                                        </span>
+                                        <span 
+                                            class="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider"
+                                            :class="priorityColors[ticket.priority]"
+                                        >
+                                            {{ ticket.priority }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center space-x-1">
+                                        <button 
+                                            v-if="column.name === 'Completados' && !$page.props.auth.user.is_client"
+                                            @click.prevent="archiveTicket(ticket.id)"
+                                            class="p-0.5 text-gray-400 dark:text-zinc-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                                            title="Archivar"
+                                        >
+                                            <ArchiveBoxIcon class="h-3.5 w-3.5" />
+                                        </button>
+                                        <button 
+                                            v-if="isAdmin"
+                                            @click.prevent="deleteTicket(ticket.id)"
+                                            class="p-0.5 text-gray-400 dark:text-zinc-500 hover:text-red-500 dark:hover:text-rose-400 transition-colors"
+                                            title="Eliminar"
+                                        >
+                                            <TrashIcon class="h-3.5 w-3.5" />
+                                        </button>
                                     </div>
                                 </div>
 
                                 <!-- Ticket Title -->
-                                <h4 class="font-bold text-gray-800 dark:text-gray-100 text-sm mb-2 group-hover:text-[#264ab3] dark:group-hover:text-blue-400 transition-colors line-clamp-2">
+                                <h4 class="font-bold text-gray-800 dark:text-gray-100 text-xs mb-1 group-hover:text-[#264ab3] dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-snug">
                                     {{ ticket.title }}
                                 </h4>
 
-                                <!-- Quick Delete for Admin -->
-                                <button 
-                                    @click.prevent="deleteTicket(ticket.id)"
-                                    class="absolute -top-2 -right-2 p-1.5 bg-white dark:bg-zinc-900 rounded-lg border border-gray-100 dark:border-zinc-800 text-gray-400 dark:text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-red-500 dark:hover:text-rose-400 hover:border-red-100 dark:hover:border-rose-900/50 hover:bg-red-50 dark:hover:bg-rose-900/20 transition-all z-10 shadow-sm"
-                                    title="Eliminar"
-                                >
-                                    <TrashIcon class="h-3.5 w-3.5" />
-                                </button>
+                                <!-- Client & Service (Compact text line instead of bulky boxes) -->
+                                <div v-if="ticket.client_id || (ticket.creator && ticket.creator.client)" class="text-[10px] text-gray-500 dark:text-zinc-400 truncate mb-2">
+                                    <span class="font-bold text-gray-700 dark:text-zinc-300">
+                                        {{ ticket.client?.business_name || ticket.creator?.client?.business_name }}
+                                    </span>
+                                    <template v-if="ticket.client_service_id && ticket.clientService">
+                                        <span class="mx-1 text-gray-300 dark:text-zinc-700">·</span>
+                                        <span class="text-indigo-600 dark:text-blue-400 font-semibold">
+                                            {{ ticket.clientService.service_name }}
+                                        </span>
+                                    </template>
+                                </div>
 
-                                <!-- Ticket Meta -->
-                                <div class="mt-4 pt-3 border-t border-gray-50 dark:border-zinc-800">
-                                    <!-- Client Label if exists (Linked Client or Creator's Client) -->
-                                    <div v-if="ticket.client_id || (ticket.creator && ticket.creator.client)" class="flex items-center text-[10px] font-extrabold text-[#264ab3] dark:text-blue-400 uppercase tracking-tight mb-1 truncate bg-blue-50/50 dark:bg-blue-900/20 px-2 py-0.5 rounded-md border border-blue-100/50 dark:border-blue-800/30">
-                                        <BuildingOfficeIcon class="h-3 w-3 mr-1 shrink-0" />
-                                        <span class="truncate">
-                                            {{ ticket.client?.business_name || ticket.creator?.client?.business_name || 'Sin nombre de empresa' }}
+                                <!-- Ticket Meta / Footer -->
+                                <div class="mt-2 pt-2 border-t border-gray-100 dark:border-zinc-800/80 flex items-center justify-between text-[10px]">
+                                    <div class="flex items-center space-x-2 text-gray-400 dark:text-zinc-500">
+                                        <span class="flex items-center" title="Mensajes">
+                                            <ChatBubbleOvalLeftEllipsisIcon class="h-3.5 w-3.5 mr-0.5 text-gray-400" />
+                                            {{ ticket.messages?.length || 0 }}
+                                        </span>
+                                        <span v-if="ticket.due_date" class="flex items-center text-orange-600 dark:text-orange-400 font-semibold bg-orange-50 dark:bg-orange-950/20 px-1 py-0.5 rounded border border-orange-100/30" title="Fecha de entrega">
+                                            <CalendarIcon class="h-3.5 w-3.5 mr-0.5" />
+                                            {{ formatDate(ticket.due_date) }}
                                         </span>
                                     </div>
-
-                                    <!-- Service Badge -->
-                                    <div v-if="ticket.client_service_id && ticket.clientService" class="flex items-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400 truncate bg-indigo-50/50 dark:bg-indigo-900/20 px-2 py-0.5 rounded-md border border-indigo-100/50 dark:border-indigo-800/30 mb-2">
-                                        <BriefcaseIcon class="h-3 w-3 mr-1 shrink-0" />
-                                        <span class="truncate">{{ ticket.clientService.service_name }}</span>
-                                    </div>
-
-                                    <div class="flex items-center justify-between text-[11px] text-gray-400 dark:text-zinc-500 font-medium">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="flex items-center">
-                                                <ChatBubbleOvalLeftEllipsisIcon class="h-4 w-4 mr-1 text-gray-400 dark:text-zinc-500" />
-                                                {{ ticket.messages?.length || 0 }}
-                                            </div>
-                                            <div v-if="ticket.due_date" class="flex items-center text-orange-600 dark:text-orange-400 font-bold bg-orange-50 dark:bg-orange-950/30 px-2 py-0.5 rounded border border-orange-100 dark:border-orange-900/30">
-                                                <CalendarIcon class="h-3 w-3 mr-1" />
-                                                {{ formatDate(ticket.due_date) }}
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center text-gray-300 dark:text-zinc-800 font-bold">
-                                            #{{ ticket.id }}
+                                    
+                                    <div v-if="ticket.assigned" class="flex items-center text-gray-500 dark:text-zinc-400 shrink-0">
+                                        <span class="text-[9px] font-semibold mr-1 max-w-[60px] truncate">{{ ticket.assigned.name.split(' ')[0] }}</span>
+                                        <img v-if="ticket.assigned.profile_photo_url"
+                                            :src="ticket.assigned.profile_photo_url"
+                                            :alt="ticket.assigned.name"
+                                            :title="ticket.assigned.name"
+                                            class="h-4.5 w-4.5 rounded-full object-cover border border-gray-100 dark:border-zinc-800 shadow-sm"
+                                        />
+                                        <div v-else class="h-4.5 w-4.5 rounded-full bg-[#264ab3] dark:bg-blue-600 text-white flex items-center justify-center text-[8px] font-bold border border-gray-100 dark:border-zinc-800" :title="ticket.assigned.name">
+                                            {{ ticket.assigned.name.charAt(0) }}
                                         </div>
                                     </div>
                                 </div>

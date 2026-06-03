@@ -229,7 +229,7 @@ function syncAnalytics() {
         <template #header>
             <div class="flex items-center justify-between">
                 <div>
-                    <Link :href="route('recurring.index')"
+                    <Link v-if="!$page.props.auth.user.is_client" :href="route('recurring.index')"
                         class="text-xs text-gray-500 dark:text-zinc-400 hover:text-[#264ab3]">
                         ← Clientes Recurrentes
                     </Link>
@@ -260,7 +260,7 @@ function syncAnalytics() {
                         <ArrowPathIcon class="h-3 w-3" />
                         Ciclo {{ cycle.label }} · {{ cycle.status }}
                     </span>
-                    <button v-else @click="openCycle"
+                    <button v-else-if="!$page.props.auth.user.is_client" @click="openCycle"
                         class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a8a] capitalize">
                         <ArrowPathIcon class="h-4 w-4" />
                         {{ isFutureMonth ? `Planificar ciclo ${monthLabel}` : `Abrir ciclo ${monthLabel}` }}
@@ -351,7 +351,7 @@ function syncAnalytics() {
                         <p class="text-xs text-gray-500 dark:text-zinc-400">
                             Tablero limitado a entregables del ciclo actual.
                         </p>
-                        <button v-if="cycle" @click="showModal = true"
+                        <button v-if="cycle && !$page.props.auth.user.is_client" @click="showModal = true"
                             class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a8a]">
                             <PlusIcon class="h-4 w-4" /> Nuevo entregable
                         </button>
@@ -444,7 +444,7 @@ function syncAnalytics() {
                             <h3 class="text-sm font-semibold text-gray-700 dark:text-zinc-200 flex items-center gap-2">
                                 <LinkIcon class="h-4 w-4 text-[#264ab3]" /> Cuentas conectadas
                             </h3>
-                            <Link :href="route('social.clients.show', client.id)"
+                            <Link v-if="!$page.props.auth.user.is_client" :href="route('social.clients.show', client.id)"
                                 class="text-[11px] text-[#264ab3] hover:underline">
                                 Vista social completa →
                             </Link>
@@ -469,13 +469,13 @@ function syncAnalytics() {
                                         <span v-if="a.status !== 'active'" class="ml-1 text-[10px] text-rose-600">({{ a.status }})</span>
                                     </div>
                                 </div>
-                                <button @click="disconnectAccount(a)" class="text-gray-400 hover:text-rose-600" title="Desconectar">
+                                <button v-if="!$page.props.auth.user.is_client" @click="disconnectAccount(a)" class="text-gray-400 hover:text-rose-600" title="Desconectar">
                                     <TrashIcon class="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         </div>
 
-                        <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-700">
+                        <div v-if="!$page.props.auth.user.is_client" class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-700">
                             <span class="text-[11px] text-gray-500">Conectar otra red:</span>
                             <button v-for="p in availableSocialProviders" :key="p"
                                 @click="connectProvider(p)"
@@ -496,7 +496,7 @@ function syncAnalytics() {
                                 <MegaphoneIcon class="h-4 w-4 text-[#264ab3]" />
                                 Calendario · <span class="capitalize">{{ monthLabel || month }}</span>
                             </h3>
-                            <Link :href="route('social.posts.create', client.id)"
+                            <Link v-if="!$page.props.auth.user.is_client" :href="route('social.posts.create', client.id)"
                                 class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a8a]">
                                 <PlusIcon class="w-4 h-4" /> Nuevo post
                             </Link>
@@ -516,13 +516,21 @@ function syncAnalytics() {
                                      :class="cell ? 'bg-gray-50/40 dark:bg-zinc-900' : 'bg-transparent'">
                                     <template v-if="cell">
                                         <div class="font-semibold text-gray-500 mb-1">{{ cell }}</div>
-                                        <Link v-for="p in (postsByDay[cell] || [])" :key="p.id"
-                                              :href="route('social.posts.edit', [client.id, p.id])"
-                                              class="block truncate px-1 py-0.5 mb-0.5 rounded text-[10px]"
-                                              :class="statusColors[p.status]"
-                                              :title="p.title || p.body">
-                                            {{ p.title || (p.body ? p.body.slice(0, 22) : 'Sin título') }}
-                                        </Link>
+                                        <template v-for="p in (postsByDay[cell] || [])" :key="p.id">
+                                            <span v-if="$page.props.auth.user.is_client"
+                                                  class="block truncate px-1 py-0.5 mb-0.5 rounded text-[10px]"
+                                                  :class="statusColors[p.status]"
+                                                  :title="p.title || p.body">
+                                                {{ p.title || (p.body ? p.body.slice(0, 22) : 'Sin título') }}
+                                            </span>
+                                            <Link v-else
+                                                  :href="route('social.posts.edit', [client.id, p.id])"
+                                                  class="block truncate px-1 py-0.5 mb-0.5 rounded text-[10px]"
+                                                  :class="statusColors[p.status]"
+                                                  :title="p.title || p.body">
+                                                {{ p.title || (p.body ? p.body.slice(0, 22) : 'Sin título') }}
+                                            </Link>
+                                        </template>
                                     </template>
                                 </div>
                             </div>
@@ -549,7 +557,7 @@ function syncAnalytics() {
                                     <span :class="['text-[10px] px-2 py-0.5 rounded-full font-semibold', statusColors[p.status]]">
                                         {{ p.status }}
                                     </span>
-                                    <span class="flex items-center gap-1">
+                                    <span v-if="!$page.props.auth.user.is_client" class="flex items-center gap-1">
                                         <button v-if="['draft','scheduled','failed','partial'].includes(p.status)"
                                             @click="publishNow(p)" class="p-1 text-emerald-600 hover:text-emerald-700" title="Publicar ya">
                                             <PaperAirplaneIcon class="w-3.5 h-3.5" />
@@ -585,7 +593,7 @@ function syncAnalytics() {
                                 Datos agregados de las publicaciones del mes. Se actualizan cada 6 h y al sincronizar manualmente.
                             </p>
                         </div>
-                        <button @click="syncAnalytics" :disabled="syncingAnalytics"
+                        <button v-if="!$page.props.auth.user.is_client" @click="syncAnalytics" :disabled="syncingAnalytics"
                             class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs text-white hover:bg-[#1e3a8a] disabled:opacity-50">
                             <ArrowPathIcon :class="['h-3.5 w-3.5', syncingAnalytics && 'animate-spin']" />
                             Sincronizar ahora

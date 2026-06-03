@@ -24,6 +24,7 @@ import {
     StopCircleIcon,
     PencilSquareIcon,
     PhotoIcon,
+    ArchiveBoxIcon,
 } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -296,6 +297,15 @@ const deleteTicket = () => {
     }
 };
 
+const toggleArchive = () => {
+    const action = props.ticket.is_archived ? 'desarchivar' : 'archivar';
+    if (confirm(`¿Estás seguro de ${action} este ticket?`)) {
+        router.post(route('tickets.toggleArchive', props.ticket.id), {}, {
+            preserveScroll: true,
+        });
+    }
+};
+
 // Work timer
 const startWorkForm = useForm({});
 
@@ -497,10 +507,21 @@ const saveEdit = (msg) => {
                     <button
                         v-if="canDelete"
                         @click="deleteTicket"
-                        class="p-1.5 bg-red-50 dark:bg-rose-900/20 text-red-600 dark:text-rose-400 rounded-lg border border-red-100 dark:border-rose-900/40 hover:bg-red-600 hover:text-white transition-all"
+                        class="p-1.5 bg-red-50 dark:bg-rose-900/20 text-red-600 dark:text-rose-400 rounded-lg border border-red-100 dark:border-rose-900/40 hover:bg-red-600 hover:text-white transition-all animate-all"
                         title="Eliminar Ticket"
                     >
                         <TrashIcon class="h-4 w-4" />
+                    </button>
+
+                    <!-- Archive/Unarchive Button -->
+                    <button
+                        v-if="!isClient && (props.ticket.status === 'Completados' || props.ticket.is_archived)"
+                        @click="toggleArchive"
+                        class="p-1.5 bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 rounded-lg border border-blue-100 dark:border-blue-900/40 hover:bg-[#264ab3] hover:text-white transition-all flex items-center gap-1.5 font-bold text-xs"
+                        :title="props.ticket.is_archived ? 'Desarchivar Ticket' : 'Archivar Ticket'"
+                    >
+                        <ArchiveBoxIcon class="h-4 w-4" />
+                        <span>{{ props.ticket.is_archived ? 'Desarchivar' : 'Archivar' }}</span>
                     </button>
                 </div>
             </div>

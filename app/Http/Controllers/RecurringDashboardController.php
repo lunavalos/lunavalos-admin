@@ -7,14 +7,30 @@ use App\Models\Client;
 use App\Models\Contract;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class RecurringDashboardController extends Controller
+class RecurringDashboardController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Recurrentes'),
+        ];
+    }
+
     /**
      * Lista todos los clientes con planes mensuales activos + resumen de su ciclo actual.
      */
     public function index(Request $request)
     {
+        $user = $request->user();
+        if ($user->isClient()) {
+            if (!$user->client_id) {
+                abort(403, 'El usuario cliente no tiene un cliente asignado.');
+            }
+            return redirect()->route('recurring.clients.show', $user->client_id);
+        }
         $contracts = Contract::query()
             ->where('status', 'signed')
             ->whereHas('contractServices')

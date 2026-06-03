@@ -287,7 +287,7 @@ onMounted(() => {
                         <!-- Recurring Clients Link (Admin / internal team) -->
                         <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Recurrentes'))">
                             <Link
-                                :href="route('recurring.index')"
+                                :href="$page.props.auth.user.is_client ? route('recurring.clients.show', $page.props.auth.user.client_id) : route('recurring.index')"
                                 :class="[
                                     route().current('recurring.*')
                                         ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'

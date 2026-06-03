@@ -16,9 +16,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class RecurringClientController extends Controller
+class RecurringClientController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Recurrentes', only: ['show']),
+            new Middleware('can:Gestionar Recurrentes', except: ['show']),
+        ];
+    }
     /**
      * Vista 360° del cliente recurrente:
      *   - resumen de créditos del ciclo seleccionado (`?month=YYYY-MM`)
@@ -28,6 +37,10 @@ class RecurringClientController extends Controller
      */
     public function show(Client $client, Request $request)
     {
+        if ($request->user()->isClient() && $request->user()->client_id !== $client->id) {
+            abort(403, 'Acceso denegado.');
+        }
+
         $contract = Contract::query()
             ->where('client_id', $client->id)
             ->where('status', 'signed')
@@ -173,6 +186,10 @@ class RecurringClientController extends Controller
      */
     public function openCycle(Client $client, Request $request, OpenBillingCycle $openCycle)
     {
+        if ($request->user()->isClient() && $request->user()->client_id !== $client->id) {
+            abort(403, 'Acceso denegado.');
+        }
+
         $request->validate(['month' => 'nullable|regex:/^\d{4}-\d{2}$/']);
 
         $contract = Contract::query()
@@ -199,6 +216,10 @@ class RecurringClientController extends Controller
      */
     public function createDeliverable(Request $request, Client $client)
     {
+        if ($request->user()->isClient() && $request->user()->client_id !== $client->id) {
+            abort(403, 'Acceso denegado.');
+        }
+
         $data = $request->validate([
             'title'                 => 'required|string|max:255',
             'priority'              => 'required|string|in:Baja,Media,Alta,Urgente',
@@ -268,8 +289,12 @@ class RecurringClientController extends Controller
     /**
      * Forzar sincronización de métricas sociales del cliente (botón "Sincronizar ahora").
      */
-    public function syncAnalytics(Client $client)
+    public function syncAnalytics(Client $client, Request $request)
     {
+        if ($request->user()->isClient() && $request->user()->client_id !== $client->id) {
+            abort(403, 'Acceso denegado.');
+        }
+
         \Illuminate\Support\Facades\Artisan::call('social:fetch-insights', [
             '--client' => $client->id,
             '--days'   => 120,

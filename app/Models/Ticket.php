@@ -29,6 +29,7 @@ class Ticket extends Model
         'status_updated_at',
         'work_started_at',
         'work_finished_at',
+        'is_archived',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class Ticket extends Model
         'work_started_at'   => 'datetime',
         'work_finished_at'  => 'datetime',
         'sequence_number'   => 'integer',
+        'is_archived'       => 'boolean',
     ];
 
     protected $appends = ['code'];

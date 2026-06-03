@@ -11,6 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('quotes:check-followup')->daily();
 Schedule::command('quotes:expire')->daily();
 Schedule::command('tickets:auto-close-in-review')->daily();
+Schedule::command('tickets:auto-archive-completed')->daily();
 Schedule::command('contracts:check-renewals')->dailyAt('08:00');
 Schedule::command('recurring:open-cycles')->monthlyOn(1, '02:00');
 Schedule::command('social:dispatch-scheduled')->everyFiveMinutes();

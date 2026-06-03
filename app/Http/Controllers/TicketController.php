@@ -24,11 +24,13 @@ class TicketController extends Controller
     {
         $user = Auth::user();
         $query = Ticket::with(['creator.client', 'assigned', 'messages.user', 'client', 'clientService'])
-            ->support(); // Kanban de soporte: solo tickets sueltos, no entregables recurrentes.
+            ->support()
+            ->where('is_archived', false); // Kanban de soporte: solo tickets sueltos, no entregables recurrentes.
 
         if ($user->hasRole('Cliente')) {
             $tickets = Ticket::where('creator_id', $user->id)
                 ->support()
+                ->where('is_archived', false)
                 ->with(['assigned', 'messages', 'clientService'])
                 ->latest()
                 ->get();
@@ -567,6 +569,42 @@ class TicketController extends Controller
         $message->save();
 
         return redirect()->back()->with('success', 'Mensaje actualizado.');
+    }
+
+    public function archiveList()
+    {
+        $user = Auth::user();
+        if ($user->hasRole('Cliente')) {
+            $archivedTickets = Ticket::where('creator_id', $user->id)
+                ->where('is_archived', true)
+                ->with(['assigned', 'messages', 'client', 'clientService'])
+                ->latest()
+                ->get();
+        } else {
+            $archivedTickets = Ticket::where('is_archived', true)
+                ->with(['creator.client', 'assigned', 'client', 'clientService'])
+                ->latest()
+                ->get();
+        }
+
+        return Inertia::render('Tickets/Archive', [
+            'archivedTickets' => $archivedTickets,
+        ]);
+    }
+
+    public function toggleArchive(Ticket $ticket)
+    {
+        $user = Auth::user();
+        if ($user->hasRole('Cliente')) {
+            abort(403, 'No tienes permisos para realizar esta acción.');
+        }
+
+        $ticket->update([
+            'is_archived' => !$ticket->is_archived
+        ]);
+
+        $message = $ticket->is_archived ? 'Ticket archivado correctamente.' : 'Ticket desarchivado correctamente.';
+        return redirect()->back()->with('success', $message);
     }
 }
 

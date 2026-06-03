@@ -180,6 +180,8 @@ Route::middleware('auth')->group(function () {
     Route::get('tickets/trash', [\App\Http\Controllers\TicketController::class, 'trash'])->name('tickets.trash');
     Route::post('tickets/{id}/restore', [\App\Http\Controllers\TicketController::class, 'restore'])->name('tickets.restore');
     Route::delete('tickets/empty-trash', [\App\Http\Controllers\TicketController::class, 'emptyTrash'])->name('tickets.emptyTrash');
+    Route::get('tickets/archive', [\App\Http\Controllers\TicketController::class, 'archiveList'])->name('tickets.archive');
+    Route::post('tickets/{ticket}/toggle-archive', [\App\Http\Controllers\TicketController::class, 'toggleArchive'])->name('tickets.toggleArchive');
     Route::resource('tickets', \App\Http\Controllers\TicketController::class);
     Route::post('tickets/{ticket}/message', [\App\Http\Controllers\TicketController::class, 'addMessage'])->name('tickets.addMessage');
     Route::post('tickets/{ticket}/status', [\App\Http\Controllers\TicketController::class, 'updateStatus'])->name('tickets.updateStatus');
