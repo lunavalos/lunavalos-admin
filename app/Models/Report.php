@@ -15,13 +15,26 @@ class Report extends Model
         'notes',
         'summary',
         'tickets_snapshot',
+        'pdf_options',
     ];
 
     protected $casts = [
         'period_month'      => 'integer',
         'period_year'       => 'integer',
         'tickets_snapshot'  => 'array',
+        'pdf_options'       => 'array',
     ];
+
+    /** Merge stored options with safe defaults (preserves behaviour for old reports). */
+    public function getPdfOptionsResolvedAttribute(): array
+    {
+        return array_merge([
+            'show_assigned'   => true,
+            'show_dates'      => true,
+            'show_duration'   => true,
+            'show_status_log' => true,
+        ], $this->pdf_options ?? []);
+    }
 
     public function client()
     {

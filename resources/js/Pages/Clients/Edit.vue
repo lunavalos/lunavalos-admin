@@ -31,7 +31,17 @@ const props = defineProps({
     cfdiUses: {
         type: Object,
         default: () => ({})
-    }
+    },
+    signatureTemplates: {
+        type: Array,
+        default: () => []
+    },
+});
+
+const selectedTemplateFields = computed(() => {
+    if (!form.signature_template_id) return [];
+    const t = props.signatureTemplates.find(t => t.id === form.signature_template_id);
+    return t?.fields ?? ['name', 'position', 'email', 'phone', 'website', 'logo', 'photo', 'primary_color', 'secondary_color', 'social_links'];
 });
 
 const selectedServiceId = ref('');
@@ -133,6 +143,13 @@ const form = useForm({
         initial_payment: parseFloat(s.initial_payment || 0),
         initial_cost: parseFloat(s.initial_cost || 0),
     })) : [],
+    signature_template_id: props.client.signature_template_id ?? null,
+    signature_defaults: {
+        website:         props.client.signature_defaults?.website         ?? '',
+        logo:            props.client.signature_defaults?.logo            ?? '',
+        primary_color:   props.client.signature_defaults?.primary_color   ?? '#264ab3',
+        secondary_color: props.client.signature_defaults?.secondary_color ?? '#666666',
+    },
 });
 
 const fileInput = ref(null);
@@ -1099,6 +1116,52 @@ const monthlyNetMargin = computed(() => totalMonthlyIncome.value - totalMonthlyC
                             <p class="text-xs text-gray-500 dark:text-zinc-500">Este cliente ya posee credenciales y está enlazado a la plataforma para el sistema de tickets.</p>
                         </div>
                         <div class="text-2xl">✅</div>
+                    </div>
+
+                    <!-- Firma de Correo -->
+                    <div class="card bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800 overflow-hidden">
+                        <div class="border-b border-gray-100 dark:border-zinc-800 p-6 bg-indigo-50/40 dark:bg-indigo-900/10 flex items-center gap-2">
+                            <svg class="h-5 w-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-2.828 1.172H7v-2a4 4 0 011.172-2.828z"/></svg>
+                            <h3 class="text-md font-bold text-gray-800 dark:text-gray-100">Firma de Correo</h3>
+                        </div>
+                        <div class="p-6 space-y-5">
+                            <div>
+                                <InputLabel value="Plantilla asignada" class="dark:text-gray-300" />
+                                <select v-model="form.signature_template_id" class="mt-1 block w-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 focus:border-indigo-500 rounded-md shadow-sm text-sm">
+                                    <option :value="null">— Sin plantilla asignada —</option>
+                                    <option v-for="t in signatureTemplates" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                </select>
+                                <p class="text-xs text-gray-400 dark:text-zinc-500 mt-1">La plantilla seleccionada aparecerá pre-cargada en el módulo de firmas del cliente.</p>
+                                <InputError :message="form.errors.signature_template_id" class="mt-1" />
+                            </div>
+
+                            <template v-if="form.signature_template_id">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-100 dark:border-zinc-800">
+                                    <div v-if="selectedTemplateFields.includes('website')">
+                                        <InputLabel for="sig_website" value="Sitio web de la empresa" class="dark:text-gray-300" />
+                                        <TextInput id="sig_website" type="text" v-model="form.signature_defaults.website" placeholder="www.empresa.com" class="mt-1 block w-full text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
+                                    </div>
+                                    <div v-if="selectedTemplateFields.includes('logo')">
+                                        <InputLabel for="sig_logo" value="URL del logo" class="dark:text-gray-300" />
+                                        <TextInput id="sig_logo" type="text" v-model="form.signature_defaults.logo" placeholder="https://empresa.com/logo.png" class="mt-1 block w-full text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
+                                    </div>
+                                    <div v-if="selectedTemplateFields.includes('primary_color')">
+                                        <InputLabel value="Color principal" class="dark:text-gray-300" />
+                                        <div class="mt-1 flex items-center gap-2">
+                                            <input type="color" v-model="form.signature_defaults.primary_color" class="h-9 w-16 rounded border border-gray-300 dark:border-zinc-700 p-1 bg-white dark:bg-zinc-800 cursor-pointer" />
+                                            <span class="text-xs text-gray-500 dark:text-zinc-400 font-mono">{{ form.signature_defaults.primary_color }}</span>
+                                        </div>
+                                    </div>
+                                    <div v-if="selectedTemplateFields.includes('secondary_color')">
+                                        <InputLabel value="Color secundario" class="dark:text-gray-300" />
+                                        <div class="mt-1 flex items-center gap-2">
+                                            <input type="color" v-model="form.signature_defaults.secondary_color" class="h-9 w-16 rounded border border-gray-300 dark:border-zinc-700 p-1 bg-white dark:bg-zinc-800 cursor-pointer" />
+                                            <span class="text-xs text-gray-500 dark:text-zinc-400 font-mono">{{ form.signature_defaults.secondary_color }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
                     </div>
 
                     <div class="flex justify-end pt-4 space-x-4">

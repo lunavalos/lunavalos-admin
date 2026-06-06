@@ -64,14 +64,25 @@ class ReportController extends Controller implements HasMiddleware
             ->with(['clientService', 'assigned']);
 
         if ($request->filled('from') && $request->filled('to')) {
-            $query->whereBetween('created_at', [
-                $request->from . ' 00:00:00',
-                $request->to   . ' 23:59:59',
-            ]);
+            $from = $request->from . ' 00:00:00';
+            $to   = $request->to   . ' 23:59:59';
+
+            $query->where(function ($q) use ($from, $to) {
+                // Support tickets: filtra por created_at
+                $q->where(function ($inner) use ($from, $to) {
+                    $inner->where('source_type', '!=', Ticket::SOURCE_RECURRING)
+                          ->whereBetween('created_at', [$from, $to]);
+                })
+                // Recurring: filtra por el period_start del ciclo de facturación
+                ->orWhere(function ($inner) use ($from, $to) {
+                    $inner->where('source_type', Ticket::SOURCE_RECURRING)
+                          ->whereHas('billingCycle', fn ($bc) => $bc->whereBetween('period_start', [$from, $to]));
+                });
+            });
         }
 
         $tickets = $query->latest()
-            ->get(['id', 'title', 'status', 'priority', 'created_at', 'client_service_id', 'assigned_id', 'deleted_at']);
+            ->get(['id', 'title', 'status', 'priority', 'created_at', 'source_type', 'client_service_id', 'assigned_id', 'deleted_at']);
 
         return response()->json($tickets);
     }
@@ -79,24 +90,22 @@ class ReportController extends Controller implements HasMiddleware
     public function store(Request $request)
     {
         $request->validate([
-            'client_id'    => 'required|exists:clients,id',
-            'title'        => 'required|string|max:255',
-            'period_month' => 'required|integer|between:1,12',
-            'period_year'  => 'required|integer|min:2020|max:2100',
-            'summary'      => 'nullable|string',
-            'notes'        => 'nullable|string',
-            'date_from'    => 'required|date',
-            'date_to'      => 'required|date|after_or_equal:date_from',
+            'client_id'                    => 'required|exists:clients,id',
+            'title'                        => 'required|string|max:255',
+            'period_month'                 => 'required|integer|between:1,12',
+            'period_year'                  => 'required|integer|min:2020|max:2100',
+            'summary'                      => 'nullable|string',
+            'notes'                        => 'nullable|string',
+            'date_from'                    => 'required|date',
+            'date_to'                      => 'required|date|after_or_equal:date_from',
+            'pdf_options'                  => 'nullable|array',
+            'pdf_options.show_assigned'    => 'boolean',
+            'pdf_options.show_dates'       => 'boolean',
+            'pdf_options.show_duration'    => 'boolean',
+            'pdf_options.show_status_log'  => 'boolean',
         ]);
 
-        // Auto-resolve all tickets in the date range
-        $ticketIds = Ticket::where('client_id', $request->client_id)
-            ->whereBetween('created_at', [
-                $request->date_from . ' 00:00:00',
-                $request->date_to   . ' 23:59:59',
-            ])
-            ->pluck('id')
-            ->toArray();
+        $ticketIds = $this->resolveTicketIds($request->client_id, $request->date_from, $request->date_to);
 
         $report = Report::create([
             'client_id'    => $request->client_id,
@@ -106,6 +115,7 @@ class ReportController extends Controller implements HasMiddleware
             'period_year'  => $request->period_year,
             'summary'      => $request->summary,
             'notes'        => $request->notes,
+            'pdf_options'  => $request->input('pdf_options', []),
         ]);
 
         if (!empty($ticketIds)) {
@@ -149,13 +159,18 @@ class ReportController extends Controller implements HasMiddleware
     public function update(Request $request, Report $report)
     {
         $request->validate([
-            'title'        => 'required|string|max:255',
-            'period_month' => 'required|integer|between:1,12',
-            'period_year'  => 'required|integer|min:2020|max:2100',
-            'summary'      => 'nullable|string',
-            'notes'        => 'nullable|string',
-            'date_from'    => 'required|date',
-            'date_to'      => 'required|date|after_or_equal:date_from',
+            'title'                        => 'required|string|max:255',
+            'period_month'                 => 'required|integer|between:1,12',
+            'period_year'                  => 'required|integer|min:2020|max:2100',
+            'summary'                      => 'nullable|string',
+            'notes'                        => 'nullable|string',
+            'date_from'                    => 'required|date',
+            'date_to'                      => 'required|date|after_or_equal:date_from',
+            'pdf_options'                  => 'nullable|array',
+            'pdf_options.show_assigned'    => 'boolean',
+            'pdf_options.show_dates'       => 'boolean',
+            'pdf_options.show_duration'    => 'boolean',
+            'pdf_options.show_status_log'  => 'boolean',
         ]);
 
         $report->update([
@@ -164,16 +179,10 @@ class ReportController extends Controller implements HasMiddleware
             'period_year'  => $request->period_year,
             'summary'      => $request->summary,
             'notes'        => $request->notes,
+            'pdf_options'  => $request->input('pdf_options', []),
         ]);
 
-        // Auto-resolve tickets in the new date range
-        $ticketIds = Ticket::where('client_id', $report->client_id)
-            ->whereBetween('created_at', [
-                $request->date_from . ' 00:00:00',
-                $request->date_to   . ' 23:59:59',
-            ])
-            ->pluck('id')
-            ->toArray();
+        $ticketIds = $this->resolveTicketIds($report->client_id, $request->date_from, $request->date_to);
 
         $report->tickets()->sync($ticketIds);
 
@@ -205,6 +214,7 @@ class ReportController extends Controller implements HasMiddleware
             'tickets'      => $tickets,
             'clientAssets' => $report->client?->assets?->values()->toArray() ?? [],
             'settings'     => $settings,
+            'options'      => $report->pdf_options_resolved,
         ])
         ->setPaper('letter', 'portrait')
         ->setOption('defaultFont', 'sans-serif')
@@ -219,6 +229,33 @@ class ReportController extends Controller implements HasMiddleware
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Collect ticket IDs for a client within a date range.
+     * - Support tickets: matched by created_at.
+     * - Recurring tickets: matched by billing_cycle.period_start so that tickets
+     *   auto-created when a cycle is opened (their created_at may differ from the
+     *   cycle period) always appear in the correct monthly report.
+     */
+    private function resolveTicketIds(int $clientId, string $from, string $to): array
+    {
+        $dateFrom = $from . ' 00:00:00';
+        $dateTo   = $to   . ' 23:59:59';
+
+        return Ticket::where('client_id', $clientId)
+            ->where(function ($q) use ($dateFrom, $dateTo) {
+                $q->where(function ($inner) use ($dateFrom, $dateTo) {
+                    $inner->where('source_type', '!=', Ticket::SOURCE_RECURRING)
+                          ->whereBetween('created_at', [$dateFrom, $dateTo]);
+                })
+                ->orWhere(function ($inner) use ($dateFrom, $dateTo) {
+                    $inner->where('source_type', Ticket::SOURCE_RECURRING)
+                          ->whereHas('billingCycle', fn ($bc) => $bc->whereBetween('period_start', [$dateFrom, $dateTo]));
+                });
+            })
+            ->pluck('id')
+            ->toArray();
+    }
 
     /**
      * Build a self-contained array of ticket data for the snapshot.

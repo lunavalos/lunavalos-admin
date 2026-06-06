@@ -445,11 +445,12 @@ class ClientController extends Controller implements HasMiddleware
     {
         $client->load(['costs', 'services', 'assets.creator']);
         return \Inertia\Inertia::render('Clients/Edit', [
-            'client' => $client,
-            'services' => \App\Models\Service::all(),
-            'agencies' => \App\Models\Agency::orderBy('name')->get(),
-            'taxRegimes' => config('sat.tax_regimes'),
-            'cfdiUses' => config('sat.cfdi_uses'),
+            'client'             => $client,
+            'services'           => \App\Models\Service::all(),
+            'agencies'           => \App\Models\Agency::orderBy('name')->get(),
+            'taxRegimes'         => config('sat.tax_regimes'),
+            'cfdiUses'           => config('sat.cfdi_uses'),
+            'signatureTemplates' => \App\Models\SignatureTemplate::where('is_active', true)->get(['id', 'name', 'fields']),
         ]);
     }
 
@@ -513,6 +514,12 @@ class ClientController extends Controller implements HasMiddleware
             'contract_file' => 'nullable|file|mimes:pdf,doc,docx,zip|max:10240',
             'branding_file' => 'nullable|file|mimes:zip,rar,pdf,jpg,png|max:20480',
             'receipt_file' => 'nullable|file|mimes:pdf,jpg,png|max:10240',
+            'signature_template_id' => 'nullable|exists:signature_templates,id',
+            'signature_defaults' => 'nullable|array',
+            'signature_defaults.website' => 'nullable|string|max:255',
+            'signature_defaults.logo' => 'nullable|string|max:2048',
+            'signature_defaults.primary_color' => 'nullable|string|max:20',
+            'signature_defaults.secondary_color' => 'nullable|string|max:20',
         ]);
 
         if (!empty($validated['login_email']) && !empty($validated['login_password']) && !$client->user_id) {
@@ -561,17 +568,24 @@ class ClientController extends Controller implements HasMiddleware
         $client->update($validated);
 
         if ($request->has('services') && is_array($request->services)) {
+            // Preserve contract_id links before wiping services
+            $contractLinks = $client->services()
+                ->whereNotNull('contract_id')
+                ->pluck('contract_id', 'service_name');
+
             $client->services()->delete();
+
             foreach ($request->services as $service) {
                 $client->services()->create([
-                    'service_id' => $service['service_id'] ?? null,
-                    'service_name' => $service['service_name'],
-                    'renewal_date' => $service['renewal_date'] ?? null,
-                    'renewal_amount' => $service['renewal_amount'] ?? 0,
+                    'service_id'      => $service['service_id'] ?? null,
+                    'service_name'    => $service['service_name'],
+                    'renewal_date'    => $service['renewal_date'] ?? null,
+                    'renewal_amount'  => $service['renewal_amount'] ?? 0,
                     'initial_payment' => $service['initial_payment'] ?? 0,
-                    'initial_cost' => $service['initial_cost'] ?? 0,
-                    'billing_type' => $service['billing_type'] ?? 'annual',
-                    'status' => 'active',
+                    'initial_cost'    => $service['initial_cost'] ?? 0,
+                    'billing_type'    => $service['billing_type'] ?? 'annual',
+                    'status'          => 'active',
+                    'contract_id'     => $contractLinks[$service['service_name']] ?? null,
                 ]);
             }
         }

@@ -28,9 +28,16 @@ class TicketController extends Controller
             ->where('is_archived', false); // Kanban de soporte: solo tickets sueltos, no entregables recurrentes.
 
         if ($user->hasRole('Cliente')) {
-            $tickets = Ticket::where('creator_id', $user->id)
-                ->support()
+            $clientId = $user->client?->id;
+            $tickets = Ticket::support()
                 ->where('is_archived', false)
+                ->where(function ($q) use ($user, $clientId) {
+                    $q->where('creator_id', $user->id)
+                      ->orWhere(function ($q2) use ($clientId) {
+                          $q2->where('visible_to_client', true)
+                             ->where('client_id', $clientId);
+                      });
+                })
                 ->with(['assigned', 'messages', 'clientService'])
                 ->latest()
                 ->get();
@@ -133,6 +140,9 @@ class TicketController extends Controller
 
     public function updateStatus(Request $request, Ticket $ticket)
     {
+        $user = Auth::user();
+        if ($user->hasRole('Cliente') && !$this->clientCanViewTicket($user, $ticket)) abort(403);
+
         $request->validate([
             'status' => 'required|string',
             'due_date' => 'nullable|date',
@@ -219,6 +229,9 @@ class TicketController extends Controller
 
     public function addMessage(Request $request, Ticket $ticket)
     {
+        $user = Auth::user();
+        if ($user->hasRole('Cliente') && !$this->clientCanViewTicket($user, $ticket)) abort(403);
+
         $request->validate([
             'message' => 'required|string',
             'file' => 'nullable|file|max:10240', // 10MB limit
@@ -282,6 +295,22 @@ class TicketController extends Controller
         return redirect()->back()->with('success', 'Mensaje enviado.');
     }
 
+    private function clientCanViewTicket($user, Ticket $ticket): bool
+    {
+        $clientId = $user->client?->id;
+
+        // Always allowed: tickets the client created themselves
+        if ($ticket->creator_id === $user->id) return true;
+
+        // Recurring tickets: client owns them via client_id
+        if ($ticket->source_type === Ticket::SOURCE_RECURRING) {
+            return $ticket->client_id === $clientId;
+        }
+
+        // Support tickets: only if explicitly made visible
+        return $ticket->visible_to_client && $ticket->client_id === $clientId;
+    }
+
     /**
      * Notify all relevant participants of a ticket (except the current sender).
      * Participants: creator, assigned user, and the client's linked user account.
@@ -320,8 +349,14 @@ class TicketController extends Controller
 
     public function show(Ticket $ticket)
     {
+        $user = Auth::user();
+
+        if ($user->hasRole('Cliente')) {
+            if (!$this->clientCanViewTicket($user, $ticket)) abort(403);
+        }
+
         $ticket->load([
-            'creator.client',
+            'creator.client.assets',
             'assigned',
             'messages.user',
             'attachments',
@@ -605,6 +640,70 @@ class TicketController extends Controller
 
         $message = $ticket->is_archived ? 'Ticket archivado correctamente.' : 'Ticket desarchivado correctamente.';
         return redirect()->back()->with('success', $message);
+    }
+
+    public function toggleClientVisibility(Ticket $ticket)
+    {
+        $user = Auth::user();
+        if ($user->hasRole('Cliente')) {
+            abort(403);
+        }
+
+        $ticket->update(['visible_to_client' => !$ticket->visible_to_client]);
+
+        $label = $ticket->visible_to_client ? 'visible' : 'oculto';
+        return redirect()->back()->with('success', "Ticket ahora es {$label} para el cliente.");
+    }
+
+    public function generatePublicLink(Ticket $ticket)
+    {
+        if (Auth::user()->hasRole('Cliente')) abort(403);
+
+        $ticket->update([
+            'public_token'            => \Illuminate\Support\Str::random(48),
+            'public_token_expires_at' => now()->addDays(7),
+        ]);
+
+        return redirect()->back()->with('success', 'Enlace público generado. Válido por 7 días.');
+    }
+
+    public function revokePublicLink(Ticket $ticket)
+    {
+        if (Auth::user()->hasRole('Cliente')) abort(403);
+
+        $ticket->update([
+            'public_token'            => null,
+            'public_token_expires_at' => null,
+        ]);
+
+        return redirect()->back()->with('success', 'Enlace público revocado.');
+    }
+
+    public function publicShow(string $token)
+    {
+        $ticket = Ticket::where('public_token', $token)
+            ->where('public_token_expires_at', '>', now())
+            ->with([
+                'messages.user',
+                'canvasItems.pins.user',
+                'canvasItems.uploader',
+                'canvasItems.children.pins.user',
+                'canvasItems.children.uploader',
+            ])
+            ->firstOrFail();
+
+        // Mask internal staff names
+        foreach ($ticket->messages as $message) {
+            if ($message->user && !$message->user->hasRole(config('roles.client', 'Cliente'))) {
+                $message->user->name = 'LunAvalos';
+                $message->user->profile_photo_url = null;
+            }
+        }
+
+        return Inertia::render('Tickets/PublicShow', [
+            'ticket'    => $ticket,
+            'expiresAt' => $ticket->public_token_expires_at->toDateString(),
+        ]);
     }
 }
 

@@ -15,6 +15,7 @@ class ContractService extends Model
         'contract_id',
         'service_id',
         'service_addon_id',
+        'client_service_id',
         'name',
         'prefix',
         'color',
@@ -45,6 +46,11 @@ class ContractService extends Model
     public function serviceAddon(): BelongsTo
     {
         return $this->belongsTo(ServiceAddon::class);
+    }
+
+    public function clientService(): BelongsTo
+    {
+        return $this->belongsTo(ClientService::class);
     }
 
     public function credits(): HasMany

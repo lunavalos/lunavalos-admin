@@ -30,6 +30,9 @@ class Ticket extends Model
         'work_started_at',
         'work_finished_at',
         'is_archived',
+        'visible_to_client',
+        'public_token',
+        'public_token_expires_at',
     ];
 
     protected $casts = [
@@ -37,8 +40,10 @@ class Ticket extends Model
         'status_updated_at' => 'datetime',
         'work_started_at'   => 'datetime',
         'work_finished_at'  => 'datetime',
-        'sequence_number'   => 'integer',
-        'is_archived'       => 'boolean',
+        'sequence_number'          => 'integer',
+        'is_archived'              => 'boolean',
+        'visible_to_client'        => 'boolean',
+        'public_token_expires_at'  => 'datetime',
     ];
 
     protected $appends = ['code'];

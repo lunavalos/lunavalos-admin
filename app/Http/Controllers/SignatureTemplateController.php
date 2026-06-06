@@ -36,6 +36,8 @@ class SignatureTemplateController extends Controller
             'slug' => 'required|string|unique:signature_templates,slug',
             'html_content' => 'required|string',
             'css_content' => 'nullable|string',
+            'fields' => 'nullable|array',
+            'fields.*' => 'string|in:name,position,email,phone,website,logo,photo,primary_color,secondary_color,social_links',
             'is_active' => 'boolean',
         ]);
 
@@ -65,6 +67,8 @@ class SignatureTemplateController extends Controller
             'slug' => 'required|string|unique:signature_templates,slug,' . $signatureTemplate->id,
             'html_content' => 'required|string',
             'css_content' => 'nullable|string',
+            'fields' => 'nullable|array',
+            'fields.*' => 'string|in:name,position,email,phone,website,logo,photo,primary_color,secondary_color,social_links',
             'is_active' => 'boolean',
         ]);
 

@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
-import { 
+import {
     ChevronLeftIcon,
     ChevronRightIcon,
     PaperAirplaneIcon,
@@ -25,6 +25,12 @@ import {
     PencilSquareIcon,
     PhotoIcon,
     ArchiveBoxIcon,
+    EyeIcon,
+    EyeSlashIcon,
+    LightBulbIcon,
+    LinkIcon,
+    ClipboardDocumentCheckIcon,
+    XCircleIcon,
 } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -306,6 +312,39 @@ const toggleArchive = () => {
     }
 };
 
+const toggleClientVisibility = () => {
+    router.post(route('tickets.toggleClientVisibility', props.ticket.id), {}, {
+        preserveScroll: true,
+    });
+};
+
+const publicUrl = computed(() => {
+    if (!props.ticket.public_token) return null;
+    return window.location.origin + '/tickets/p/' + props.ticket.public_token;
+});
+
+const copyingLink = ref(false);
+
+const generateOrCopyPublicLink = () => {
+    if (props.ticket.public_token) {
+        navigator.clipboard.writeText(publicUrl.value);
+        copyingLink.value = true;
+        setTimeout(() => { copyingLink.value = false; }, 2000);
+    } else {
+        router.post(route('tickets.generatePublicLink', props.ticket.id), {}, {
+            preserveScroll: true,
+        });
+    }
+};
+
+const revokePublicLink = () => {
+    if (confirm('¿Revocar el enlace público? Dejará de funcionar de inmediato.')) {
+        router.delete(route('tickets.revokePublicLink', props.ticket.id), {
+            preserveScroll: true,
+        });
+    }
+};
+
 // Work timer
 const startWorkForm = useForm({});
 
@@ -523,6 +562,50 @@ const saveEdit = (msg) => {
                         <ArchiveBoxIcon class="h-4 w-4" />
                         <span>{{ props.ticket.is_archived ? 'Desarchivar' : 'Archivar' }}</span>
                     </button>
+
+                    <!-- Client Visibility Toggle -->
+                    <button
+                        v-if="!isClient && props.ticket.source_type === 'support'"
+                        @click="toggleClientVisibility"
+                        :class="[
+                            'p-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold text-xs',
+                            props.ticket.visible_to_client
+                                ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40 hover:bg-emerald-600 hover:text-white'
+                                : 'bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-200 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700'
+                        ]"
+                        :title="props.ticket.visible_to_client ? 'Ocultar al cliente' : 'Hacer visible al cliente'"
+                    >
+                        <EyeIcon v-if="props.ticket.visible_to_client" class="h-4 w-4" />
+                        <EyeSlashIcon v-else class="h-4 w-4" />
+                        <span>{{ props.ticket.visible_to_client ? 'Visible cliente' : 'Oculto cliente' }}</span>
+                    </button>
+
+                    <!-- Public Link -->
+                    <template v-if="!isClient">
+                        <button
+                            @click="generateOrCopyPublicLink"
+                            :class="[
+                                'p-1.5 rounded-lg border transition-all flex items-center gap-1.5 font-bold text-xs',
+                                props.ticket.public_token
+                                    ? 'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-900/40 hover:bg-violet-600 hover:text-white'
+                                    : 'bg-gray-50 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 border-gray-200 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700'
+                            ]"
+                            :title="props.ticket.public_token ? 'Copiar enlace público' : 'Generar enlace público'"
+                        >
+                            <ClipboardDocumentCheckIcon v-if="copyingLink" class="h-4 w-4" />
+                            <LinkIcon v-else class="h-4 w-4" />
+                            <span>{{ copyingLink ? '¡Copiado!' : (props.ticket.public_token ? 'Copiar enlace' : 'Enlace público') }}</span>
+                        </button>
+                        <button
+                            v-if="props.ticket.public_token"
+                            @click="revokePublicLink"
+                            class="p-1.5 rounded-lg border border-red-100 dark:border-rose-900/40 bg-red-50 dark:bg-rose-900/20 text-red-500 dark:text-rose-400 hover:bg-red-500 hover:text-white transition-all flex items-center gap-1.5 font-bold text-xs"
+                            title="Revocar enlace público"
+                        >
+                            <XCircleIcon class="h-4 w-4" />
+                            <span>Revocar</span>
+                        </button>
+                    </template>
                 </div>
             </div>
 
@@ -664,14 +747,15 @@ const saveEdit = (msg) => {
                     </div>
 
                     <!-- Conversation Messages -->
-                    <div 
-                        v-for="msg in allMessages" 
+                    <div
+                        v-for="msg in allMessages"
                         :key="msg.id"
+                        v-show="msg.user_id !== null || !isClient"
                         class="flex items-start"
                         :class="msg.user_id === $page.props.auth.user.id ? 'flex-row-reverse' : (msg.user_id === null ? 'justify-center my-4' : '')"
                     >
-                        <!-- System message (Bot) -->
-                        <div v-if="msg.user_id === null" class="w-full max-w-lg bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-600 text-gray-500 dark:text-zinc-300 text-xs px-4 py-3 rounded-2xl text-center shadow-sm flex flex-col items-center">
+                        <!-- System message (Bot) — hidden from clients -->
+                        <div v-if="msg.user_id === null && !isClient" class="w-full max-w-lg bg-gray-50 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-600 text-gray-500 dark:text-zinc-300 text-xs px-4 py-3 rounded-2xl text-center shadow-sm flex flex-col items-center">
                             <span class="font-bold mb-1 flex items-center text-gray-700 dark:text-gray-100">
                                 🤖 Sistema
                             </span>
@@ -867,7 +951,7 @@ const saveEdit = (msg) => {
             <!-- RIGHT: SIDEBAR INFO -->
             <div class="space-y-6">
                 <!-- Info Card -->
-                <div class="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-6">
+                <div v-if="!isClient" class="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-200 dark:border-zinc-800 p-6">
                     <h3 class="font-bold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-zinc-800 pb-4 mb-4 flex items-center uppercase text-xs tracking-widest text-[#264ab3] dark:text-blue-400">
                         <ClockIcon class="h-4 w-4 mr-2" />
                         Detalles del Ticket
@@ -1150,13 +1234,56 @@ const saveEdit = (msg) => {
         </div>
 
         <!-- TAB: DOCUMENTOS DEL CLIENTE -->
-        <div v-show="activeTab === 'documents'" class="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div v-if="clientForCanvas" class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-5">
-                <ClientAssetsManager
-                    :client-id="clientForCanvas.id"
-                    :assets="clientForCanvas.assets || []"
-                    :can-edit="!isClient"
-                />
+        <div v-show="activeTab === 'documents'" class="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+            <div v-if="clientForCanvas">
+                <!-- Documentos y archivos -->
+                <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-5">
+                    <ClientAssetsManager
+                        :client-id="clientForCanvas.id"
+                        :assets="clientForCanvas.assets || []"
+                        :can-edit="!isClient"
+                    />
+                </div>
+
+                <!-- Información del Proyecto (Briefing) -->
+                <div
+                    v-if="clientForCanvas.briefing_context || clientForCanvas.briefing_target_audience || clientForCanvas.briefing_competitors || clientForCanvas.briefing_references || clientForCanvas.briefing_contact_methods || clientForCanvas.briefing_current_emails"
+                    class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 overflow-hidden"
+                >
+                    <div class="px-5 py-4 border-b border-gray-100 dark:border-zinc-800 bg-yellow-50/50 dark:bg-yellow-950/10 flex items-center gap-2">
+                        <LightBulbIcon class="h-5 w-5 text-yellow-500 dark:text-yellow-400 shrink-0" />
+                        <div>
+                            <h3 class="text-sm font-bold text-gray-800 dark:text-gray-100">Información del Proyecto</h3>
+                            <p class="text-[11px] text-gray-500 dark:text-zinc-400">Briefing creativo completado por el cliente.</p>
+                        </div>
+                    </div>
+                    <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div v-if="clientForCanvas.briefing_context" class="md:col-span-2">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-1">Contexto del negocio</p>
+                            <p class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{{ clientForCanvas.briefing_context }}</p>
+                        </div>
+                        <div v-if="clientForCanvas.briefing_target_audience">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-1">Público objetivo</p>
+                            <p class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{{ clientForCanvas.briefing_target_audience }}</p>
+                        </div>
+                        <div v-if="clientForCanvas.briefing_competitors">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-1">Competidores</p>
+                            <p class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{{ clientForCanvas.briefing_competitors }}</p>
+                        </div>
+                        <div v-if="clientForCanvas.briefing_references">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-1">Referencias visuales</p>
+                            <p class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{{ clientForCanvas.briefing_references }}</p>
+                        </div>
+                        <div v-if="clientForCanvas.briefing_contact_methods">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-1">Métodos de contacto</p>
+                            <p class="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{{ clientForCanvas.briefing_contact_methods }}</p>
+                        </div>
+                        <div v-if="clientForCanvas.briefing_current_emails">
+                            <p class="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-zinc-500 mb-1">Correos empresariales</p>
+                            <p class="text-sm text-gray-700 dark:text-gray-200">{{ clientForCanvas.briefing_current_emails }}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div v-else class="text-center text-sm text-gray-500 dark:text-zinc-400 italic py-10">
                 Este ticket no tiene un cliente vinculado.

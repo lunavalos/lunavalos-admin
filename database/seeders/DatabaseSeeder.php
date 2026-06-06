@@ -108,7 +108,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         $rolePermissions = [
-            $clientRole => $ticketPermissions,
+            $clientRole => array_merge($ticketPermissions, ['Ver Recurrentes']),
             'Web Developer' => array_merge([
                 'Ver Dashboard',
                 'Ver Servicios',

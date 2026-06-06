@@ -27,6 +27,7 @@ const props = defineProps({
     totalPending:     { type: Number, default: 0 },
     daysUntilEnd:     { type: Number, default: null },
     contractServices: { type: Array,  default: () => [] },
+    clientServices:   { type: Array,  default: () => [] },
     activeCycle:      { type: Object, default: null },
 });
 
@@ -87,6 +88,10 @@ const remainingColor = () => {
 
 const c = props.contract;
 
+// Contratos de renovación anual: no tienen cotización ni anticipo.
+// Diferencia "pago anual único" de "proyecto con plan de mensualidades".
+const isRenewal = computed(() => !c.quote_id || parseFloat(c.anticipo_amount || 0) === 0);
+
 /* -------------------------------------------------------------------- */
 /* Entregables recurrentes (módulo Clientes Recurrentes)                */
 /* -------------------------------------------------------------------- */
@@ -102,6 +107,7 @@ const serviceForm = useForm({
     rollover_allowed: false,
     auto_create_tickets: true,
     sort_order: 0,
+    client_service_id: null,
 });
 
 const unitTypeLabels = {
@@ -137,6 +143,7 @@ function openEditServiceModal(svc) {
     serviceForm.rollover_allowed = !!svc.rollover_allowed;
     serviceForm.auto_create_tickets = !!svc.auto_create_tickets;
     serviceForm.sort_order = svc.sort_order;
+    serviceForm.client_service_id = svc.client_service_id ?? null;
     showServiceModal.value = true;
 }
 
@@ -196,6 +203,10 @@ function openCurrentCycle() {
                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-secondary text-white text-sm font-semibold transition-colors">
                         <BanknotesIcon class="w-4 h-4" /> Gestionar pagos
                     </Link>
+                    <Link :href="route('contracts.edit', c.id)"
+                          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm text-gray-600 dark:text-zinc-300 hover:border-primary hover:text-primary transition-colors">
+                        <PencilSquareIcon class="w-4 h-4" /> Editar contrato
+                    </Link>
                     <Link :href="route('contracts.renewals.index')"
                           class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-zinc-700 text-sm text-blue-600 hover:border-blue-500 hover:bg-blue-50 transition-colors">
                         <ArrowPathIcon class="w-4 h-4" /> Renovaciones
@@ -215,15 +226,15 @@ function openCurrentCycle() {
                             <span class="text-[11px] uppercase font-bold tracking-wide">Total contrato</span>
                         </div>
                         <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ fmt(c.total_amount) }}</div>
-                        <div class="text-xs text-gray-400 mt-0.5">{{ c.payment_plan_months }} meses</div>
+                        <div class="text-xs text-gray-400 mt-0.5">{{ isRenewal ? 'Renovación anual' : (c.payment_plan_months + ' meses') }}</div>
                     </div>
                     <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-4">
                         <div class="flex items-center gap-2 text-primary mb-2">
                             <BanknotesIcon class="w-5 h-5" />
-                            <span class="text-[11px] uppercase font-bold tracking-wide">Mensualidad</span>
+                            <span class="text-[11px] uppercase font-bold tracking-wide">{{ isRenewal ? 'Ref. mensual' : 'Mensualidad' }}</span>
                         </div>
                         <div class="text-2xl font-bold text-gray-800 dark:text-gray-100">{{ fmt(c.monthly_amount) }}</div>
-                        <div class="text-xs text-gray-400 mt-0.5">Anticipo: {{ fmt(c.anticipo_amount) }}</div>
+                        <div class="text-xs text-gray-400 mt-0.5">{{ isRenewal ? 'Equivalente mensual' : ('Anticipo: ' + fmt(c.anticipo_amount)) }}</div>
                     </div>
                     <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-4">
                         <div class="flex items-center gap-2 text-blue-600 mb-2">
@@ -316,7 +327,7 @@ function openCurrentCycle() {
                             </div>
                             <div class="flex gap-2">
                                 <dt class="text-gray-400 w-36 shrink-0">Plan de pago</dt>
-                                <dd class="text-gray-700 dark:text-gray-200">{{ c.payment_plan_months }} meses</dd>
+                                <dd class="text-gray-700 dark:text-gray-200">{{ isRenewal ? 'Renovación anual' : (c.payment_plan_months + ' meses') }}</dd>
                             </div>
                             <div class="flex gap-2">
                                 <dt class="text-gray-400 w-36 shrink-0">Subtotal</dt>
@@ -339,7 +350,7 @@ function openCurrentCycle() {
                                 <dd class="text-gray-800 dark:text-gray-100 font-bold text-base">{{ fmt(c.total_amount) }}</dd>
                             </div>
                             <div class="flex gap-2">
-                                <dt class="text-gray-400 w-36 shrink-0">Mensualidad</dt>
+                                <dt class="text-gray-400 w-36 shrink-0">{{ isRenewal ? 'Ref. mensual' : 'Mensualidad' }}</dt>
                                 <dd class="text-gray-700 dark:text-gray-200">{{ fmt(c.monthly_amount) }}</dd>
                             </div>
                             <div class="flex gap-2">
@@ -526,7 +537,12 @@ function openCurrentCycle() {
                                     <td class="px-4 py-2 font-mono text-xs">
                                         <span class="inline-block rounded bg-gray-100 dark:bg-zinc-700 px-2 py-0.5">{{ svc.prefix }}</span>
                                     </td>
-                                    <td class="px-4 py-2 text-gray-800 dark:text-gray-100">{{ svc.name }}</td>
+                                    <td class="px-4 py-2 text-gray-800 dark:text-gray-100">
+                                        {{ svc.name }}
+                                        <span v-if="svc.client_service_id" class="block text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                                            ↳ {{ clientServices.find(c => c.id === svc.client_service_id)?.service_name ?? 'Servicio vinculado' }}
+                                        </span>
+                                    </td>
                                     <td class="px-4 py-2 text-gray-600 dark:text-zinc-300">{{ unitTypeLabels[svc.unit_type] }}</td>
                                     <td class="px-4 py-2 text-right font-semibold text-gray-800 dark:text-gray-100">
                                         <template v-if="svc.unit_type === 'unlimited'">∞</template>
@@ -643,6 +659,24 @@ function openCurrentCycle() {
                                 class="rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50" />
                             Auto-crear tickets al abrir ciclo
                         </label>
+                    </div>
+
+                    <!-- Servicio relacionado (client_service) -->
+                    <div v-if="clientServices.length > 0">
+                        <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">
+                            Servicio relacionado del cliente
+                            <span class="text-gray-400 font-normal">(vincula los tickets automáticamente)</span>
+                        </label>
+                        <select v-model="serviceForm.client_service_id"
+                            class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm">
+                            <option :value="null">Sin vincular</option>
+                            <option v-for="cs in clientServices" :key="cs.id" :value="cs.id">
+                                {{ cs.service_name }}
+                                <template v-if="cs.billing_type === 'monthly'"> · Mensual</template>
+                                <template v-else-if="cs.billing_type === 'annual'"> · Anual</template>
+                                <template v-else-if="cs.billing_type === 'once'"> · Único</template>
+                            </option>
+                        </select>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">

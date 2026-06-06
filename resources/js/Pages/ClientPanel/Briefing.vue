@@ -1,13 +1,16 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LightBulbIcon } from '@heroicons/vue/24/outline';
+import { LightBulbIcon, FolderOpenIcon } from '@heroicons/vue/24/outline';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import ClientAssetsManager from '@/Components/ClientAssetsManager.vue';
 
 const props = defineProps({
     briefing_details: Object,
+    client_id: Number,
+    assets: { type: Array, default: () => [] },
 });
 
 const briefingForm = useForm({
@@ -37,7 +40,26 @@ const submitBriefing = () => {
         </template>
 
         <div class="py-12">
-            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8 space-y-6">
+                <!-- Documentos del cliente -->
+                <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden">
+                    <div class="p-6 border-b border-gray-50 dark:border-zinc-800 bg-gray-50/50 dark:bg-blue-950/10">
+                        <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center">
+                            <FolderOpenIcon class="h-6 w-6 mr-2 text-blue-500 dark:text-blue-400" />
+                            Documentos del Cliente
+                        </h3>
+                        <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">Archivos, logos, paletas y recursos compartidos por nuestro equipo para tu proyecto.</p>
+                    </div>
+                    <div class="p-6">
+                        <ClientAssetsManager
+                            :client-id="client_id"
+                            :assets="assets"
+                            :can-edit="false"
+                        />
+                    </div>
+                </div>
+
+                <!-- Información de tu Proyecto (Briefing) -->
                 <div class="bg-white dark:bg-zinc-900 rounded-3xl shadow-sm border border-gray-100 dark:border-zinc-800 overflow-hidden">
                     <div class="p-6 border-b border-gray-50 dark:border-zinc-800 bg-gray-50/50 dark:bg-yellow-950/10">
                         <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center">

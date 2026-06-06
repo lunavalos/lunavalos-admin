@@ -73,6 +73,7 @@ class ContractServiceController extends Controller
             'sort_order'          => 'nullable|integer',
             'service_id'          => 'nullable|exists:services,id',
             'service_addon_id'    => 'nullable|exists:service_addons,id',
+            'client_service_id'   => 'nullable|exists:client_services,id',
         ]);
     }
 }

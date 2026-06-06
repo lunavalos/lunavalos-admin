@@ -27,6 +27,13 @@ const lastDay = new Date(year, month, 0).getDate();
 const defaultFrom = `${year}-${pad(month)}-01`;
 const defaultTo   = `${year}-${pad(month)}-${lastDay}`;
 
+const defaultOptions = {
+    show_assigned:   true,
+    show_dates:      true,
+    show_duration:   true,
+    show_status_log: false,
+};
+
 const form = useForm({
     title:        props.report.title        ?? '',
     period_month: props.report.period_month ?? (new Date().getMonth() + 1),
@@ -35,6 +42,7 @@ const form = useForm({
     notes:        props.report.notes        ?? '',
     date_from:    defaultFrom,
     date_to:      defaultTo,
+    pdf_options:  Object.assign({}, defaultOptions, props.report.pdf_options ?? {}),
 });
 
 // Preview of tickets for the selected range
@@ -184,6 +192,46 @@ const submit = () => {
                                     class="mt-1 w-full border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 rounded-xl shadow-sm focus:border-[#264ab3] focus:ring-[#264ab3] text-sm resize-none"
                                 ></textarea>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Opciones del PDF -->
+                    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                        <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm mb-1 uppercase tracking-wider">Opciones del PDF</h3>
+                        <p class="text-xs text-gray-400 dark:text-zinc-500 mb-4">Selecciona qué columnas y secciones incluir en el reporte descargable.</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_assigned"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Responsable</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Quién tiene asignado cada ticket</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_dates"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Inicio / Finalización</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Fechas de inicio y cierre del trabajo</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_duration"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Duración</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Tiempo total de resolución</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_status_log"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Bitácora de cambios</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Historial de movimientos de estatus</span>
+                                </div>
+                            </label>
                         </div>
                     </div>
 

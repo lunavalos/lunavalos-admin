@@ -9,11 +9,10 @@
             font-family: DejaVu Sans, Arial, sans-serif;
             font-size: 10.5px;
             color: #1a202c;
-            line-height: 1.55;
+            line-height: 1.6;
         }
         .page { padding: 40px 52px 36px; }
 
-        /* Header */
         .header {
             background-color: #264ab3;
             color: #fff;
@@ -25,21 +24,14 @@
         .header-sub { font-size: 8.5px; opacity: 0.7; margin-top: 3px; }
         .header-meta { text-align: right; font-size: 9px; opacity: 0.85; }
 
-        /* Contract number block */
-        .contract-meta {
-            text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 14px;
-            border-bottom: 2px solid #264ab3;
+        .parties {
+            margin-bottom: 16px;
+            background: #f7f9ff;
+            border-left: 3px solid #264ab3;
+            padding: 10px 14px;
         }
-        .contract-meta .number { font-size: 13px; font-weight: bold; }
-        .contract-meta .date { font-size: 10px; color: #555; margin-top: 3px; }
-
-        /* Parties */
-        .parties { margin-bottom: 16px; background: #f7f9ff; border-left: 3px solid #264ab3; padding: 10px 14px; }
         .parties p { margin-bottom: 4px; }
 
-        /* Clauses */
         h3.clause {
             font-size: 10px;
             font-weight: bold;
@@ -52,18 +44,25 @@
         }
         p { margin-bottom: 6px; text-align: justify; }
         ul { margin: 4px 0 8px 18px; padding: 0; }
-        li { margin-bottom: 2px; }
+        li { margin-bottom: 3px; }
 
-        /* Signatures */
+        .amount-box {
+            background: #eff4ff;
+            border: 1px solid #c7d8f8;
+            border-radius: 4px;
+            padding: 10px 14px;
+            margin: 8px 0;
+        }
+        .amount-box .amount-main { font-size: 16px; font-weight: bold; color: #264ab3; }
+        .amount-box .amount-label { font-size: 9px; color: #555; margin-top: 2px; }
+
         .signatures { margin-top: 32px; }
         .sig-table { width: 100%; }
         .sig-box { width: 46%; vertical-align: top; padding: 12px 14px; background: #f9fafb; border: 1px solid #e2e8f0; }
         .sig-box .sig-title { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #264ab3; margin-bottom: 8px; }
         .sig-box p { margin-bottom: 3px; text-align: left; }
         .sig-line { border-top: 1px solid #aaa; margin-top: 30px; padding-top: 5px; font-size: 8.5px; color: #666; }
-        .sig-electronic { font-size: 8px; color: #666; margin-top: 4px; }
 
-        /* Footer */
         .footer {
             font-size: 8px;
             color: #aaa;
@@ -73,7 +72,6 @@
             padding-top: 8px;
         }
 
-        /* Draft watermark */
         @if($contract->status !== 'signed')
         .draft-mark {
             position: fixed; top: 35%; left: 10%;
@@ -91,94 +89,170 @@
     <div class="draft-mark">BORRADOR</div>
     @endif
 
+    @php
+        $cur        = $contract->currency ?? config('currencies.default', 'MXN');
+        $provider   = $settings['company_legal_name'] ?? $settings['company_commercial_name'] ?? 'Luna Avalos';
+        $site       = $settings['company_website'] ?? 'lunavalos.com';
+        $isRenewal  = !$contract->quote_id || !floatval($contract->anticipo_amount ?? 0);
+
+        // Services: prefer quote items, fall back to client_services
+        $services = [];
+        if ($contract->quote && $contract->quote->items && count($contract->quote->items)) {
+            foreach ($contract->quote->items as $item) {
+                $services[] = $item->concept . ($item->description ? ' — ' . $item->description : '');
+            }
+        } elseif ($contract->client && $contract->client->services) {
+            foreach ($contract->client->services as $s) {
+                $services[] = $s->service_name;
+            }
+        }
+
+        $fmtDate = fn($d) => $d ? \Carbon\Carbon::parse($d)->locale('es')->isoFormat('D [de] MMMM [de] YYYY') : '—';
+    @endphp
+
     <!-- Header -->
     <div class="header">
         <table class="header-table">
             <tr>
                 <td>
                     <div class="header-title">Contrato de Prestación de Servicios</div>
-                    <div class="header-sub">{{ $settings['company_legal_name'] ?? 'Luna Avalos' }} · {{ $settings['company_website'] ?? 'lunavalos.com' }}</div>
+                    <div class="header-sub">{{ $provider }} · {{ $site }}</div>
                 </td>
                 <td class="header-meta">
                     <div>No. <strong>{{ $contract->contract_number ?? ('#' . $contract->id) }}</strong></div>
-                    <div>{{ $contract->start_date ? \Carbon\Carbon::parse($contract->start_date)->locale('es')->isoFormat('D MMM YYYY') : now()->locale('es')->isoFormat('D MMM YYYY') }}</div>
+                    <div>{{ $fmtDate($contract->start_date ?? $contract->created_at) }}</div>
                 </td>
             </tr>
         </table>
     </div>
 
-    <!-- Parties intro -->
+    <!-- Partes -->
     <div class="parties">
-        <p>Entre: <strong>{{ $settings['company_legal_name'] ?? 'Luna Avalos' }} / {{ $settings['company_website'] ?? 'lunavalos.com' }}</strong> ("EL PRESTADOR")</p>
-        <p>y: <strong>{{ $contract->legal_name }}</strong> ("EL CLIENTE")</p>
+        <p>Entre: <strong>{{ $provider }}</strong> — {{ $site }} <em>("EL PRESTADOR")</em></p>
+        <p>y: <strong>{{ $contract->legal_name }}</strong>
+            @if($contract->tax_id) · RFC: {{ $contract->tax_id }} @endif
+            <em>("EL CLIENTE")</em>
+        </p>
         <p>Se celebra el presente Contrato de Prestación de Servicios bajo las siguientes cláusulas:</p>
     </div>
 
-    <!-- PRIMERA -->
+    <!-- PRIMERA: Objeto -->
     <h3 class="clause">Primera. Objeto del Contrato</h3>
-    <p>EL PRESTADOR se compromete a desarrollar y/o prestar los servicios solicitados por EL CLIENTE conforme a la cotización aceptada No. <strong>{{ $contract->quote?->id ?? '—' }}</strong>, la cual forma parte integral del presente contrato.</p>
+    <p>EL PRESTADOR se obliga a mantener activos y en correcto funcionamiento los servicios digitales
+    contratados por EL CLIENTE, garantizando que operen de manera continua durante la vigencia del
+    presente contrato, con el respaldo técnico necesario para su funcionamiento.</p>
     <p><strong>Servicios contratados:</strong></p>
+    @if(count($services))
     <ul>
-        @foreach($contract->quote?->items ?? [] as $item)
-            <li>{{ $item->concept }}{{ $item->description ? ' — ' . $item->description : '' }}</li>
+        @foreach($services as $svc)
+            <li>{{ $svc }}</li>
         @endforeach
     </ul>
-
-    <!-- SEGUNDA -->
-    <h3 class="clause">Segunda. Monto y Forma de Pago</h3>
-    @php $cur = $contract->currency ?? config('currencies.default'); @endphp
-    <p>El monto total de los servicios es:</p>
-    <ul>
-        <li>Subtotal: <strong>@money($contract->subtotal, $cur)</strong></li>
-        <li>IVA: <strong>@money($contract->iva_amount, $cur)</strong></li>
-        <li>Total: <strong>@money($contract->total_amount, $cur)</strong></li>
-    </ul>
-    <p><strong>Forma de pago:</strong> Anticipo de <strong>@money($contract->anticipo_amount, $cur)</strong>
-    @if($contract->payment_plan_months > 1)
-    más <strong>{{ $contract->payment_plan_months }} mensualidades</strong> de <strong>@money($contract->monthly_amount, $cur)</strong>.
+    @else
+    <p><em>— Servicios descritos en cotización adjunta —</em></p>
     @endif
-    Los trabajos iniciarán una vez confirmado el anticipo.</p>
+    @if($contract->quote_id)
+    <p>Con referencia a la cotización No. <strong>{{ $contract->quote?->id }}</strong>,
+    que forma parte integral del presente contrato.</p>
+    @endif
 
-    <!-- TERCERA -->
-    <h3 class="clause">Tercera. Tiempos de Entrega</h3>
-    <p>El tiempo estimado para la entrega será de <strong>15 días hábiles</strong>, contados a partir de la recepción del anticipo y de los materiales necesarios. Los tiempos podrán modificarse por retrasos del cliente, cambios fuera del alcance inicial o causas de fuerza mayor.</p>
+    <!-- SEGUNDA: Vigencia -->
+    <h3 class="clause">Segunda. Vigencia del Servicio</h3>
+    <p>El presente contrato tiene una vigencia de <strong>doce (12) meses</strong>
+    @if($contract->start_date)
+        , a partir del <strong>{{ $fmtDate($contract->start_date) }}</strong>
+        @if($contract->end_date)
+            con vencimiento el <strong>{{ $fmtDate($contract->end_date) }}</strong>
+        @endif
+    @endif.</p>
+    <p>Al término de la vigencia, EL CLIENTE podrá optar por renovar el servicio por un periodo adicional
+    mediante el pago de la tarifa correspondiente. La no renovación implica la suspensión de los servicios
+    al concluir el periodo pagado.</p>
 
-    <!-- CUARTA -->
-    <h3 class="clause">Cuarta. Alcance del Servicio</h3>
-    <p>El servicio incluye únicamente los conceptos establecidos en la cotización aceptada. Cualquier funcionalidad, modificación, integración o servicio adicional no contemplado será considerado trabajo extra y podrá generar una nueva cotización.</p>
+    <!-- TERCERA: Monto y Pago -->
+    <h3 class="clause">Tercera. Monto y Forma de Pago</h3>
+    @if($isRenewal)
+        <p>El monto correspondiente a la renovación anual de los servicios es:</p>
+        <div class="amount-box">
+            <div class="amount-main">@money($contract->total_amount, $cur)</div>
+            <div class="amount-label">Pago único de renovación anual</div>
+        </div>
+        <p>El pago deberá realizarse previo al vencimiento del servicio para garantizar la continuidad sin
+        interrupciones. EL PRESTADOR notificará a EL CLIENTE con anticipación la fecha de vencimiento y
+        el monto de renovación vigente.</p>
+    @else
+        <p>El monto total de los servicios contratados es:</p>
+        <ul>
+            @if($contract->subtotal)
+            <li>Subtotal: <strong>@money($contract->subtotal, $cur)</strong></li>
+            @endif
+            @if($contract->iva_amount)
+            <li>IVA (16%): <strong>@money($contract->iva_amount, $cur)</strong></li>
+            @endif
+            <li>Total: <strong>@money($contract->total_amount, $cur)</strong></li>
+        </ul>
+        <p><strong>Plan de pago:</strong>
+        Anticipo al inicio: <strong>@money($contract->anticipo_amount, $cur)</strong>.
+        @if(($contract->payment_plan_months ?? 1) > 1)
+        Saldo restante en <strong>{{ $contract->payment_plan_months - 1 }} mensualidades</strong>
+        de <strong>@money($contract->monthly_amount, $cur)</strong>.
+        @endif
+        Los trabajos iniciarán una vez confirmado el anticipo.</p>
+    @endif
 
-    <!-- QUINTA -->
-    <h3 class="clause">Quinta. Cambios y Revisiones</h3>
-    <p>EL CLIENTE tendrá derecho a <strong>2 rondas de ajustes menores</strong>, siempre que estén relacionados con el alcance contratado. Cambios que alteren estructura, funcionalidades o nuevos requerimientos podrán generar costos adicionales.</p>
+    <!-- CUARTA: Compromisos del Prestador -->
+    <h3 class="clause">Cuarta. Compromisos del Prestador</h3>
+    <p>EL PRESTADOR se compromete a:</p>
+    <ul>
+        <li>Mantener los servicios contratados activos y operando correctamente durante la vigencia del contrato.</li>
+        <li>Atender reportes de fallas o solicitudes de soporte en un plazo de <strong>3 a 5 días hábiles</strong> a partir de la notificación de EL CLIENTE.</li>
+        <li>Notificar con anticipación cualquier mantenimiento programado, cambio relevante o próximo vencimiento del servicio.</li>
+        <li>Custodiar de manera confidencial los accesos, contraseñas y activos digitales relacionados con el servicio.</li>
+    </ul>
 
-    <!-- SEXTA -->
-    <h3 class="clause">Sexta. Propiedad Intelectual</h3>
-    <p>Los derechos del trabajo desarrollado serán transferidos a EL CLIENTE una vez liquidado el monto total del contrato. EL PRESTADOR podrá mostrar el proyecto en su portafolio, redes sociales o material promocional, salvo solicitud escrita en contrario.</p>
+    <!-- QUINTA: Compromisos del Cliente -->
+    <h3 class="clause">Quinta. Compromisos del Cliente</h3>
+    <p>EL CLIENTE se compromete a:</p>
+    <ul>
+        <li>Realizar los pagos en tiempo y forma según lo acordado en este contrato.</li>
+        <li>Proporcionar oportunamente la información, materiales y accesos necesarios para la correcta prestación del servicio.</li>
+        <li>Notificar a EL PRESTADOR cualquier cambio en sus datos de contacto o requerimientos del servicio.</li>
+        <li>No compartir accesos o credenciales del servicio con terceros sin autorización de EL PRESTADOR.</li>
+    </ul>
 
-    <!-- SÉPTIMA -->
-    <h3 class="clause">Séptima. Dominios, Hosting y Servicios de Terceros</h3>
-    <p>Los costos relacionados con dominio, hosting, servicios de correo, APIs, licencias, plataformas externas y publicidad pagada podrán requerir pagos adicionales y/o renovaciones periódicas. EL PRESTADOR no será responsable por fallas atribuibles a terceros.</p>
+    <!-- SEXTA: Cancelación -->
+    <h3 class="clause">Sexta. Cancelación</h3>
+    <p>EL CLIENTE podrá cancelar el servicio en cualquier momento notificando por escrito a EL PRESTADOR.
+    En caso de cancelación:</p>
+    <ul>
+        <li>Los servicios permanecerán activos hasta la fecha de vencimiento del periodo ya pagado, sin reembolso proporcional.</li>
+        <li>EL PRESTADOR realizará la entrega de los activos digitales del cliente dentro de los 5 días hábiles posteriores a la solicitud.</li>
+        <li>En caso de adeudo pendiente, la entrega de activos se efectuará una vez liquidado el saldo.</li>
+    </ul>
 
-    <!-- OCTAVA -->
-    <h3 class="clause">Octava. Cancelación</h3>
-    <p>En caso de cancelación por parte de EL CLIENTE: el anticipo no será reembolsable y los trabajos ya realizados deberán ser cubiertos proporcionalmente.</p>
+    <!-- SÉPTIMA: Propiedad y Confidencialidad -->
+    <h3 class="clause">Séptima. Propiedad y Confidencialidad</h3>
+    <p>Los derechos sobre los activos digitales desarrollados exclusivamente para EL CLIENTE serán
+    transferidos a su favor una vez liquidado el monto total del contrato.</p>
+    <p>Ambas partes se obligan a mantener confidencialidad sobre la información, accesos y datos
+    intercambiados durante la relación comercial, tanto durante la vigencia como tras la terminación
+    del contrato.</p>
 
-    <!-- NOVENA -->
-    <h3 class="clause">Novena. Soporte y Garantía</h3>
-    <p>EL PRESTADOR brindará soporte técnico por <strong>30 días</strong> posteriores a la entrega final para corrección de errores atribuibles al desarrollo original. No incluye nuevas funcionalidades, modificaciones posteriores ni errores causados por terceros.</p>
+    <!-- OCTAVA: Aceptación -->
+    <h3 class="clause">Octava. Aceptación</h3>
+    <p>Las partes declaran haber leído y entendido el presente contrato en su totalidad, aceptando sus términos
+    de manera libre y voluntaria. La firma electrónica o aceptación digital tiene validez legal equivalente a
+    firma autógrafa, de conformidad con el <strong>Código de Comercio</strong> y la
+    <strong>Ley de Firma Electrónica Avanzada</strong> vigentes en México.</p>
 
-    <!-- DÉCIMA -->
-    <h3 class="clause">Décima. Aceptación</h3>
-    <p>Las partes aceptan el presente contrato y reconocen que la firma electrónica o aceptación digital tendrá validez legal equivalente a firma autógrafa, de conformidad con la legislación aplicable en materia de comercio electrónico.</p>
-
-    <!-- Signatures -->
+    <!-- Firmas -->
     <div class="signatures">
         <table class="sig-table">
             <tr>
                 <td class="sig-box">
                     <div class="sig-title">El Prestador</div>
-                    <p>Nombre: <strong>Luna Avalos</strong></p>
-                    <p>Sitio web: {{ $settings['company_website'] ?? 'lunavalos.com' }}</p>
+                    <p>Nombre: <strong>{{ $provider }}</strong></p>
+                    <p>Sitio web: {{ $site }}</p>
                     @if($settings['company_email'] ?? false)
                     <p>Correo: {{ $settings['company_email'] }}</p>
                     @endif
@@ -189,16 +263,18 @@
                     <div class="sig-title">El Cliente</div>
                     <p>Nombre: <strong>{{ $contract->legal_name }}</strong></p>
                     @if($contract->legal_representative)
-                    <p>Representante: {{ $contract->legal_representative }}</p>
+                    <p>Representante Legal: {{ $contract->legal_representative }}</p>
                     @endif
+                    @if($contract->tax_id)
                     <p>RFC: {{ $contract->tax_id }}</p>
+                    @endif
                     @if($contract->status === 'signed' && $contract->signed_at)
                     <div class="sig-line">
-                        Firmado electrónicamente el {{ \Carbon\Carbon::parse($contract->signed_at)->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm') }}<br>
+                        ✓ Firmado electrónicamente el {{ \Carbon\Carbon::parse($contract->signed_at)->locale('es')->isoFormat('D [de] MMMM [de] YYYY, HH:mm') }}<br>
                         IP de firma: {{ $contract->signature_ip }}
                     </div>
                     @else
-                    <div class="sig-line">Pendiente de firma</div>
+                    <div class="sig-line">Pendiente de firma electrónica</div>
                     @endif
                 </td>
             </tr>
@@ -206,7 +282,7 @@
     </div>
 
     <div class="footer">
-        {{ $settings['company_legal_name'] ?? 'Luna Avalos' }}
+        {{ $provider }}
         @if($settings['company_email'] ?? false) · {{ $settings['company_email'] }} @endif
         · Generado el {{ now()->format('d/m/Y H:i') }}
         @if($contract->status !== 'signed') · DOCUMENTO NO FIRMADO @endif

@@ -2,79 +2,91 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { ref, computed, onMounted } from 'vue';
-import { 
-    UserIcon, 
-    BriefcaseIcon, 
-    AtSymbolIcon, 
-    PhoneIcon, 
+import {
+    UserIcon,
+    BriefcaseIcon,
+    AtSymbolIcon,
+    PhoneIcon,
     GlobeAltIcon,
     PhotoIcon,
     ClipboardIcon,
     CheckIcon,
     SwatchIcon,
-    PencilSquareIcon
 } from '@heroicons/vue/24/outline';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 
 const props = defineProps({
-    templates: Array
+    templates: Array,
+    assignedTemplate: { type: Object, default: null },
+    signatureDefaults: { type: Object, default: () => ({}) },
 });
 
 const page = usePage();
-const client = page.props.auth.user.client || {};
+const authUser = page.props.auth.user;
+const client = authUser.client || {};
+
+// Si hay plantilla asignada, úsala. Si no, permite seleccionar de todas.
+const hasAssigned = computed(() => !!props.assignedTemplate);
 
 const formData = ref({
-    name: page.props.auth.user.name || '',
-    position: '',
-    email: page.props.auth.user.email || '',
-    phone: '',
-    website: '',
-    logo: '/logo.svg', // Default project logo
-    photo: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(page.props.auth.user.name) + '&background=264ab3&color=fff',
-    facebook: '',
-    instagram: '',
-    linkedin: '',
-    twitter: '',
-    primary_color: '#264ab3',
-    secondary_color: '#666666',
-    template_id: props.templates.length > 0 ? props.templates[0].id : null
+    name:            authUser.name || '',
+    position:        '',
+    email:           authUser.email || '',
+    phone:           '',
+    website:         props.signatureDefaults?.website || client.website || '',
+    logo:            props.signatureDefaults?.logo || '/logo.svg',
+    photo:           'https://ui-avatars.com/api/?name=' + encodeURIComponent(authUser.name) + '&background=264ab3&color=fff',
+    facebook:        '',
+    instagram:       '',
+    linkedin:        '',
+    twitter:         '',
+    primary_color:   props.signatureDefaults?.primary_color   || '#264ab3',
+    secondary_color: props.signatureDefaults?.secondary_color || '#666666',
+    template_id:     props.assignedTemplate?.id ?? (props.templates.length > 0 ? props.templates[0].id : null),
 });
 
 const selectedTemplate = computed(() => {
+    if (hasAssigned.value) return props.assignedTemplate;
     return props.templates.find(t => t.id === formData.value.template_id) || props.templates[0];
 });
 
+// Campos activos según la plantilla seleccionada. Si fields es null → todos.
+const ALL_FIELD_KEYS = ['name', 'position', 'email', 'phone', 'website', 'logo', 'photo', 'primary_color', 'secondary_color', 'social_links'];
+const activeFields = computed(() => {
+    const f = selectedTemplate.value?.fields;
+    return f && f.length ? f : ALL_FIELD_KEYS;
+});
+
+const has = (field) => activeFields.value.includes(field);
+
 const renderedSignature = computed(() => {
     if (!selectedTemplate.value) return '';
-    
+
     let html = selectedTemplate.value.html_content;
-    const data = formData.value;
-    
-    html = html.replace(/\{\{name\}\}/g, data.name || 'Nombre del Empleado');
-    html = html.replace(/\{\{position\}\}/g, data.position || 'Puesto / Cargo');
-    html = html.replace(/\{\{email\}\}/g, data.email || 'correo@empresa.com');
-    html = html.replace(/\{\{phone\}\}/g, data.phone || '123 456 7890');
-    html = html.replace(/\{\{website\}\}/g, data.website || 'www.tuempresa.com');
-    html = html.replace(/\{\{logo\}\}/g, data.logo);
-    html = html.replace(/\{\{photo\}\}/g, data.photo);
-    html = html.replace(/\{\{primary_color\}\}/g, data.primary_color);
-    html = html.replace(/\{\{secondary_color\}\}/g, data.secondary_color);
+    const d = formData.value;
 
-    // Social Links
-    let socialHtml = '<div style="margin-top: 10px;">';
-    if (data.facebook) socialHtml += `<a href="${data.facebook}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733547.png" width="20" style="display:inline-block"></a>`;
-    if (data.instagram) socialHtml += `<a href="${data.instagram}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/2111/2111463.png" width="20" style="display:inline-block"></a>`;
-    if (data.linkedin) socialHtml += `<a href="${data.linkedin}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/3536/3536505.png" width="20" style="display:inline-block"></a>`;
-    if (data.twitter) socialHtml += `<a href="${data.twitter}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/3256/3256609.png" width="20" style="display:inline-block"></a>`;
-    socialHtml += '</div>';
+    html = html.replace(/\{\{name\}\}/g, d.name || 'Nombre del Empleado');
+    html = html.replace(/\{\{position\}\}/g, d.position || 'Puesto / Cargo');
+    html = html.replace(/\{\{email\}\}/g, d.email || 'correo@empresa.com');
+    html = html.replace(/\{\{phone\}\}/g, d.phone || '123 456 7890');
+    html = html.replace(/\{\{website\}\}/g, d.website || 'www.tuempresa.com');
+    html = html.replace(/\{\{logo\}\}/g, d.logo);
+    html = html.replace(/\{\{photo\}\}/g, d.photo);
+    html = html.replace(/\{\{primary_color\}\}/g, d.primary_color);
+    html = html.replace(/\{\{secondary_color\}\}/g, d.secondary_color);
 
-    if (!data.facebook && !data.instagram && !data.linkedin && !data.twitter) {
-        socialHtml = '';
+    let socialHtml = '';
+    if (has('social_links') && (d.facebook || d.instagram || d.linkedin || d.twitter)) {
+        socialHtml = '<div style="margin-top: 10px;">';
+        if (d.facebook)  socialHtml += `<a href="${d.facebook}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/733/733547.png" width="20" style="display:inline-block"></a>`;
+        if (d.instagram) socialHtml += `<a href="${d.instagram}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/2111/2111463.png" width="20" style="display:inline-block"></a>`;
+        if (d.linkedin)  socialHtml += `<a href="${d.linkedin}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/3536/3536505.png" width="20" style="display:inline-block"></a>`;
+        if (d.twitter)   socialHtml += `<a href="${d.twitter}" style="margin-right: 8px;"><img src="https://cdn-icons-png.flaticon.com/32/3256/3256609.png" width="20" style="display:inline-block"></a>`;
+        socialHtml += '</div>';
     }
-
     html = html.replace(/\{\{social_links\}\}/g, socialHtml);
-    
+
     return html;
 });
 
@@ -85,7 +97,6 @@ const copySignature = () => {
     range.selectNode(el);
     window.getSelection().removeAllRanges();
     window.getSelection().addRange(range);
-    
     try {
         document.execCommand('copy');
         copied.value = true;
@@ -93,7 +104,6 @@ const copySignature = () => {
     } catch (err) {
         console.error('Cant copy', err);
     }
-    
     window.getSelection().removeAllRanges();
 };
 
@@ -101,19 +111,10 @@ const handleFileUpload = (event, type) => {
     const file = event.target.files[0];
     if (file) {
         const reader = new FileReader();
-        reader.onload = (e) => {
-            formData.value[type] = e.target.result;
-        };
+        reader.onload = (e) => { formData.value[type] = e.target.result; };
         reader.readAsDataURL(file);
     }
 };
-
-onMounted(() => {
-    // Try to get more info from client object if available
-    if (client.business_name) {
-        formData.value.website = client.website || '';
-    }
-});
 </script>
 
 <template>
@@ -130,7 +131,7 @@ onMounted(() => {
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    
+
                     <!-- Left Column: Form -->
                     <div class="lg:col-span-5 space-y-6">
                         <div class="bg-white dark:bg-zinc-900 p-6 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800">
@@ -138,17 +139,22 @@ onMounted(() => {
                                 <SwatchIcon class="h-5 w-5 mr-2 text-[#264ab3]" />
                                 Tus Datos
                             </h3>
-                            
+
                             <div class="space-y-4">
-                                <!-- Template Selection -->
-                                <div v-if="templates.length > 1">
+                                <!-- Plantilla asignada (badge informativo) o selector -->
+                                <div v-if="hasAssigned" class="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                                    <SwatchIcon class="h-4 w-4 flex-shrink-0" />
+                                    Plantilla: <span class="font-bold">{{ assignedTemplate.name }}</span>
+                                </div>
+                                <div v-else-if="templates.length > 1">
                                     <InputLabel value="Selecciona una Plantilla" class="dark:text-zinc-300" />
                                     <select v-model="formData.template_id" class="mt-1 block w-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 focus:border-indigo-500 rounded-md shadow-sm">
                                         <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
                                     </select>
                                 </div>
 
-                                <div>
+                                <!-- Nombre -->
+                                <div v-if="has('name')">
                                     <InputLabel for="name" value="Nombre Completo" class="dark:text-zinc-300" />
                                     <div class="mt-1 relative rounded-md shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -158,7 +164,8 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <div>
+                                <!-- Puesto -->
+                                <div v-if="has('position')">
                                     <InputLabel for="position" value="Puesto o Cargo" class="dark:text-zinc-300" />
                                     <div class="mt-1 relative rounded-md shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -168,8 +175,9 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
+                                <!-- Email + Teléfono -->
+                                <div class="grid gap-4" :class="has('email') && has('phone') ? 'grid-cols-2' : 'grid-cols-1'">
+                                    <div v-if="has('email')">
                                         <InputLabel for="email" value="Correo Electrónico" class="dark:text-zinc-300" />
                                         <div class="mt-1 relative rounded-md shadow-sm">
                                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -178,7 +186,7 @@ onMounted(() => {
                                             <TextInput id="email" type="email" v-model="formData.email" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
                                         </div>
                                     </div>
-                                    <div>
+                                    <div v-if="has('phone')">
                                         <InputLabel for="phone" value="Teléfono" class="dark:text-zinc-300" />
                                         <div class="mt-1 relative rounded-md shadow-sm">
                                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -189,18 +197,20 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <div>
+                                <!-- Sitio web -->
+                                <div v-if="has('website')">
                                     <InputLabel for="website" value="Sitio Web" class="dark:text-zinc-300" />
                                     <div class="mt-1 relative rounded-md shadow-sm">
                                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             <GlobeAltIcon class="h-4 w-4 text-gray-400 dark:text-zinc-500" />
                                         </div>
-                                        <TextInput id="website" type="text" v-model="formData.website" placeholder="www.absolutegroup.com" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
+                                        <TextInput id="website" type="text" v-model="formData.website" placeholder="www.tuempresa.com" class="block w-full pl-10 sm:text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-100" />
                                     </div>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
+                                <!-- Logo + Foto -->
+                                <div v-if="has('logo') || has('photo')" class="grid grid-cols-2 gap-4">
+                                    <div v-if="has('logo')">
                                         <InputLabel value="Logo Empresa" class="dark:text-zinc-300" />
                                         <div class="mt-1 flex items-center space-x-2">
                                             <label class="cursor-pointer bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100 dark:hover:bg-zinc-700 dark:text-zinc-300">
@@ -213,7 +223,7 @@ onMounted(() => {
                                             </div>
                                         </div>
                                     </div>
-                                    <div>
+                                    <div v-if="has('photo')">
                                         <InputLabel value="Foto de Perfil" class="dark:text-zinc-300" />
                                         <div class="mt-1 flex items-center space-x-2">
                                             <label class="cursor-pointer bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-md px-3 py-2 text-xs flex items-center hover:bg-gray-100 dark:hover:bg-zinc-700 dark:text-zinc-300">
@@ -228,16 +238,17 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <div class="border-t dark:border-zinc-700 pt-4 mt-6">
+                                <!-- Colores -->
+                                <div v-if="has('primary_color') || has('secondary_color')" class="border-t dark:border-zinc-700 pt-4 mt-4">
                                     <h4 class="text-sm font-bold text-gray-700 dark:text-zinc-300 mb-3">Colores de Marca</h4>
                                     <div class="grid grid-cols-2 gap-4">
-                                        <div>
+                                        <div v-if="has('primary_color')">
                                             <InputLabel value="Color Principal" class="dark:text-zinc-400" />
                                             <div class="mt-1 flex items-center">
                                                 <input type="color" v-model="formData.primary_color" class="h-10 w-full rounded border border-gray-300 dark:border-zinc-700 p-1 bg-white dark:bg-zinc-800 cursor-pointer" />
                                             </div>
                                         </div>
-                                        <div>
+                                        <div v-if="has('secondary_color')">
                                             <InputLabel value="Color Secundario" class="dark:text-zinc-400" />
                                             <div class="mt-1 flex items-center">
                                                 <input type="color" v-model="formData.secondary_color" class="h-10 w-full rounded border border-gray-300 dark:border-zinc-700 p-1 bg-white dark:bg-zinc-800 cursor-pointer" />
@@ -246,7 +257,8 @@ onMounted(() => {
                                     </div>
                                 </div>
 
-                                <div class="border-t dark:border-zinc-700 pt-4 mt-6">
+                                <!-- Redes sociales -->
+                                <div v-if="has('social_links')" class="border-t dark:border-zinc-700 pt-4 mt-4">
                                     <h4 class="text-sm font-bold text-gray-700 dark:text-zinc-300 mb-3">Redes Sociales (URLs opcionales)</h4>
                                     <div class="grid grid-cols-2 gap-3">
                                         <TextInput v-model="formData.facebook" placeholder="Facebook URL" class="text-xs" />
@@ -270,11 +282,11 @@ onMounted(() => {
                                     {{ copied ? '¡Copiado!' : 'Copiar Firma' }}
                                 </button>
                             </div>
-                            
+
                             <div class="bg-gray-50 rounded-xl p-8 border border-dashed border-gray-300 min-h-[300px] flex items-center justify-center relative overflow-auto">
                                 <div id="signature-preview-container" v-html="renderedSignature" class="bg-white p-4 shadow-sm inline-block"></div>
                             </div>
-                            
+
                             <div class="mt-6">
                                 <h4 class="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase mb-3">Instrucciones:</h4>
                                 <ul class="text-xs text-gray-600 dark:text-zinc-400 space-y-2 list-disc pl-4">
@@ -287,7 +299,7 @@ onMounted(() => {
                             </div>
                         </div>
                     </div>
-                    
+
                 </div>
             </div>
         </div>

@@ -37,27 +37,44 @@ const fmtDt = (d) => d ? new Date(String(d).replace(' ', 'T')).toLocaleDateStrin
 
 // Contract display data: uses form values in preview mode, contract values when signed.
 const cd = computed(() => {
-    const signed = props.contract.status === 'signed';
+    const c      = props.contract;
+    const signed = c.status === 'signed';
+
+    // Renewal = migrated contract (no quote) OR no anticipo recorded.
+    // Differentiates "pago único de renovación anual" from "proyecto a meses".
+    const isRenewal = !c.quote_id || parseFloat(c.anticipo_amount || 0) === 0;
+
+    // Services: prefer quote items; fall back to client_services for migrated contracts.
+    const services = (c.quote?.items?.length)
+        ? c.quote.items.map(i => ({ name: i.concept, detail: i.description || null }))
+        : (c.client?.services?.length)
+            ? c.client.services.map(s => ({ name: s.service_name, detail: null }))
+            : [];
+
     return {
         providerName:   props.settings?.company_legal_name || props.settings?.company_commercial_name || 'Luna Avalos',
         providerSite:   props.settings?.company_website || 'lunavalos.com',
-        contractNumber: props.contract.contract_number || ('#' + props.contract.id),
-        date:           fmtDate(props.contract.start_date || props.contract.created_at),
-        quoteId:        props.contract.quote?.id || '—',
-        clientName:     signed ? (props.contract.legal_name || '—')         : (form.legal_name || '[Razón Social]'),
-        taxId:          signed ? (props.contract.tax_id || '—')             : (form.tax_id || '[RFC]'),
-        fiscalAddress:  signed ? (props.contract.fiscal_address || '—')     : (form.fiscal_address || '[Dirección fiscal]'),
-        postalCode:     signed ? (props.contract.postal_code || '')          : (form.postal_code || ''),
-        legalRep:       signed ? (props.contract.legal_representative || '') : (form.legal_representative || ''),
-        subtotal:       fmt(props.contract.subtotal),
-        iva:            fmt(props.contract.iva_amount),
-        total:          fmt(props.contract.total_amount),
-        anticipo:       fmt(props.contract.anticipo_amount),
-        monthly:        fmt(props.contract.monthly_amount),
-        months:         props.contract.payment_plan_months || 12,
-        items:          props.contract.quote?.items || [],
-        signedAt:       props.contract.signed_at ? fmtDt(props.contract.signed_at) : null,
-        signatureIp:    props.contract.signature_ip,
+        contractNumber: c.contract_number || ('#' + c.id),
+        date:           fmtDate(c.start_date || c.created_at),
+        startDate:      fmtDate(c.start_date),
+        endDate:        fmtDate(c.end_date),
+        quoteId:        c.quote?.id || null,
+        clientName:     signed ? (c.legal_name || '—')              : (form.legal_name || '[Razón Social]'),
+        taxId:          signed ? (c.tax_id || '—')                  : (form.tax_id || '[RFC]'),
+        fiscalAddress:  signed ? (c.fiscal_address || '—')          : (form.fiscal_address || '[Dirección fiscal]'),
+        postalCode:     signed ? (c.postal_code || '')               : (form.postal_code || ''),
+        legalRep:       signed ? (c.legal_representative || '')      : (form.legal_representative || ''),
+        subtotal:       fmt(c.subtotal),
+        iva:            fmt(c.iva_amount),
+        total:          fmt(c.total_amount),
+        anticipo:       fmt(c.anticipo_amount),
+        monthly:        fmt(c.monthly_amount),
+        months:         c.payment_plan_months || 1,
+        currency:       c.currency || 'MXN',
+        isRenewal,
+        services,
+        signedAt:       c.signed_at ? fmtDt(c.signed_at) : null,
+        signatureIp:    c.signature_ip,
     };
 });
 

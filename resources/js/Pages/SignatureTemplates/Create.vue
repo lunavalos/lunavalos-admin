@@ -9,11 +9,25 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import CodeEditor from '@/Components/CodeEditor.vue';
 import { SwatchIcon } from '@heroicons/vue/24/outline';
 
+const ALL_FIELDS = [
+    { key: 'name',            label: 'Nombre completo' },
+    { key: 'position',        label: 'Puesto / Cargo' },
+    { key: 'email',           label: 'Correo electrónico' },
+    { key: 'phone',           label: 'Teléfono' },
+    { key: 'website',         label: 'Sitio web' },
+    { key: 'logo',            label: 'Logo empresa' },
+    { key: 'photo',           label: 'Foto de perfil' },
+    { key: 'primary_color',   label: 'Color principal' },
+    { key: 'secondary_color', label: 'Color secundario' },
+    { key: 'social_links',    label: 'Redes sociales' },
+];
+
 const form = useForm({
     name: '',
     slug: '',
     html_content: '<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif;">\n  <tr>\n    <td style="padding-right: 20px;">\n      <img src="{{logo}}" width="100" style="display: block;">\n    </td>\n    <td style="border-left: 1px solid #ccc; padding-left: 20px;">\n      <div style="font-weight: bold; font-size: 18px;">{{name}}</div>\n      <div style="color: #666; font-size: 14px; margin-bottom: 10px;">{{position}}</div>\n      <div style="font-size: 12px; color: #333;">\n        Email: {{email}}<br>\n        Tel: {{phone}}<br>\n        Web: {{website}}\n      </div>\n    </td>\n  </tr>\n</table>',
     css_content: '',
+    fields: ['name', 'position', 'email', 'phone', 'website', 'logo', 'photo', 'primary_color', 'secondary_color', 'social_links'],
     is_active: true,
 });
 
@@ -100,6 +114,19 @@ const parsedHtml = computed(() => {
                                     </div>
                                     <p class="text-[10px] text-gray-400 text-center italic">Visualización con datos de ejemplo para demostración.</p>
                                 </div>
+                            </div>
+
+                            <!-- Campos visibles al cliente -->
+                            <div class="border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
+                                <InputLabel value="Campos que puede editar el cliente" class="dark:text-gray-300 mb-3" />
+                                <p class="text-xs text-gray-400 dark:text-zinc-500 mb-3">Selecciona solo los campos que usa esta plantilla. El cliente verá únicamente estos inputs.</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label v-for="field in ALL_FIELDS" :key="field.key" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                        <input type="checkbox" :value="field.key" v-model="form.fields" class="rounded border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-indigo-600 shadow-sm focus:ring-indigo-500 h-4 w-4" />
+                                        {{ field.label }}
+                                    </label>
+                                </div>
+                                <InputError class="mt-2" :message="form.errors.fields" />
                             </div>
 
                             <div>

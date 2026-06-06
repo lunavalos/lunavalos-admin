@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import {
     DocumentChartBarIcon,
     ChevronLeftIcon,
@@ -44,7 +44,57 @@ const form = useForm({
     notes:        '',
     date_from:    defaultFrom,
     date_to:      defaultTo,
+    pdf_options: {
+        show_assigned:   true,
+        show_dates:      true,
+        show_duration:   true,
+        show_status_log: false,
+    },
 });
+
+// Searchable client combobox state
+const clientSearch       = ref('');
+const clientDropdownOpen = ref(false);
+const clientComboRef     = ref(null);
+
+const selectedClientLabel = computed(() => {
+    if (!form.client_id) return null;
+    return props.clients?.find(c => c.id === form.client_id)?.business_name ?? null;
+});
+
+const filteredClients = computed(() => {
+    const q = clientSearch.value.trim().toLowerCase();
+    if (!q) return props.clients ?? [];
+    return (props.clients ?? []).filter(c =>
+        c.business_name?.toLowerCase().includes(q)
+    );
+});
+
+const openClientDropdown = () => {
+    clientSearch.value = '';
+    clientDropdownOpen.value = true;
+};
+
+const selectClient = (client) => {
+    form.client_id           = client ? client.id : null;
+    clientSearch.value       = '';
+    clientDropdownOpen.value = false;
+};
+
+const clearClient = () => {
+    form.client_id           = null;
+    clientSearch.value       = '';
+    clientDropdownOpen.value = false;
+};
+
+const handleClickOutsideClient = (e) => {
+    if (clientComboRef.value && !clientComboRef.value.contains(e.target)) {
+        clientDropdownOpen.value = false;
+    }
+};
+
+onMounted(() => document.addEventListener('mousedown', handleClickOutsideClient));
+onUnmounted(() => document.removeEventListener('mousedown', handleClickOutsideClient));
 
 // Preview of tickets that will be included
 const previewTickets  = ref([]);
@@ -138,14 +188,63 @@ const submit = () => {
                             <!-- Client -->
                             <div>
                                 <InputLabel value="Cliente" />
-                                <select
-                                    v-model="form.client_id"
-                                    class="mt-1 w-full border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 rounded-xl shadow-sm focus:border-[#264ab3] focus:ring-[#264ab3]"
-                                    required
-                                >
-                                    <option :value="null">Seleccionar cliente...</option>
-                                    <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.business_name }}</option>
-                                </select>
+                                <div ref="clientComboRef" class="relative">
+                                    <button
+                                        type="button"
+                                        @click="openClientDropdown"
+                                        class="mt-1 w-full flex items-center justify-between border border-gray-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 rounded-xl shadow-sm px-4 py-3 text-sm text-left focus:outline-none focus:border-[#264ab3] focus:ring-1 focus:ring-[#264ab3] transition"
+                                    >
+                                        <span :class="!selectedClientLabel ? 'text-gray-400 dark:text-zinc-500 italic' : ''">
+                                            {{ selectedClientLabel ?? 'Seleccionar cliente...' }}
+                                        </span>
+                                        <svg class="h-4 w-4 text-gray-400 dark:text-zinc-500 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+
+                                    <div v-if="clientDropdownOpen" class="absolute z-50 mt-2 w-full bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-700 rounded-2xl shadow-xl overflow-hidden">
+                                        <div class="px-4 py-3">
+                                            <input
+                                                v-model="clientSearch"
+                                                type="text"
+                                                autofocus
+                                                placeholder="Buscar cliente..."
+                                                class="w-full border border-[#264ab3] dark:border-blue-500 bg-white dark:bg-zinc-950 text-gray-800 dark:text-gray-200 rounded-xl shadow-sm px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#264ab3] transition"
+                                            />
+                                        </div>
+
+                                        <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                                        <button
+                                            type="button"
+                                            @click="clearClient"
+                                            class="w-full text-left px-4 py-2.5 text-sm text-gray-500 dark:text-zinc-400 italic hover:bg-gray-50 dark:hover:bg-zinc-800 transition"
+                                        >
+                                            Limpiar selección
+                                        </button>
+                                        <div class="border-t border-gray-100 dark:border-zinc-800"></div>
+
+                                        <div class="max-h-64 overflow-y-auto">
+                                            <button
+                                                v-for="client in filteredClients"
+                                                :key="client.id"
+                                                type="button"
+                                                @click="selectClient(client)"
+                                                class="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-[#264ab3] dark:hover:text-blue-400 transition flex items-center justify-between"
+                                                :class="form.client_id === client.id ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold' : ''"
+                                            >
+                                                {{ client.business_name }}
+                                                <svg v-if="form.client_id === client.id" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                                </svg>
+                                            </button>
+
+                                            <div v-if="filteredClients.length === 0" class="px-4 py-6 text-center text-sm text-gray-400 dark:text-zinc-500 italic">
+                                                No se encontraron clientes
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <InputError class="mt-1" :message="form.errors.client_id" />
                             </div>
 
@@ -210,6 +309,46 @@ const submit = () => {
                         </div>
                     </div>
 
+                    <!-- Opciones del PDF -->
+                    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 p-6">
+                        <h3 class="font-bold text-gray-700 dark:text-gray-200 text-sm mb-1 uppercase tracking-wider">Opciones del PDF</h3>
+                        <p class="text-xs text-gray-400 dark:text-zinc-500 mb-4">Selecciona qué columnas y secciones incluir en el reporte descargable.</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_assigned"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Responsable</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Quién tiene asignado cada ticket</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_dates"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Inicio / Finalización</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Fechas de inicio y cierre del trabajo</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_duration"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Duración</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Tiempo total de resolución</span>
+                                </div>
+                            </label>
+                            <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 cursor-pointer transition">
+                                <input type="checkbox" v-model="form.pdf_options.show_status_log"
+                                    class="mt-0.5 rounded border-gray-300 dark:border-zinc-600 text-[#264ab3] focus:ring-[#264ab3]" />
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200 block">Bitácora de cambios</span>
+                                    <span class="text-xs text-gray-400 dark:text-zinc-500">Historial de movimientos de estatus</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
                     <!-- Ticket Preview -->
                     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-100 dark:border-zinc-800 overflow-hidden">
                         <div class="p-5 border-b border-gray-50 dark:border-zinc-800 flex items-center justify-between">
@@ -254,6 +393,9 @@ const submit = () => {
                                         <span class="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{{ ticket.title }}</span>
                                         <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" :class="statusColors[ticket.status]">
                                             {{ ticket.status }}
+                                        </span>
+                                        <span v-if="ticket.source_type === 'recurring'" class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 shrink-0">
+                                            Recurrente
                                         </span>
                                     </div>
                                     <div class="text-[10px] text-gray-400 dark:text-zinc-500 mt-0.5">

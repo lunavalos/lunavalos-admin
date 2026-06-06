@@ -9,7 +9,7 @@ import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
-import { EyeIcon, EyeSlashIcon, ArrowLeftIcon, ServerStackIcon, LightBulbIcon } from '@heroicons/vue/24/outline';
+import { EyeIcon, EyeSlashIcon, ArrowLeftIcon, ServerStackIcon, LightBulbIcon, PencilSquareIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     client: Object,
@@ -256,41 +256,54 @@ const closePasswordModal = () => {
                                     <th class="px-4 py-3">Contrato</th>
                                     <th class="px-4 py-3">Vigencia</th>
                                     <th class="px-4 py-3 text-right">Total</th>
-                                    <th class="px-4 py-3 text-right">Mensual</th>
+                                    <th class="px-4 py-3 text-right">Ref. mensual</th>
                                     <th class="px-4 py-3">Estado</th>
                                     <th class="px-4 py-3">Renovación</th>
-                                    <th class="px-4 py-3 text-right">Pagos</th>
+                                    <th class="px-4 py-3 text-right">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
-                                <tr v-for="c in client.contracts" :key="c.id" class="hover:bg-gray-50 dark:hover:bg-zinc-800/40">
+                                <tr v-for="c in client.contracts" :key="c.id"
+                                    :class="['hover:bg-gray-50 dark:hover:bg-zinc-800/40', c.status === 'voided' ? 'opacity-50' : '']">
                                     <td class="px-4 py-3 font-semibold text-gray-800 dark:text-gray-100">
-                                        <a v-if="c.token" :href="'/contratodeservicio/' + c.token" target="_blank" class="text-primary hover:text-secondary">
-                                            {{ c.contract_number || ('#' + c.id) }}
-                                        </a>
-                                        <span v-else>{{ c.contract_number || ('#' + c.id) }}</span>
+                                        <div class="font-mono text-sm">{{ c.contract_number || ('#' + c.id) }}</div>
+                                        <div class="text-[11px] text-gray-400 mt-0.5">
+                                            {{ c.quote_id || parseFloat(c.anticipo_amount || 0) > 0 ? 'Proyecto' : 'Renovación anual' }}
+                                        </div>
                                     </td>
-                                    <td class="px-4 py-3 text-gray-600 dark:text-zinc-300">
-                                        <div>{{ c.start_date ? new Date(c.start_date).toLocaleDateString('es-MX') : '—' }}</div>
-                                        <div class="text-[11px] text-gray-400">→ {{ c.end_date ? new Date(c.end_date).toLocaleDateString('es-MX') : '—' }}</div>
+                                    <td class="px-4 py-3 text-gray-600 dark:text-zinc-300 text-sm">
+                                        <div>{{ c.start_date ? new Date(c.start_date + 'T00:00:00').toLocaleDateString('es-MX') : '—' }}</div>
+                                        <div class="text-[11px] text-gray-400">→ {{ c.end_date ? new Date(c.end_date + 'T00:00:00').toLocaleDateString('es-MX') : 'sin vencimiento' }}</div>
                                     </td>
-                                    <td class="px-4 py-3 text-right font-semibold">{{ fmt(c.total_amount, c.currency) }}</td>
-                                    <td class="px-4 py-3 text-right">{{ fmt(c.monthly_amount, c.currency) }}</td>
+                                    <td class="px-4 py-3 text-right font-semibold text-sm">{{ fmt(c.total_amount, c.currency) }}</td>
+                                    <td class="px-4 py-3 text-right text-sm text-gray-500 dark:text-zinc-400">{{ fmt(c.monthly_amount, c.currency) }}</td>
                                     <td class="px-4 py-3">
                                         <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
-                                              :class="c.status === 'signed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                              :class="c.status === 'signed' || c.status === 'activo' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                                                     : c.status === 'pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
-                                                    : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300'">{{ c.status }}</span>
+                                                    : 'bg-gray-200 text-gray-500 dark:bg-zinc-800 dark:text-zinc-400'">
+                                            {{ c.status === 'voided' ? 'Cancelado' : c.status === 'signed' || c.status === 'activo' ? 'Activo' : 'Pendiente' }}
+                                        </span>
                                     </td>
                                     <td class="px-4 py-3">
                                         <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
-                                              :class="c.renewal_status === 'renewed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                              :class="c.renewal_status === 'renewed'  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                                                     : c.renewal_status === 'pending' || c.renewal_status === 'notified' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
-                                                    : c.renewal_status === 'overdue' ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
-                                                    : 'bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300'">{{ c.renewal_status || 'none' }}</span>
+                                                    : c.renewal_status === 'overdue'  ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300'
+                                                    : c.renewal_status === 'declined' ? 'bg-gray-200 text-gray-500'
+                                                    : 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400'">
+                                            {{ { none:'—', pending:'Pendiente', notified:'Notificado', renewed:'Renovado', declined:'No renovó', overdue:'Vencido' }[c.renewal_status] ?? c.renewal_status }}
+                                        </span>
                                     </td>
-                                    <td class="px-4 py-3 text-right text-gray-600 dark:text-zinc-300">
-                                        {{ (c.payments || []).length }} registros
+                                    <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
+                                        <Link :href="route('contracts.admin.show', c.id)"
+                                              class="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-secondary transition">
+                                            <DocumentTextIcon class="w-3.5 h-3.5" /> Ver
+                                        </Link>
+                                        <Link :href="route('contracts.edit', c.id)"
+                                              class="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                                            <PencilSquareIcon class="w-3.5 h-3.5" /> Editar
+                                        </Link>
                                     </td>
                                 </tr>
                             </tbody>

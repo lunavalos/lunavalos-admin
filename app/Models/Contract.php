@@ -98,6 +98,11 @@ class Contract extends Model
         return $this->hasMany(ContractService::class)->orderBy('sort_order');
     }
 
+    public function clientServices(): HasMany
+    {
+        return $this->hasMany(ClientService::class)->orderBy('billing_type')->orderBy('service_name');
+    }
+
     public function billingCycles(): HasMany
     {
         return $this->hasMany(BillingCycle::class)->orderByDesc('period_start');

@@ -122,6 +122,8 @@ class OpenBillingCycle
             return;
         }
 
+        $clientServiceId = $service->client_service_id;
+
         for ($i = 1; $i <= $quantity; $i++) {
             Ticket::create([
                 'title'                 => sprintf('%s #%d — %s', $service->name, $i, $cycle->period_start->format('M Y')),
@@ -133,6 +135,7 @@ class OpenBillingCycle
                 'billing_cycle_id'      => $cycle->id,
                 'deliverable_credit_id' => $credit->id,
                 'sequence_number'       => $i,
+                'client_service_id'     => $clientServiceId,
             ]);
         }
     }

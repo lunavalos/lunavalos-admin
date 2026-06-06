@@ -8,6 +8,7 @@ class ClientService extends Model
 {
     protected $fillable = [
         'client_id',
+        'contract_id',
         'service_id',
         'service_name',
         'renewal_date',

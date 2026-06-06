@@ -129,7 +129,7 @@ const runCheck = () => {
                                 <th class="px-4 py-2 text-left">Cliente</th>
                                 <th class="px-4 py-2 text-left">Termina</th>
                                 <th class="px-4 py-2 text-right">Días</th>
-                                <th class="px-4 py-2 text-right">Mensualidad</th>
+                                <th class="px-4 py-2 text-right">Monto renovación</th>
                                 <th class="px-4 py-2 text-left">Estatus</th>
                                 <th class="px-4 py-2 text-right">Acciones</th>
                             </tr>
@@ -145,7 +145,7 @@ const runCheck = () => {
                                 <td class="px-4 py-2 text-right" :class="c.is_overdue ? 'text-rose-600 font-semibold' : 'text-gray-700'">
                                     {{ c.days_remaining }}
                                 </td>
-                                <td class="px-4 py-2 text-right font-mono">{{ fmtMoney(c.monthly_amount) }}</td>
+                                <td class="px-4 py-2 text-right font-mono">{{ fmtMoney(c.total_amount) }}</td>
                                 <td class="px-4 py-2">
                                     <span :class="['inline-block px-2 py-0.5 rounded text-xs font-semibold', statusColors[c.renewal_status] || 'bg-gray-100']">
                                         {{ c.renewal_status }}

@@ -106,6 +106,8 @@ Route::middleware('auth')->group(function () {
     Route::get('contracts',                                [\App\Http\Controllers\ContractController::class, 'index'])->name('contracts.index');
     Route::get('contracts/renewals',                       [\App\Http\Controllers\ContractRenewalController::class, 'index'])->name('contracts.renewals.index');
     Route::get('contracts/{contract}/admin',               [\App\Http\Controllers\ContractController::class, 'adminShow'])->name('contracts.admin.show');
+    Route::get('contracts/{contract}/edit',                [\App\Http\Controllers\ContractController::class, 'edit'])->name('contracts.edit');
+    Route::put('contracts/{contract}',                     [\App\Http\Controllers\ContractController::class, 'update'])->name('contracts.update');
     Route::post('contracts/renewals/check',                [\App\Http\Controllers\ContractRenewalController::class, 'runCheck'])->name('contracts.renewals.check');
     Route::post('contracts/{contract}/renew',              [\App\Http\Controllers\ContractRenewalController::class, 'start'])->name('contracts.renewals.start');
     Route::post('contracts/{contract}/renew/decline',      [\App\Http\Controllers\ContractRenewalController::class, 'decline'])->name('contracts.renewals.decline');
@@ -182,6 +184,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('tickets/empty-trash', [\App\Http\Controllers\TicketController::class, 'emptyTrash'])->name('tickets.emptyTrash');
     Route::get('tickets/archive', [\App\Http\Controllers\TicketController::class, 'archiveList'])->name('tickets.archive');
     Route::post('tickets/{ticket}/toggle-archive', [\App\Http\Controllers\TicketController::class, 'toggleArchive'])->name('tickets.toggleArchive');
+    Route::post('tickets/{ticket}/toggle-client-visibility', [\App\Http\Controllers\TicketController::class, 'toggleClientVisibility'])->name('tickets.toggleClientVisibility');
+    Route::post('tickets/{ticket}/public-link', [\App\Http\Controllers\TicketController::class, 'generatePublicLink'])->name('tickets.generatePublicLink');
+    Route::delete('tickets/{ticket}/public-link', [\App\Http\Controllers\TicketController::class, 'revokePublicLink'])->name('tickets.revokePublicLink');
     Route::resource('tickets', \App\Http\Controllers\TicketController::class);
     Route::post('tickets/{ticket}/message', [\App\Http\Controllers\TicketController::class, 'addMessage'])->name('tickets.addMessage');
     Route::post('tickets/{ticket}/status', [\App\Http\Controllers\TicketController::class, 'updateStatus'])->name('tickets.updateStatus');
@@ -233,6 +238,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('signature-templates', \App\Http\Controllers\SignatureTemplateController::class);
     Route::get('/client/signatures', [\App\Http\Controllers\SignatureGeneratorController::class, 'index'])->name('client.signatures');
 });
+
+// Public ticket preview — no auth required
+Route::get('tickets/p/{token}', [\App\Http\Controllers\TicketController::class, 'publicShow'])->name('tickets.public');
 
 require __DIR__ . '/auth.php';
 

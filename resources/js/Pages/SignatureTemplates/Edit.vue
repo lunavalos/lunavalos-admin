@@ -13,11 +13,25 @@ const props = defineProps({
     template: Object
 });
 
+const ALL_FIELDS = [
+    { key: 'name',            label: 'Nombre completo' },
+    { key: 'position',        label: 'Puesto / Cargo' },
+    { key: 'email',           label: 'Correo electrónico' },
+    { key: 'phone',           label: 'Teléfono' },
+    { key: 'website',         label: 'Sitio web' },
+    { key: 'logo',            label: 'Logo empresa' },
+    { key: 'photo',           label: 'Foto de perfil' },
+    { key: 'primary_color',   label: 'Color principal' },
+    { key: 'secondary_color', label: 'Color secundario' },
+    { key: 'social_links',    label: 'Redes sociales' },
+];
+
 const form = useForm({
     name: props.template.name,
     slug: props.template.slug,
     html_content: props.template.html_content,
     css_content: props.template.css_content || '',
+    fields: props.template.fields ?? ALL_FIELDS.map(f => f.key),
     is_active: !!props.template.is_active,
 });
 
@@ -104,6 +118,19 @@ const parsedHtml = computed(() => {
                                     </div>
                                     <p class="text-[10px] text-gray-400 text-center italic">Visualización con datos de ejemplo para demostración.</p>
                                 </div>
+                            </div>
+
+                            <!-- Campos visibles al cliente -->
+                            <div class="border border-gray-200 dark:border-zinc-800 rounded-xl p-4">
+                                <InputLabel value="Campos que puede editar el cliente" class="dark:text-gray-300 mb-3" />
+                                <p class="text-xs text-gray-400 dark:text-zinc-500 mb-3">Selecciona solo los campos que usa esta plantilla. El cliente verá únicamente estos inputs.</p>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <label v-for="field in ALL_FIELDS" :key="field.key" class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                        <input type="checkbox" :value="field.key" v-model="form.fields" class="rounded border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-indigo-600 shadow-sm focus:ring-indigo-500 h-4 w-4" />
+                                        {{ field.label }}
+                                    </label>
+                                </div>
+                                <InputError class="mt-2" :message="form.errors.fields" />
                             </div>
 
                             <div>

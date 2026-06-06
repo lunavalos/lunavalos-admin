@@ -357,6 +357,14 @@
             $inProgress  = count(array_filter($ticketsArr, fn($t) => in_array($t['status'] ?? '', ['En Proceso', 'En Revisión', 'Ajustes'])));
             $pending     = $total - $completed - $inProgress;
 
+            // Opciones de visualización (con defaults seguros para reportes anteriores)
+            $opt = array_merge([
+                'show_assigned'   => true,
+                'show_dates'      => true,
+                'show_duration'   => true,
+                'show_status_log' => true,
+            ], $options ?? []);
+
             // Helper: format a date string
             $fmtDate = fn($d) => $d ? \Carbon\Carbon::parse($d)->format('d/m/Y H:i') : '—';
 
@@ -411,10 +419,16 @@
                     <th style="width:80px;">Servicio</th>
                     <th style="width:70px;">Estatus</th>
                     <th style="width:55px;">Prioridad</th>
+                    @if($opt['show_assigned'])
                     <th style="width:70px;">Responsable</th>
+                    @endif
+                    @if($opt['show_dates'])
                     <th style="width:70px;">Inicio</th>
                     <th style="width:70px;">Finalización</th>
+                    @endif
+                    @if($opt['show_duration'])
                     <th style="width:45px;">Duración</th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
@@ -442,9 +456,14 @@
                     <td>{{ $ticket['client_service']['service_name'] ?? '—' }}</td>
                     <td><span class="badge {{ $sc }}">{{ $ticket['status'] }}</span></td>
                     <td class="{{ $pc }}">{{ $ticket['priority'] }}</td>
+                    @if($opt['show_assigned'])
                     <td>{{ $ticket['assigned']['name'] ?? 'Sin asignar' }}</td>
+                    @endif
+                    @if($opt['show_dates'])
                     <td class="date-cell">{{ $fmtDate($ticket['work_started_at'] ?? null) }}</td>
                     <td class="date-cell">{{ $fmtDate($ticket['work_finished_at'] ?? null) }}</td>
+                    @endif
+                    @if($opt['show_duration'])
                     <td>
                         @if($dur)
                             <span class="duration-pill">{{ $dur }}</span>
@@ -452,6 +471,7 @@
                             <span style="color:#94a3b8;">—</span>
                         @endif
                     </td>
+                    @endif
                 </tr>
                 @endforeach
             </tbody>
@@ -488,7 +508,7 @@
                                 <div class="ticket-block-meta">
                                     #{{ $ticket['id'] }}
                                     @if(!empty($ticket['client_service'])) · {{ $ticket['client_service']['service_name'] }} @endif
-                                    @if(!empty($ticket['assigned'])) · {{ $ticket['assigned']['name'] }} @endif
+                                    @if($opt['show_assigned'] && !empty($ticket['assigned'])) · {{ $ticket['assigned']['name'] }} @endif
                                 </div>
                             </td>
                             <td class="ticket-block-badge">
@@ -498,10 +518,12 @@
                     </table>
                 </div>
 
-                <!-- Work dates + duration -->
+                <!-- Work dates + duration (condicional) -->
+                @if($opt['show_dates'] || $opt['show_duration'])
                 <div style="padding: 8px 14px; background:#f1f5f9; border-bottom: 1px solid #e2e8f0;">
                     <table style="width:100%; border-collapse:collapse;">
                         <tr>
+                            @if($opt['show_dates'])
                             <td style="width:33%; padding-right:12px;">
                                 <span class="date-label">▶ Inicio de trabajo</span>
                                 <span class="date-cell">{{ $fmtDate($ticket['work_started_at'] ?? null) }}</span>
@@ -510,6 +532,8 @@
                                 <span class="date-label">✓ Finalización</span>
                                 <span class="date-cell">{{ $fmtDate($ticket['work_finished_at'] ?? null) }}</span>
                             </td>
+                            @endif
+                            @if($opt['show_duration'])
                             <td style="width:33%;">
                                 <span class="date-label">⏱ Duración total</span>
                                 @if($dur)
@@ -518,12 +542,14 @@
                                     <span class="date-cell">—</span>
                                 @endif
                             </td>
+                            @endif
                         </tr>
                     </table>
                 </div>
+                @endif
 
-                <!-- Status log / bitácora -->
-                @if(count($statusLog) > 0)
+                <!-- Status log / bitácora (condicional) -->
+                @if($opt['show_status_log'] && count($statusLog) > 0)
                 <div class="log-section">
                     <div class="log-title">Bitácora de cambios</div>
                     @foreach($statusLog as $entry)

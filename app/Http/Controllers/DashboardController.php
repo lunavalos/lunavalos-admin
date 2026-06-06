@@ -219,7 +219,18 @@ class DashboardController extends Controller
                 'briefing_references'      => $client->briefing_references,
                 'briefing_contact_methods' => $client->briefing_contact_methods,
                 'briefing_current_emails'  => $client->briefing_current_emails,
-            ]
+            ],
+            'client_id' => $client->id,
+            'assets'    => $client->assets()->get()->map(fn($a) => [
+                'id'        => $a->id,
+                'kind'      => $a->kind,
+                'label'     => $a->label,
+                'file_path' => $a->file_path,
+                'file_name' => $a->file_name,
+                'mime'      => $a->mime,
+                'url'       => $a->url,
+                'value'     => $a->value,
+            ]),
         ]);
     }
 

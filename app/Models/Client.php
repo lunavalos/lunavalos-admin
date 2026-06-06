@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\SignatureTemplate;
 
 class Client extends Model
 {
@@ -58,6 +59,8 @@ class Client extends Model
         'isr_retention_rate',
         'applies_iva_retention',
         'iva_retention_rate',
+        'signature_template_id',
+        'signature_defaults',
     ];
 
     protected $casts = [
@@ -77,6 +80,7 @@ class Client extends Model
         'isr_retention_rate' => 'decimal:4',
         'applies_iva_retention' => 'boolean',
         'iva_retention_rate' => 'decimal:4',
+        'signature_defaults' => 'array',
     ];
 
     /** The primary (legacy) single user linked to this client via clients.user_id */
@@ -124,5 +128,10 @@ class Client extends Model
     public function assets()
     {
         return $this->hasMany(ClientAsset::class)->latest();
+    }
+
+    public function signatureTemplate()
+    {
+        return $this->belongsTo(SignatureTemplate::class);
     }
 }

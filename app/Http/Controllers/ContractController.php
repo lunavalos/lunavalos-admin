@@ -102,6 +102,52 @@ class ContractController extends Controller
     }
 
     /**
+     * Edit form for an existing contract.
+     */
+    public function edit(Contract $contract)
+    {
+        $contract->load([
+            'client:id,business_name,email',
+            'quote:id,client_name',
+            'clientServices',
+        ]);
+
+        return \Inertia\Inertia::render('Contracts/Edit', [
+            'contract'        => $contract,
+            'statusOptions'   => ['signed', 'pending', 'voided'],
+            'renewalOptions'  => Contract::RENEWAL_STATUSES,
+        ]);
+    }
+
+    /**
+     * Persist contract edits.
+     */
+    public function update(Request $request, Contract $contract)
+    {
+        $validated = $request->validate([
+            'start_date'           => 'nullable|date',
+            'end_date'             => 'nullable|date',
+            'total_amount'         => 'nullable|numeric|min:0',
+            'monthly_amount'       => 'nullable|numeric|min:0',
+            'payment_plan_months'  => 'nullable|integer|min:1',
+            'status'               => 'required|in:signed,pending,voided',
+            'renewal_status'       => 'required|in:' . implode(',', Contract::RENEWAL_STATUSES),
+            'legal_name'           => 'nullable|string|max:255',
+            'tax_id'               => 'nullable|string|max:255',
+            'fiscal_address'       => 'nullable|string|max:255',
+            'postal_code'          => 'nullable|string|max:10',
+            'legal_representative' => 'nullable|string|max:255',
+            'notes'                => 'nullable|string',
+        ]);
+
+        $contract->update($validated);
+
+        return redirect()
+            ->route('contracts.admin.show', $contract)
+            ->with('success', 'Contrato actualizado correctamente.');
+    }
+
+    /**
      * Generate a new contract for the given quote.
      */
     public function generate(Request $request, Quote $quote)
@@ -124,7 +170,12 @@ class ContractController extends Controller
      */
     public function show($token)
     {
-        $contract = Contract::where('token', $token)->with('quote.items')->firstOrFail();
+        $contract = Contract::where('token', $token)
+            ->with([
+                'quote.items',
+                'client.services' => fn ($q) => $q->where('status', 'active')->orderBy('service_name'),
+            ])
+            ->firstOrFail();
         $settings = Setting::pluck('value', 'key')->toArray();
 
         return Inertia::render('Contracts/Show', [
@@ -184,7 +235,12 @@ class ContractController extends Controller
      */
     public function downloadPdf($token)
     {
-        $contract = Contract::where('token', $token)->with('quote.items')->firstOrFail();
+        $contract = Contract::where('token', $token)
+            ->with([
+                'quote.items',
+                'client.services' => fn ($q) => $q->where('status', 'active')->orderBy('service_name'),
+            ])
+            ->firstOrFail();
 
         if ($contract->status !== 'signed') {
             abort(403, 'El contrato aún no ha sido firmado.');
@@ -216,6 +272,11 @@ class ContractController extends Controller
             'activeBillingCycle.credits.contractService',
         ]);
 
+        $clientServices = \App\Models\ClientService::where('client_id', $contract->client_id)
+            ->where('status', 'active')
+            ->orderBy('service_name')
+            ->get(['id', 'service_name', 'billing_type']);
+
         $totalPaid     = $contract->payments->whereIn('status', ['registrado', 'conciliado', 'facturado'])->sum(fn ($p) => (float) $p->amount);
         $totalPending  = $contract->payments->whereIn('status', ['programado'])->sum(fn ($p) => (float) $p->amount);
         $daysUntilEnd  = $contract->daysUntilEnd();
@@ -227,6 +288,7 @@ class ContractController extends Controller
             'totalPaid'        => $totalPaid,
             'totalPending'     => $totalPending,
             'daysUntilEnd'     => $daysUntilEnd,
+            'clientServices'   => $clientServices,
             'contractServices' => $contract->contractServices,
             'activeCycle'      => $activeCycle ? [
                 'id'           => $activeCycle->id,

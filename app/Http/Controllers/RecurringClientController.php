@@ -280,6 +280,7 @@ class RecurringClientController extends Controller implements HasMiddleware
                 'deliverable_credit_id' => $credit?->id,
                 'sequence_number'       => $sequence,
                 'due_date'              => $data['due_date'] ?? null,
+                'client_service_id'     => $credit?->contractService?->client_service_id,
             ]);
 
             return back()->with('success', 'Entregable creado.');
