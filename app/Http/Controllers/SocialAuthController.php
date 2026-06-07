@@ -63,6 +63,15 @@ class SocialAuthController extends Controller
             $driver->with($extra);
         }
 
+        Log::info('[oauth-debug] redirect:init', [
+            'provider' => $provider,
+            'driver' => self::DRIVERS[$provider],
+            'client_id' => $client->id,
+            'scopes' => $this->scopesFor($provider),
+            'extra' => $extra,
+            'session_id' => $request->session()->getId(),
+        ]);
+
         return $driver->redirect();
     }
 
@@ -77,8 +86,36 @@ class SocialAuthController extends Controller
 
         try {
             $socialUser = Socialite::driver(self::DRIVERS[$provider])->user();
+            Log::info('[oauth-debug] callback:socialite-user', [
+                'provider' => $provider,
+                'driver' => self::DRIVERS[$provider],
+                'client_id' => $client->id,
+                'oauth_query' => [
+                    'has_code' => $request->has('code'),
+                    'has_state' => $request->has('state'),
+                    'error' => $request->query('error'),
+                    'error_description' => $request->query('error_description'),
+                ],
+                'socialite_user' => [
+                    'id' => $socialUser->getId(),
+                    'name' => $socialUser->getName(),
+                    'nickname' => $socialUser->getNickname(),
+                    'email' => $socialUser->getEmail(),
+                    'avatar' => $socialUser->getAvatar(),
+                    'expires_in' => $socialUser->expiresIn ?? null,
+                    'token' => $this->maskSecret($socialUser->token ?? null),
+                    'refresh_token' => $this->maskSecret($socialUser->refreshToken ?? null),
+                    'raw' => $this->sanitizePayload($this->socialUserRaw($socialUser)),
+                ],
+            ]);
         } catch (\Throwable $e) {
             report($e);
+            Log::warning('[oauth-debug] callback:socialite-user-failed', [
+                'provider' => $provider,
+                'driver' => self::DRIVERS[$provider],
+                'client_id' => $client->id,
+                'message' => $e->getMessage(),
+            ]);
             return redirect()->route('social.clients.show', $client->id)
                 ->withErrors(['oauth' => 'No se pudo completar la autorización: ' . $e->getMessage()]);
         }
@@ -91,8 +128,19 @@ class SocialAuthController extends Controller
                 'tiktok'    => $this->handleTikTok($client, $socialUser, $request),
                 'youtube'   => $this->handleYouTube($client, $socialUser, $request),
             };
+            Log::info('[oauth-debug] callback:accounts-saved', [
+                'provider' => $provider,
+                'client_id' => $client->id,
+                'saved_count' => count($saved),
+                'saved_ids' => $saved,
+            ]);
         } catch (\Throwable $e) {
             report($e);
+            Log::warning('[oauth-debug] callback:save-failed', [
+                'provider' => $provider,
+                'client_id' => $client->id,
+                'message' => $e->getMessage(),
+            ]);
             return redirect()->route('social.clients.show', $client->id)
                 ->withErrors(['oauth' => 'Error al guardar las cuentas: ' . $e->getMessage()]);
         }
@@ -193,6 +241,13 @@ class SocialAuthController extends Controller
         $userToken = $this->exchangeFbLongLivedToken($u->token) ?? $u->token;
         $pages     = $this->fetchFacebookPages($userToken);
 
+        Log::info('[oauth-debug] facebook:pages-response', [
+            'client_id' => $client->id,
+            'page_count' => count($pages),
+            'pages' => $this->sanitizePayload($pages),
+            'used_user_token' => $this->maskSecret($userToken),
+        ]);
+
         if (empty($pages)) {
             return [];
         }
@@ -244,6 +299,13 @@ class SocialAuthController extends Controller
         $userToken = $this->exchangeFbLongLivedToken($u->token) ?? $u->token;
         $pages     = $this->fetchFacebookPages($userToken);
 
+        Log::info('[oauth-debug] instagram:pages-response', [
+            'client_id' => $client->id,
+            'page_count' => count($pages),
+            'pages' => $this->sanitizePayload($pages),
+            'used_user_token' => $this->maskSecret($userToken),
+        ]);
+
         $ids = [];
         foreach ($pages as $page) {
             $igId = $page['instagram_business_account']['id'] ?? null;
@@ -256,6 +318,14 @@ class SocialAuthController extends Controller
             }
 
             $igProfile = $this->fetchInstagramProfile((string) $igId, $pageToken);
+
+            Log::info('[oauth-debug] instagram:business-profile', [
+                'client_id' => $client->id,
+                'page_id' => $page['id'] ?? null,
+                'ig_business_id' => $igId,
+                'ig_profile' => $this->sanitizePayload($igProfile),
+                'page_token' => $this->maskSecret($pageToken),
+            ]);
 
             $meta = [
                 'ig_business_id' => (string) $igId,
@@ -293,6 +363,12 @@ class SocialAuthController extends Controller
         $raw = $u->getRaw();
         $sub = $raw['sub'] ?? $u->getId();
 
+        Log::info('[oauth-debug] linkedin:profile-response', [
+            'client_id' => $client->id,
+            'profile' => $this->sanitizePayload($raw),
+            'token' => $this->maskSecret($u->token),
+        ]);
+
         $ids = [];
 
         // 1) Perfil personal
@@ -318,6 +394,11 @@ class SocialAuthController extends Controller
         // 2) Organizaciones (requiere scope r_organization_admin aprobado).
         try {
             $orgs = $this->fetchLinkedInOrganizations($u->token);
+            Log::info('[oauth-debug] linkedin:organizations-response', [
+                'client_id' => $client->id,
+                'organization_count' => count($orgs),
+                'organizations' => $this->sanitizePayload($orgs),
+            ]);
             foreach ($orgs as $org) {
                 $orgId = $org['id'] ?? null;
                 if (!$orgId) {
@@ -354,6 +435,12 @@ class SocialAuthController extends Controller
     private function handleTikTok(Client $client, SocialiteUser $u, Request $request): array
     {
         $raw = $u->getRaw();
+        Log::info('[oauth-debug] tiktok:profile-response', [
+            'client_id' => $client->id,
+            'profile' => $this->sanitizePayload($raw),
+            'token' => $this->maskSecret($u->token),
+            'refresh_token' => $this->maskSecret($u->refreshToken ?? null),
+        ]);
         return [$this->upsertAccount(
             client:         $client,
             provider:       'tiktok',
@@ -383,8 +470,19 @@ class SocialAuthController extends Controller
                     'part' => 'snippet,contentDetails',
                     'mine' => 'true',
                 ])->throw()->json('items', []);
+            Log::info('[oauth-debug] youtube:channels-response', [
+                'client_id' => $client->id,
+                'channel_count' => count($channels),
+                'channels' => $this->sanitizePayload($channels),
+                'token' => $this->maskSecret($u->token),
+                'refresh_token' => $this->maskSecret($u->refreshToken ?? null),
+            ]);
         } catch (\Throwable $e) {
             report($e);
+            Log::warning('[oauth-debug] youtube:channels-failed', [
+                'client_id' => $client->id,
+                'message' => $e->getMessage(),
+            ]);
         }
 
         $ids = [];
@@ -500,6 +598,11 @@ class SocialAuthController extends Controller
                 'client_secret'     => $appSecret,
                 'fb_exchange_token' => $shortToken,
             ])->throw()->json();
+            Log::info('[oauth-debug] facebook:long-lived-token-response', [
+                'received_access_token' => isset($resp['access_token']),
+                'expires_in' => $resp['expires_in'] ?? null,
+                'token' => $this->maskSecret($resp['access_token'] ?? null),
+            ]);
             return $resp['access_token'] ?? null;
         } catch (\Throwable $e) {
             Log::warning('FB long-lived token exchange failed: ' . $e->getMessage());
@@ -618,5 +721,56 @@ class SocialAuthController extends Controller
             'youtube'   => 'No se encontraron canales de YouTube en esta cuenta de Google.',
             default     => 'No se conectó ninguna cuenta.',
         };
+    }
+
+    private function maskSecret(?string $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        $length = strlen($value);
+        if ($length <= 8) {
+            return str_repeat('*', $length);
+        }
+
+        return substr($value, 0, 4) . str_repeat('*', $length - 8) . substr($value, -4);
+    }
+
+    private function socialUserRaw(SocialiteUser $user): array
+    {
+        if (method_exists($user, 'getRaw')) {
+            $raw = $user->getRaw();
+            return is_array($raw) ? $raw : [];
+        }
+
+        $fallback = $user->user ?? [];
+        return is_array($fallback) ? $fallback : [];
+    }
+
+    private function sanitizePayload(mixed $payload): mixed
+    {
+        if (is_array($payload)) {
+            $out = [];
+            foreach ($payload as $key => $value) {
+                $lower = is_string($key) ? strtolower($key) : '';
+                if (is_string($key) && (
+                    str_contains($lower, 'token') ||
+                    str_contains($lower, 'secret') ||
+                    str_contains($lower, 'authorization')
+                )) {
+                    $out[$key] = is_string($value) ? $this->maskSecret($value) : '[redacted]';
+                    continue;
+                }
+                $out[$key] = $this->sanitizePayload($value);
+            }
+            return $out;
+        }
+
+        if (is_object($payload)) {
+            return $this->sanitizePayload((array) $payload);
+        }
+
+        return $payload;
     }
 }
