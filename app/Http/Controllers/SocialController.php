@@ -181,8 +181,26 @@ class SocialController extends Controller
             'account_ids'   => 'required|array|min:1',
             'account_ids.*' => 'integer|exists:social_accounts,id',
             'action'        => 'required|in:save_draft,schedule,publish_now',
-            'options'       => 'nullable|array',
             'media.*'       => 'nullable|file|max:204800', // 200 MB
+
+            // Per-provider options (todas opcionales; los publishers leen lo que necesitan).
+            'options'                          => 'nullable|array',
+            'options.youtube_type'             => 'nullable|in:video,short',
+            'options.youtube_privacy'          => 'nullable|in:public,unlisted,private',
+            'options.youtube_category_id'      => 'nullable|string|max:8',
+            'options.facebook_type'            => 'nullable|in:post,photo,reel,video',
+            'options.facebook_audience'        => 'nullable|in:PUBLIC,FRIENDS,SELF',
+            'options.instagram_type'           => 'nullable|in:feed,reel,story',
+            'options.tiktok_type'              => 'nullable|in:video,draft',
+            'options.tiktok_privacy'           => 'nullable|in:PUBLIC_TO_EVERYONE,MUTUAL_FOLLOW_FRIENDS,SELF_ONLY',
+            'options.tiktok_disable_comment'   => 'nullable|boolean',
+            'options.tiktok_disable_duet'      => 'nullable|boolean',
+            'options.tiktok_disable_stitch'    => 'nullable|boolean',
+            'options.linkedin_type'            => 'nullable|in:text,image,article',
+            'options.linkedin_alt_text'        => 'nullable|string|max:200',
+        ], [
+            'account_ids.required' => 'Selecciona al menos una cuenta para publicar.',
+            'account_ids.min'      => 'Selecciona al menos una cuenta para publicar.',
         ]);
     }
 
