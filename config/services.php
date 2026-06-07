@@ -61,6 +61,13 @@ return [
         'client_id'     => env('LINKEDIN_CLIENT_ID'),
         'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
         'redirect'      => env('APP_URL') . '/social/oauth/linkedin/callback',
+        'scopes'        => [
+            'openid',
+            'profile',
+            'email',
+            'w_member_social',   // postear como usuario
+            // 'w_organization_social', // páginas empresa — requiere aprobación LinkedIn
+        ],
     ],
 
     'tiktok' => [

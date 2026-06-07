@@ -476,7 +476,7 @@ function syncAnalytics() {
                         </div>
 
                         <div v-if="!$page.props.auth.user.is_client" class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-700">
-                            <span class="text-[11px] text-gray-500">Conectar otra red:</span>
+                            <span class="text-[11px] text-gray-500">Conectar otra red  :)  :</span>
                             <button v-for="p in availableSocialProviders" :key="p"
                                 @click="connectProvider(p)"
                                 :disabled="connectedProviders.includes(p)"
