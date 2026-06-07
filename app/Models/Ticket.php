@@ -12,12 +12,17 @@ class Ticket extends Model
     public const SOURCE_SUPPORT   = 'support';
     public const SOURCE_RECURRING = 'recurring';
 
+    public const CHANNEL_WEB      = 'web';
+    public const CHANNEL_WHATSAPP = 'whatsapp';
+
     protected $fillable = [
         'title',
         'content',
         'priority',
         'status',
         'source_type',
+        'channel',
+        'whatsapp_wa_id',
         'creator_id',
         'assigned_id',
         'client_id',
@@ -95,6 +100,19 @@ class Ticket extends Model
     public function scopeRecurring($query)
     {
         return $query->where('source_type', self::SOURCE_RECURRING);
+    }
+
+    /**
+     * Conversación de WhatsApp todavía abierta para un wa_id dado
+     * (no Completados, no archivada). Se usa para decidir si un mensaje
+     * entrante continúa el ticket actual o abre uno nuevo.
+     */
+    public function scopeOpenWhatsappConversation($query, string $waId)
+    {
+        return $query->where('channel', self::CHANNEL_WHATSAPP)
+            ->where('whatsapp_wa_id', $waId)
+            ->where('is_archived', false)
+            ->where('status', '!=', 'Completados');
     }
 
     /* --------------------------------------------------------------------- */

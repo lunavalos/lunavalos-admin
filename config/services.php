@@ -37,6 +37,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | WhatsApp Business Cloud API (Meta)
+    |--------------------------------------------------------------------------
+    | Webhook: {APP_URL}/whatsapp/webhook
+    | El verify_token es un valor inventado por nosotros que también se
+    | registra en el panel de Meta al suscribir el webhook.
+    */
+    'whatsapp' => [
+        'token'               => env('WHATSAPP_TOKEN'),
+        'phone_number_id'     => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
+        'api_version'         => env('WHATSAPP_API_VERSION', 'v21.0'),
+        'verify_token'        => env('WHATSAPP_VERIFY_TOKEN'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Social Publishing — OAuth providers (Socialite)
     |--------------------------------------------------------------------------
     | Cada provider requiere registrar redirect_uri en su panel de desarrollador.

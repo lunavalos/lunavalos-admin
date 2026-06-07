@@ -248,3 +248,7 @@ require __DIR__ . '/auth.php';
 Route::get('contratodeservicio/{token}', [\App\Http\Controllers\ContractController::class, 'show'])->name('contracts.show');
 Route::post('contratodeservicio/{token}/sign', [\App\Http\Controllers\ContractController::class, 'sign'])->name('contracts.sign');
 Route::get('contratodeservicio/{token}/pdf', [\App\Http\Controllers\ContractController::class, 'downloadPdf'])->name('contracts.download.pdf');
+
+// WhatsApp Business Cloud API — webhook público (Meta lo llama directamente, sin sesión/CSRF)
+Route::get('whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'verify'])->name('whatsapp.webhook.verify');
+Route::post('whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'receive'])->name('whatsapp.webhook.receive');

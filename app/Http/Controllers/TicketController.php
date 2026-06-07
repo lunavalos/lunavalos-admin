@@ -227,7 +227,7 @@ class TicketController extends Controller
         return redirect()->back()->with('success', 'Usuario asignado.');
     }
 
-    public function addMessage(Request $request, Ticket $ticket)
+    public function addMessage(Request $request, Ticket $ticket, \App\Services\WhatsApp\WhatsAppService $whatsapp)
     {
         $user = Auth::user();
         if ($user->hasRole('Cliente') && !$this->clientCanViewTicket($user, $ticket)) abort(403);
@@ -248,6 +248,18 @@ class TicketController extends Controller
             'message' => $request->message,
             'file_path' => $filePath,
         ]);
+
+        // Si la conversación vive en WhatsApp, la respuesta del staff también
+        // se reenvía al cliente por ese canal — el ticket es el "frontend" del chat.
+        if ($ticket->channel === Ticket::CHANNEL_WHATSAPP && $ticket->whatsapp_wa_id) {
+            $waMessageId = $whatsapp->sendText($ticket->whatsapp_wa_id, $request->message);
+            $newMsg->update([
+                'channel'       => Ticket::CHANNEL_WHATSAPP,
+                'direction'     => TicketMessage::DIRECTION_OUT,
+                'wa_message_id' => $waMessageId,
+            ]);
+        }
+
         broadcast(new TicketMessageSent($newMsg))->toOthers();
 
         $oldStatus = $ticket->status;
