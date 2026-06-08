@@ -517,7 +517,7 @@ const submitCreate = () => {
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Cuentas de correo en hosting</p>
-                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte digital con tiempo de respuesta inmediata con tiempo de resolucion de <span class="font-semibold text-gray-700 dark:text-gray-300">variable dependiendo del problema presentado.</span>.</p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte digital con tiempo de respuesta inmediata con tiempo de resolucion <span class="font-semibold text-gray-700 dark:text-gray-300">variable dependiendo del problema presentado.</span>.</p>
                                 </div>
                             </div>
 
