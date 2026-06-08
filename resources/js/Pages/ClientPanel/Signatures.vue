@@ -90,20 +90,37 @@ const renderedSignature = computed(() => {
 });
 
 const copied = ref(false);
-const copySignature = () => {
-    const el = document.getElementById('signature-preview-container');
-    const range = document.createRange();
-    range.selectNode(el);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    try {
-        document.execCommand('copy');
+const copySignature = async () => {
+    const html = `<div style="text-align:left;">${renderedSignature.value}</div>`;
+
+    const copySuccess = async () => {
         copied.value = true;
         setTimeout(() => copied.value = false, 2000);
+    };
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.write) {
+            const blobInput = new ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([html.replace(/<[^>]+>/g, '')], { type: 'text/plain' }),
+            });
+            await navigator.clipboard.write([blobInput]);
+            await copySuccess();
+            return;
+        }
+
+        const listener = (e) => {
+            e.preventDefault();
+            e.clipboardData.setData('text/html', html);
+            e.clipboardData.setData('text/plain', html.replace(/<[^>]+>/g, ''));
+        };
+        document.addEventListener('copy', listener);
+        document.execCommand('copy');
+        document.removeEventListener('copy', listener);
+        await copySuccess();
     } catch (err) {
         console.error('Cant copy', err);
     }
-    window.getSelection().removeAllRanges();
 };
 
 const handleFileUpload = (event, type) => {
