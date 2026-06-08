@@ -47,8 +47,7 @@ const formData = ref({
 });
 
 const selectedTemplate = computed(() => {
-    if (hasAssigned.value) return props.assignedTemplate;
-    return props.templates.find(t => t.id === formData.value.template_id) || props.templates[0];
+    return props.templates.find(t => t.id === formData.value.template_id) || props.templates[0] || null;
 });
 
 // Campos activos según la plantilla seleccionada. Si fields es null → todos.
@@ -141,16 +140,21 @@ const handleFileUpload = (event, type) => {
                             </h3>
 
                             <div class="space-y-4">
-                                <!-- Plantilla asignada (badge informativo) o selector -->
-                                <div v-if="hasAssigned" class="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-xs text-indigo-700 dark:text-indigo-300 font-medium">
-                                    <SwatchIcon class="h-4 w-4 flex-shrink-0" />
-                                    Plantilla: <span class="font-bold">{{ assignedTemplate.name }}</span>
-                                </div>
-                                <div v-else-if="templates.length > 1">
+                                <!-- Selector de plantilla: incluye la asignada (si existe) y todas las públicas -->
+                                <div v-if="templates.length > 1">
                                     <InputLabel value="Selecciona una Plantilla" class="dark:text-zinc-300" />
                                     <select v-model="formData.template_id" class="mt-1 block w-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 focus:border-indigo-500 rounded-md shadow-sm">
-                                        <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                        <option v-for="t in templates" :key="t.id" :value="t.id">
+                                            {{ t.name }}{{ assignedTemplate && t.id === assignedTemplate.id ? ' (Asignada)' : '' }}
+                                        </option>
                                     </select>
+                                    <p v-if="hasAssigned" class="text-xs text-gray-400 dark:text-zinc-500 mt-1">
+                                        Tu empresa te asignó la plantilla <span class="font-semibold">{{ assignedTemplate.name }}</span>, pero también puedes explorar las demás disponibles.
+                                    </p>
+                                </div>
+                                <div v-else-if="hasAssigned" class="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-xs text-indigo-700 dark:text-indigo-300 font-medium">
+                                    <SwatchIcon class="h-4 w-4 flex-shrink-0" />
+                                    Plantilla: <span class="font-bold">{{ assignedTemplate.name }}</span>
                                 </div>
 
                                 <!-- Nombre -->
