@@ -13,11 +13,13 @@ class SignatureTemplate extends Model
         'css_content',
         'fields',
         'is_active',
+        'is_private',
     ];
 
     protected $casts = [
-        'fields'    => 'array',
-        'is_active' => 'boolean',
+        'fields'     => 'array',
+        'is_active'  => 'boolean',
+        'is_private' => 'boolean',
     ];
 
     public function clients()

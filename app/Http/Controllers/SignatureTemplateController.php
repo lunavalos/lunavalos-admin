@@ -39,6 +39,7 @@ class SignatureTemplateController extends Controller
             'fields' => 'nullable|array',
             'fields.*' => 'string|in:name,position,email,phone,website,logo,photo,primary_color,secondary_color,social_links',
             'is_active' => 'boolean',
+            'is_private' => 'boolean',
         ]);
 
         SignatureTemplate::create($validated);
@@ -70,6 +71,7 @@ class SignatureTemplateController extends Controller
             'fields' => 'nullable|array',
             'fields.*' => 'string|in:name,position,email,phone,website,logo,photo,primary_color,secondary_color,social_links',
             'is_active' => 'boolean',
+            'is_private' => 'boolean',
         ]);
 
         $signatureTemplate->update($validated);

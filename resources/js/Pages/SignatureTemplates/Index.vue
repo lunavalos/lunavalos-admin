@@ -41,6 +41,7 @@ const deleteTemplate = (id) => {
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Nombre</th>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Slug</th>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Estado</th>
+                                    <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Visibilidad</th>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950"></th>
                                 </tr>
                             </thead>
@@ -53,6 +54,11 @@ const deleteTemplate = (id) => {
                                             {{ template.is_active ? 'Activa' : 'Inactiva' }}
                                         </span>
                                     </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span :class="template.is_private ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'" class="px-2 py-1 text-xs rounded-full font-bold">
+                                            {{ template.is_private ? 'Privada' : 'Pública' }}
+                                        </span>
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
                                         <Link :href="route('signature-templates.edit', template.id)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 inline-block">
                                             <PencilIcon class="h-5 w-5" />
@@ -63,7 +69,7 @@ const deleteTemplate = (id) => {
                                     </td>
                                 </tr>
                                 <tr v-if="templates.length === 0">
-                                    <td colspan="4" class="px-6 py-10 text-center text-gray-500">No hay plantillas creadas.</td>
+                                    <td colspan="5" class="px-6 py-10 text-center text-gray-500">No hay plantillas creadas.</td>
                                 </tr>
                             </tbody>
                         </table>

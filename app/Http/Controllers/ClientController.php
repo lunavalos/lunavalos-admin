@@ -450,7 +450,7 @@ class ClientController extends Controller implements HasMiddleware
             'agencies'           => \App\Models\Agency::orderBy('name')->get(),
             'taxRegimes'         => config('sat.tax_regimes'),
             'cfdiUses'           => config('sat.cfdi_uses'),
-            'signatureTemplates' => \App\Models\SignatureTemplate::where('is_active', true)->get(['id', 'name', 'fields']),
+            'signatureTemplates' => \App\Models\SignatureTemplate::where('is_active', true)->get(['id', 'name', 'fields', 'is_private']),
         ]);
     }
 

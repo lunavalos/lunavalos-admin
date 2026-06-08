@@ -33,6 +33,7 @@ const form = useForm({
     css_content: props.template.css_content || '',
     fields: props.template.fields ?? ALL_FIELDS.map(f => f.key),
     is_active: !!props.template.is_active,
+    is_private: !!props.template.is_private,
 });
 
 const submit = () => {
@@ -133,11 +134,18 @@ const parsedHtml = computed(() => {
                                 <InputError class="mt-2" :message="form.errors.fields" />
                             </div>
 
-                            <div>
+                            <div class="flex items-center gap-8">
                                 <label class="flex items-center">
                                     <input type="checkbox" v-model="form.is_active" class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-indigo-600 shadow-sm focus:ring-indigo-500 h-5 w-5" />
                                     <span class="ml-2 text-sm text-gray-700 dark:text-gray-300 font-bold">Plantilla Activa</span>
                                 </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" v-model="form.is_private" class="rounded border-gray-300 dark:border-zinc-800 dark:bg-zinc-950 text-indigo-600 shadow-sm focus:ring-indigo-500 h-5 w-5" />
+                                    <span class="ml-2 text-sm text-gray-700 dark:text-gray-300 font-bold">Plantilla Privada</span>
+                                </label>
+                                <p class="text-xs text-gray-400 dark:text-zinc-500">
+                                    Si es privada, solo el cliente al que se asigne podrá verla y usarla. Si es pública, todos los clientes podrán explorarla.
+                                </p>
                             </div>
 
                             <div class="flex items-center justify-end">

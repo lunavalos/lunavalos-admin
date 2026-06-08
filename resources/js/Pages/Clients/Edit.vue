@@ -1129,7 +1129,7 @@ const monthlyNetMargin = computed(() => totalMonthlyIncome.value - totalMonthlyC
                                 <InputLabel value="Plantilla asignada" class="dark:text-gray-300" />
                                 <select v-model="form.signature_template_id" class="mt-1 block w-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-100 focus:border-indigo-500 rounded-md shadow-sm text-sm">
                                     <option :value="null">— Sin plantilla asignada —</option>
-                                    <option v-for="t in signatureTemplates" :key="t.id" :value="t.id">{{ t.name }}</option>
+                                    <option v-for="t in signatureTemplates" :key="t.id" :value="t.id">{{ t.name }}{{ t.is_private ? ' (Privada)' : ' (Pública)' }}</option>
                                 </select>
                                 <p class="text-xs text-gray-400 dark:text-zinc-500 mt-1">La plantilla seleccionada aparecerá pre-cargada en el módulo de firmas del cliente.</p>
                                 <InputError :message="form.errors.signature_template_id" class="mt-1" />

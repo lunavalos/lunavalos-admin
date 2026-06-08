@@ -1,0 +1,115 @@
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="500"
+    style="border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt; border:0; background-color:#ffffff; font-family:Arial, Helvetica, sans-serif; width:500px; max-width:500px;">
+
+    <!-- FOTO + NOMBRE + CARGO -->
+    <tr>
+        <td style="padding:0 0 14px 0; border:0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                style="border-collapse:collapse; border:0;">
+                <tr>
+                    <!-- FOTO con anillo de color -->
+                    <td width="76" valign="middle" style="padding:0 0 0 0; border:0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                            style="border-collapse:collapse; border:0;">
+                            <tr>
+                                <td style="padding:3px; background-color:{{primary_color}}; border-radius:50%; line-height:0;">
+                                    <img src="{{photo}}" width="64" height="64" alt="{{name}}"
+                                        style="display:block; border-radius:50%; width:64px; height:64px; object-fit:cover; border:2px solid #ffffff;">
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+
+                    <!-- NOMBRE / PUESTO -->
+                    <td valign="middle" style="border:0;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                            style="border-collapse:collapse; border:0;">
+                            <tr>
+                                <td style="padding:0; margin:0; border:0; font-size:16pt; line-height:1.2; font-weight:700; color:#1a1a1a; mso-line-height-rule:exactly;">
+                                    {{name}}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:5px 0 0 0; border:0;">
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                                        style="border-collapse:collapse; border:0;">
+                                        <tr>
+                                            <td style="padding:4px 12px; margin:0; background-color:{{primary_color}}; border-radius:4px; font-size:8.5pt; line-height:1.2; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; color:#ffffff; mso-line-height-rule:exactly;">
+                                                {{position}}
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <!-- LÍNEA DIVISORIA -->
+    <tr>
+        <td style="padding:0 0 12px 0; margin:0; border:0; line-height:0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                style="border-collapse:collapse; border:0;">
+                <tr>
+                    <td height="1" style="padding:0; margin:0; border:0; background-color:#e8e8e8; line-height:1px; font-size:1px;">&nbsp;</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <!-- DATOS DE CONTACTO -->
+    <tr>
+        <td style="padding:0 0 14px 0; border:0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; border:0;">
+                <tr>
+                    <td style="padding:3px 0; margin:0; border:0; font-size:9pt; line-height:1.6; color:{{secondary_color}}; mso-line-height-rule:exactly; white-space:nowrap;">
+                        <span style="font-weight:700; color:{{primary_color}};">Tel&nbsp;&nbsp;</span>
+                        <a href="tel:{{phone}}" style="color:{{secondary_color}}; text-decoration:none;">{{phone}}</a>
+                        <span style="display:inline-block; width:18px;">&nbsp;</span>
+                        <span style="font-weight:700; color:{{primary_color}};">Correo&nbsp;&nbsp;</span>
+                        <a href="mailto:{{email}}" style="color:{{secondary_color}}; text-decoration:none;">{{email}}</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:3px 0; margin:0; border:0; font-size:9pt; line-height:1.6; color:{{secondary_color}}; mso-line-height-rule:exactly;">
+                        <span style="font-weight:700; color:{{primary_color}};">Web&nbsp;&nbsp;</span>
+                        <a href="https://{{website}}" target="_blank" style="color:{{secondary_color}}; text-decoration:none;">{{website}}</a>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <!-- REDES SOCIALES -->
+    <tr>
+        <td style="padding:0 0 14px 0; margin:0; border:0; line-height:0;">
+            {{social_links}}
+        </td>
+    </tr>
+
+    <!-- PIE: BARRA DE MARCA + LOGO -->
+    <tr>
+        <td style="padding:14px 0 0 0; border:0;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                style="border-collapse:collapse; border:0;">
+                <tr>
+                    <td height="3" width="64" style="padding:0; margin:0; border:0; background-color:{{primary_color}}; line-height:3px; font-size:1px;">&nbsp;</td>
+                    <td height="3" width="3" style="padding:0; margin:0; border:0; line-height:3px; font-size:1px;">&nbsp;</td>
+                    <td height="3" width="28" style="padding:0; margin:0; border:0; background-color:{{secondary_color}}; line-height:3px; font-size:1px;">&nbsp;</td>
+                    <td style="padding:0; margin:0; border:0; line-height:1px; font-size:1px;">&nbsp;</td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="padding:10px 0 0 0; margin:0; border:0;">
+                        <a href="https://{{website}}" target="_blank" style="text-decoration:none; border:0; outline:none; display:inline-block;">
+                            <img src="{{logo}}" width="110" alt="Logo" style="display:block; max-width:110px; height:auto; border:0; outline:none; text-decoration:none;">
+                        </a>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+</table>
