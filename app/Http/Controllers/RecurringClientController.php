@@ -47,7 +47,18 @@ class RecurringClientController extends Controller implements HasMiddleware
             ->whereHas('contractServices')
             ->with(['contractServices'])
             ->latest('id')
-            ->firstOrFail();
+            ->first();
+
+        if (!$contract) {
+            return Inertia::render('Recurring/ClientMissingService', [
+                'client' => [
+                    'id'            => $client->id,
+                    'business_name' => $client->business_name,
+                    'contact_name'  => $client->contact_name,
+                    'email'         => $client->email,
+                ],
+            ]);
+        }
 
         // Mes seleccionado: query string o el ciclo activo o el mes actual.
         $activeCycle = $contract->billingCycles()

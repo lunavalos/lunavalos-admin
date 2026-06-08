@@ -7,6 +7,7 @@ use App\Models\Contract;
 use App\Models\ContractService;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -139,5 +140,28 @@ class RecurringAccessTest extends TestCase
         $response = $this->actingAs($clientUser)->get(route('recurring.clients.show', $client->id));
 
         $response->assertStatus(200);
+    }
+
+    public function test_client_users_without_recurring_service_see_informative_recurring_page()
+    {
+        $client = Client::create([
+            'business_name' => 'Client 1',
+            'contact_name' => 'Contact 1',
+            'email' => 'client1@example.com',
+        ]);
+
+        $clientUser = User::factory()->create([
+            'client_id' => $client->id,
+            'email_verified_at' => now(),
+        ]);
+        $clientUser->assignRole(config('roles.client', 'Cliente'));
+
+        $response = $this->actingAs($clientUser)->get(route('recurring.clients.show', $client->id));
+
+        $response->assertStatus(200);
+        $response->assertInertia(fn (Assert $page) => $page
+            ->component('Recurring/ClientMissingService')
+            ->where('client.business_name', 'Client 1')
+        );
     }
 }
