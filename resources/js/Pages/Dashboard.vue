@@ -517,7 +517,7 @@ const submitCreate = () => {
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Cuentas de correo en hosting</p>
-                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte digital con tiempo de respuesta de <span class="font-semibold text-gray-700 dark:text-gray-300">1 a 3 días</span>.</p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte digital con tiempo de respuesta inmediata con tiempo de resolucion de <span class="font-semibold text-gray-700 dark:text-gray-300">variable dependiendo del problema presentado.</span>.</p>
                                 </div>
                             </div>
 
@@ -528,7 +528,9 @@ const submitCreate = () => {
                                 </div>
                                 <div>
                                     <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Cuentas de correo con Google Workspace</p>
-                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte <span class="font-semibold text-gray-700 dark:text-gray-300">24/7 respuesta inmediata</span>, directo con el equipo de soporte de Google.</p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">Soporte <span class="font-semibold text-gray-700 dark:text-gray-300">24/7 respuesta inmediata</span>, directo con el equipo de <strong>soporte de Google.</strong></p>
+                                    <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">
+                                        <small>Para este soporte puedes ingresar directamente a la consola de administración de Google Workspace.</small> <a href="https://admin.google.com/" target="_blank" class="text-blue-500 dark:text-blue-400 underline">Ir a la consola</a></p>
                                 </div>
                             </div>
 
@@ -541,10 +543,7 @@ const submitCreate = () => {
                                     <p class="text-sm font-bold text-gray-800 dark:text-gray-100 mb-0.5">Soporte sitio web y mantenimiento hosting</p>
                                     <p class="text-sm text-gray-500 dark:text-zinc-400 leading-relaxed">
                                         Cambio en contenido y actualización de imágenes moderado
-                                        <span class="font-semibold text-gray-700 dark:text-gray-300">1 cambio mensual</span> en caso de requerirlo,
-                                        monitoreo constante, escaneo y solución a caídas del servidor con
-                                        <span class="font-semibold text-gray-700 dark:text-gray-300">tiempo de respuesta inmediata</span> y
-                                        tiempo de resolución variable dependiendo del problema presentado.
+                                        <span class="font-semibold text-gray-700 dark:text-gray-300">1 cambio mensual</span> en caso de requerirlo, monitoreo constante, escaneo y solución a caídas del servidor con <span class="font-semibold text-gray-700 dark:text-gray-300">tiempo de respuesta inmediata</span> <span class="font-semibold text-gray-700 dark:text-gray-300">y tiempo de resolución variable dependiendo del problema presentado.</span>
                                     </p>
                                 </div>
                             </div>
