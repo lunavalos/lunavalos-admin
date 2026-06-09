@@ -180,9 +180,7 @@ function submitDeliverable() {
     });
 }
 
-const onDemandCredits = computed(() =>
-    props.credits.filter(c => c.unit_type === 'on_demand_pool' || c.unit_type === 'unlimited')
-);
+const availableCredits = computed(() => props.credits);
 
 // ---- Analytics ----
 function fmt(n) {
@@ -761,13 +759,16 @@ function syncAnalytics() {
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-zinc-300">
-                            Descontar de bolsa (opcional)
+                            Vincular a entregable (opcional)
                         </label>
                         <select v-model="form.deliverable_credit_id"
                             class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-sm">
-                            <option :value="null">— No descontar (excedente) —</option>
-                            <option v-for="c in onDemandCredits" :key="c.id" :value="c.id">
-                                {{ c.name }} ({{ c.is_unlimited ? '∞' : `${c.remaining}/${c.capacity}` }})
+                            <option :value="null">— Sin vincular (excedente) —</option>
+                            <option v-for="c in availableCredits" :key="c.id" :value="c.id">
+                                {{ c.name }}
+                                <template v-if="c.unit_type === 'fixed'"> (cuota fija)</template>
+                                <template v-else-if="c.is_unlimited"> (∞)</template>
+                                <template v-else> ({{ c.remaining }}/{{ c.capacity }})</template>
                             </option>
                         </select>
                     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BillingCycle;
 use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
@@ -390,17 +391,31 @@ class TicketController extends Controller
 
         // Servicios activos del cliente vinculado (para el selector inline)
         $clientServices = [];
+        $billingCycles = [];
         if ($ticket->client) {
             $clientServices = $ticket->client->services()
                 ->where('status', 'active')
                 ->orderBy('service_name')
                 ->get();
+
+            $billingCycles = BillingCycle::whereHas('contract', fn ($q) =>
+                $q->where('client_id', $ticket->client->id)->where('status', 'signed')
+            )
+            ->orderByDesc('period_start')
+            ->limit(24)
+            ->get(['id', 'period_start', 'status'])
+            ->map(fn ($c) => [
+                'id'     => $c->id,
+                'label'  => $c->period_start->format('M Y'),
+                'status' => $c->status,
+            ]);
         }
 
         return Inertia::render('Tickets/Show', [
             'ticket'          => $ticket,
             'assignableUsers' => $assignableUsers,
             'clientServices'  => $clientServices,
+            'billingCycles'   => $billingCycles,
         ]);
     }
 
@@ -459,6 +474,18 @@ class TicketController extends Controller
         $ticket->save();
 
         return redirect()->back()->with('success', 'Servicio vinculado correctamente.');
+    }
+
+    public function updateCycle(Request $request, Ticket $ticket)
+    {
+        $request->validate([
+            'billing_cycle_id' => 'nullable|exists:billing_cycles,id',
+        ]);
+
+        $ticket->billing_cycle_id = $request->billing_cycle_id;
+        $ticket->save();
+
+        return redirect()->back()->with('success', 'Ciclo vinculado correctamente.');
     }
 
     public function trash()

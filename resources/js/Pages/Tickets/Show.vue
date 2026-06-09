@@ -44,6 +44,7 @@ const props = defineProps({
     ticket: Object,
     assignableUsers: Array,
     clientServices: Array,
+    billingCycles: { type: Array, default: () => [] },
 });
 
 const page = usePage();
@@ -203,6 +204,16 @@ const serviceForm = useForm({
 
 const updateService = () => {
     serviceForm.post(route('tickets.updateService', props.ticket.id), {
+        preserveScroll: true,
+    });
+};
+
+const cycleForm = useForm({
+    billing_cycle_id: props.ticket.billing_cycle_id ?? null,
+});
+
+const updateCycle = () => {
+    cycleForm.post(route('tickets.updateCycle', props.ticket.id), {
         preserveScroll: true,
     });
 };
@@ -1199,8 +1210,47 @@ const saveEdit = (msg) => {
                                 </div>
                             </div>
 
+                            <!-- Ciclo de facturación (solo para tickets de soporte con ciclos disponibles) -->
+                            <div v-if="!isClient && ticket.source_type === 'support' && billingCycles.length > 0" class="mt-3">
+                                <span class="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase block mb-1">Ciclo de Facturación:</span>
+
+                                <!-- Ya vinculado -->
+                                <div v-if="ticket.billing_cycle_id && !cycleForm.isDirty" class="flex items-center gap-2 mt-1">
+                                    <ArrowPathIcon class="h-4 w-4 text-[#264ab3] dark:text-blue-400 shrink-0" />
+                                    <span class="text-sm font-bold text-gray-700 dark:text-gray-200">
+                                        {{ billingCycles.find(c => c.id === ticket.billing_cycle_id)?.label ?? 'Ciclo vinculado' }}
+                                    </span>
+                                    <button type="button" @click="cycleForm.billing_cycle_id = null; updateCycle()"
+                                        class="ml-auto text-[10px] text-red-500 hover:text-red-700">Desvincular</button>
+                                </div>
+
+                                <!-- Selector -->
+                                <div v-else class="mt-1 space-y-2">
+                                    <select
+                                        v-model="cycleForm.billing_cycle_id"
+                                        class="w-full text-sm border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl shadow-sm py-1.5"
+                                    >
+                                        <option :value="null">Sin ciclo</option>
+                                        <option v-for="c in billingCycles" :key="c.id" :value="c.id">
+                                            {{ c.label }}
+                                            <template v-if="c.status === 'active'"> · Activo</template>
+                                            <template v-else-if="c.status === 'locked'"> · Cerrado</template>
+                                        </option>
+                                    </select>
+                                    <button
+                                        type="button"
+                                        @click="updateCycle"
+                                        :disabled="cycleForm.processing || cycleForm.billing_cycle_id === null"
+                                        class="w-full flex items-center justify-center gap-1.5 bg-[#264ab3] hover:bg-[#193074] disabled:opacity-40 text-white text-xs font-bold py-1.5 px-3 rounded-xl transition-all"
+                                    >
+                                        <ArrowPathIcon class="h-3.5 w-3.5" />
+                                        Vincular a ciclo
+                                    </button>
+                                </div>
+                            </div>
+
                         <div class="pt-2">
-                            <Link 
+                            <Link
                                 v-if="ticket.client_id || ticket.creator?.client?.id"
                                 :href="route('clients.show', ticket.client_id || ticket.creator?.client?.id)"
                                 class="w-full bg-[#264ab3] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center hover:bg-[#193074] shadow-none"

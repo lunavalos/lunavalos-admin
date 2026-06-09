@@ -192,6 +192,7 @@ Route::middleware('auth')->group(function () {
     Route::post('tickets/{ticket}/status', [\App\Http\Controllers\TicketController::class, 'updateStatus'])->name('tickets.updateStatus');
     Route::post('tickets/{ticket}/assign', [\App\Http\Controllers\TicketController::class, 'assign'])->name('tickets.assign');
     Route::post('tickets/{ticket}/service', [\App\Http\Controllers\TicketController::class, 'updateService'])->name('tickets.updateService');
+    Route::post('tickets/{ticket}/cycle', [\App\Http\Controllers\TicketController::class, 'updateCycle'])->name('tickets.updateCycle');
     Route::post('tickets/{ticket}/start-work', [\App\Http\Controllers\TicketController::class, 'startWork'])->name('tickets.startWork');
     Route::post('tickets/send-team-report', [\App\Http\Controllers\TicketController::class, 'sendTeamReport'])->name('tickets.sendTeamReport');
     Route::put('tickets/messages/{message}', [\App\Http\Controllers\TicketController::class, 'updateMessage'])->name('tickets.messages.update');

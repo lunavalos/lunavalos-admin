@@ -82,8 +82,14 @@ class RecurringClientController extends Controller implements HasMiddleware
             ->with('credits.contractService')
             ->first();
 
-        $tickets = Ticket::recurring()
-            ->where('client_id', $client->id)
+        $tickets = Ticket::where('client_id', $client->id)
+            ->where(function ($q) {
+                $q->where('source_type', Ticket::SOURCE_RECURRING)
+                  ->orWhere(function ($inner) {
+                      $inner->where('source_type', Ticket::SOURCE_SUPPORT)
+                            ->whereNotNull('billing_cycle_id');
+                  });
+            })
             ->when($cycle, fn ($q) => $q->where('billing_cycle_id', $cycle->id))
             ->when(!$cycle, fn ($q) => $q->whereRaw('1 = 0')) // sin ciclo => sin tickets
             ->with(['assigned', 'deliverableCredit.contractService'])
@@ -271,7 +277,8 @@ class RecurringClientController extends Controller implements HasMiddleware
                     ->where('billing_cycle_id', $cycle->id)
                     ->findOrFail($data['deliverable_credit_id']);
 
-                if (!$credit->hasCapacity()) {
+                // For fixed-quota credits the quota is pre-allocated; extras are allowed
+                if ($credit->contractService?->unit_type !== 'fixed' && !$credit->hasCapacity()) {
                     abort(422, 'Este crédito ya no tiene capacidad disponible este mes.');
                 }
 
