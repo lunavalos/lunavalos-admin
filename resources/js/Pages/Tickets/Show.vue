@@ -209,7 +209,17 @@ const updateService = () => {
 };
 
 const cycleForm = useForm({
-    billing_cycle_id: props.ticket.billing_cycle_id ?? null,
+    billing_cycle_id:      props.ticket.billing_cycle_id ?? null,
+    deliverable_credit_id: props.ticket.deliverable_credit_id ?? null,
+});
+
+const cycleCredits = computed(() => {
+    if (!cycleForm.billing_cycle_id) return [];
+    return props.billingCycles?.find(c => c.id === cycleForm.billing_cycle_id)?.credits ?? [];
+});
+
+watch(() => cycleForm.billing_cycle_id, () => {
+    cycleForm.deliverable_credit_id = null;
 });
 
 const updateCycle = () => {
@@ -1215,13 +1225,21 @@ const saveEdit = (msg) => {
                                 <span class="text-[10px] text-gray-400 dark:text-zinc-500 font-bold uppercase block mb-1">Ciclo de Facturación:</span>
 
                                 <!-- Ya vinculado -->
-                                <div v-if="ticket.billing_cycle_id && !cycleForm.isDirty" class="flex items-center gap-2 mt-1">
-                                    <ArrowPathIcon class="h-4 w-4 text-[#264ab3] dark:text-blue-400 shrink-0" />
-                                    <span class="text-sm font-bold text-gray-700 dark:text-gray-200">
-                                        {{ billingCycles.find(c => c.id === ticket.billing_cycle_id)?.label ?? 'Ciclo vinculado' }}
-                                    </span>
-                                    <button type="button" @click="cycleForm.billing_cycle_id = null; updateCycle()"
-                                        class="ml-auto text-[10px] text-red-500 hover:text-red-700">Desvincular</button>
+                                <div v-if="ticket.billing_cycle_id && !cycleForm.isDirty" class="space-y-1 mt-1">
+                                    <div class="flex items-center gap-2">
+                                        <ArrowPathIcon class="h-4 w-4 text-[#264ab3] dark:text-blue-400 shrink-0" />
+                                        <span class="text-sm font-bold text-gray-700 dark:text-gray-200">
+                                            {{ billingCycles.find(c => c.id === ticket.billing_cycle_id)?.label ?? 'Ciclo vinculado' }}
+                                        </span>
+                                        <button type="button" @click="cycleForm.billing_cycle_id = null; cycleForm.deliverable_credit_id = null; updateCycle()"
+                                            class="ml-auto text-[10px] text-red-500 hover:text-red-700">Desvincular</button>
+                                    </div>
+                                    <div v-if="ticket.deliverable_credit_id" class="flex items-center gap-1.5 pl-6">
+                                        <span class="text-xs text-gray-500 dark:text-zinc-400">Entregable:</span>
+                                        <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                            {{ billingCycles.find(c => c.id === ticket.billing_cycle_id)?.credits?.find(cr => cr.id === ticket.deliverable_credit_id)?.name ?? '—' }}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <!-- Selector -->
@@ -1235,6 +1253,20 @@ const saveEdit = (msg) => {
                                             {{ c.label }}
                                             <template v-if="c.status === 'active'"> · Activo</template>
                                             <template v-else-if="c.status === 'locked'"> · Cerrado</template>
+                                        </option>
+                                    </select>
+                                    <!-- Selector de crédito/entregable cuando hay ciclo seleccionado -->
+                                    <select
+                                        v-if="cycleForm.billing_cycle_id && cycleCredits.length > 0"
+                                        v-model="cycleForm.deliverable_credit_id"
+                                        class="w-full text-sm border-gray-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 text-gray-700 dark:text-gray-300 focus:border-[#264ab3] focus:ring-[#264ab3] rounded-xl shadow-sm py-1.5"
+                                    >
+                                        <option :value="null">Sin entregable específico</option>
+                                        <option v-for="cr in cycleCredits" :key="cr.id" :value="cr.id">
+                                            {{ cr.name }}
+                                            <template v-if="cr.unit_type === 'fixed'"> (cuota fija)</template>
+                                            <template v-else-if="cr.is_unlimited"> (∞)</template>
+                                            <template v-else> ({{ cr.remaining }}/{{ cr.capacity }})</template>
                                         </option>
                                     </select>
                                     <button

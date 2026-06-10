@@ -401,13 +401,24 @@ class TicketController extends Controller
             $billingCycles = BillingCycle::whereHas('contract', fn ($q) =>
                 $q->where('client_id', $ticket->client->id)->where('status', 'signed')
             )
+            ->with('credits.contractService')
             ->orderByDesc('period_start')
             ->limit(24)
-            ->get(['id', 'period_start', 'status'])
+            ->get()
             ->map(fn ($c) => [
-                'id'     => $c->id,
-                'label'  => $c->period_start->format('M Y'),
-                'status' => $c->status,
+                'id'      => $c->id,
+                'label'   => $c->period_start->format('M Y'),
+                'status'  => $c->status,
+                'credits' => $c->credits->map(fn ($cr) => [
+                    'id'           => $cr->id,
+                    'name'         => $cr->contractService?->name,
+                    'unit_type'    => $cr->contractService?->unit_type,
+                    'is_unlimited' => (bool) $cr->is_unlimited,
+                    'remaining'    => $cr->is_unlimited
+                        ? null
+                        : max(0, ($cr->total + $cr->rolled_over) - $cr->consumed),
+                    'capacity'     => (int) $cr->total + (int) $cr->rolled_over,
+                ])->values(),
             ]);
         }
 
@@ -479,13 +490,15 @@ class TicketController extends Controller
     public function updateCycle(Request $request, Ticket $ticket)
     {
         $request->validate([
-            'billing_cycle_id' => 'nullable|exists:billing_cycles,id',
+            'billing_cycle_id'      => 'nullable|exists:billing_cycles,id',
+            'deliverable_credit_id' => 'nullable|exists:deliverable_credits,id',
         ]);
 
-        $ticket->billing_cycle_id = $request->billing_cycle_id;
+        $ticket->billing_cycle_id      = $request->billing_cycle_id;
+        $ticket->deliverable_credit_id = $request->deliverable_credit_id;
         $ticket->save();
 
-        return redirect()->back()->with('success', 'Ciclo vinculado correctamente.');
+        return redirect()->back()->with('success', 'Ciclo y entregable vinculados correctamente.');
     }
 
     public function trash()

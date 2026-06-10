@@ -68,9 +68,17 @@ class Ticket extends Model
         // Mantener actualizado el contador `consumed` del DeliverableCredit asociado.
         // Regla: un crédito se considera consumido cuando el ticket sale del Backlog
         // (status != 'Nuevos') y no está soft-deleted.
+        // Aplica a cualquier ticket con deliverable_credit_id (recurrente o soporte vinculado).
         $recompute = function ($ticket) {
-            if ($ticket->source_type === self::SOURCE_RECURRING && $ticket->deliverable_credit_id) {
-                self::recomputeCreditConsumed($ticket->deliverable_credit_id);
+            $newId = $ticket->deliverable_credit_id;
+            $oldId = $ticket->getOriginal('deliverable_credit_id');
+
+            if ($newId) {
+                self::recomputeCreditConsumed($newId);
+            }
+            // Si el crédito cambió, recomputar también el anterior
+            if ($oldId && $oldId !== $newId) {
+                self::recomputeCreditConsumed($oldId);
             }
         };
         static::saved($recompute);
