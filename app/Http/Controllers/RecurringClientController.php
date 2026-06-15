@@ -277,11 +277,6 @@ class RecurringClientController extends Controller implements HasMiddleware
                     ->where('billing_cycle_id', $cycle->id)
                     ->findOrFail($data['deliverable_credit_id']);
 
-                // For fixed-quota credits the quota is pre-allocated; extras are allowed
-                if ($credit->contractService?->unit_type !== 'fixed' && !$credit->hasCapacity()) {
-                    abort(422, 'Este crédito ya no tiene capacidad disponible este mes.');
-                }
-
                 $sequence = Ticket::where('deliverable_credit_id', $credit->id)->max('sequence_number') + 1;
             }
 
