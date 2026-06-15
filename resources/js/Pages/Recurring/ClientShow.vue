@@ -740,21 +740,21 @@ function syncAnalytics() {
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-zinc-300">Título</label>
                         <input v-model="form.title" type="text" required
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-sm" />
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 text-sm" />
                         <p v-if="form.errors.title" class="mt-1 text-xs text-red-500">{{ form.errors.title }}</p>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-xs font-medium text-gray-700 dark:text-zinc-300">Prioridad</label>
                             <select v-model="form.priority"
-                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-sm">
+                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 text-sm">
                                 <option>Baja</option><option>Media</option><option>Alta</option><option>Urgente</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 dark:text-zinc-300">Fecha límite</label>
                             <input v-model="form.due_date" type="date"
-                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-sm" />
+                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 text-sm" />
                         </div>
                     </div>
                     <div>
@@ -762,7 +762,7 @@ function syncAnalytics() {
                             Vincular a entregable (opcional)
                         </label>
                         <select v-model="form.deliverable_credit_id"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-sm">
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 text-sm">
                             <option :value="null">— Sin vincular (excedente) —</option>
                             <option v-for="c in availableCredits" :key="c.id" :value="c.id">
                                 {{ c.name }}
@@ -775,11 +775,11 @@ function syncAnalytics() {
                     <div>
                         <label class="block text-xs font-medium text-gray-700 dark:text-zinc-300">Descripción</label>
                         <textarea v-model="form.content" rows="3"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-sm"></textarea>
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100 placeholder-gray-400 dark:placeholder-zinc-500 text-sm"></textarea>
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" @click="showModal = false"
-                            class="rounded-md border border-gray-300 dark:border-zinc-600 px-3 py-1.5 text-sm">Cancelar</button>
+                            class="rounded-md border border-gray-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-gray-700 dark:text-zinc-100 hover:bg-gray-50 dark:hover:bg-zinc-600 px-3 py-1.5 text-sm">Cancelar</button>
                         <button type="submit" :disabled="form.processing"
                             class="rounded-md bg-[#264ab3] px-3 py-1.5 text-sm text-white hover:bg-[#1e3a8a] disabled:opacity-50">
                             Crear
