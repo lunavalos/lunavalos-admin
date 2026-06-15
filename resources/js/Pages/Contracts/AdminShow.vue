@@ -410,6 +410,71 @@ function openCurrentCycle() {
                     </dl>
                 </div>
 
+                <!-- Desglose de servicios de la cotización -->
+                <div v-if="c.quote?.items?.length || c.quote?.addons?.length"
+                     class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-5">
+                    <div class="flex items-center gap-2 border-b border-gray-100 dark:border-zinc-800 pb-3 mb-4">
+                        <ClipboardDocumentIcon class="w-5 h-5 text-primary" />
+                        <h3 class="font-semibold text-gray-800 dark:text-gray-100">Desglose de servicios contratados</h3>
+                    </div>
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-gray-50 dark:bg-zinc-950/40 text-left text-[11px] uppercase tracking-wider text-gray-500">
+                            <tr>
+                                <th class="px-4 py-2">Concepto</th>
+                                <th class="px-4 py-2 text-center">Tipo</th>
+                                <th class="px-4 py-2 text-right">Cant.</th>
+                                <th class="px-4 py-2 text-right">Precio unit.</th>
+                                <th class="px-4 py-2 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                            <tr v-for="item in c.quote.items" :key="'item-' + item.id"
+                                class="hover:bg-gray-50 dark:hover:bg-zinc-800/30">
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-gray-800 dark:text-gray-100">{{ item.concept }}</div>
+                                    <div v-if="item.description" class="text-xs text-gray-400 mt-0.5">{{ item.description }}</div>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                                          :class="{
+                                              'bg-blue-100 text-blue-700': item.billing_type === 'monthly',
+                                              'bg-amber-100 text-amber-700': item.billing_type === 'annual',
+                                              'bg-gray-100 text-gray-600': item.billing_type === 'unique' || item.billing_type === 'once',
+                                          }">
+                                        {{ item.billing_type === 'monthly' ? 'Mensual' : item.billing_type === 'annual' ? 'Anual' : 'Único' }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right text-gray-600 dark:text-zinc-300">{{ item.quantity }}</td>
+                                <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{{ fmt(item.unit_price, c.currency) }}</td>
+                                <td class="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100">{{ fmt(item.unit_price * item.quantity, c.currency) }}</td>
+                            </tr>
+                            <tr v-for="addon in c.quote.addons" :key="'addon-' + addon.id"
+                                class="hover:bg-gray-50 dark:hover:bg-zinc-800/30 bg-violet-50/30 dark:bg-violet-900/10">
+                                <td class="px-4 py-3">
+                                    <div class="font-medium text-gray-800 dark:text-gray-100">
+                                        <span class="text-[10px] text-violet-600 font-bold uppercase mr-1">Addon</span>
+                                        {{ (addon.service_addon ?? addon.serviceAddon)?.name }}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="inline-block rounded-full bg-violet-100 text-violet-700 px-2 py-0.5 text-[10px] font-semibold capitalize">
+                                        {{ addon.billing_cycle }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right text-gray-600 dark:text-zinc-300">{{ addon.quantity }}</td>
+                                <td class="px-4 py-3 text-right text-gray-700 dark:text-gray-200">{{ fmt(addon.unit_price, c.currency) }}</td>
+                                <td class="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100">{{ fmt(addon.unit_price * addon.quantity, c.currency) }}</td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="border-t-2 border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-950/40">
+                            <tr>
+                                <td colspan="4" class="px-4 py-2 text-right text-sm font-semibold text-gray-600 dark:text-zinc-300">Total contratado</td>
+                                <td class="px-4 py-2 text-right text-base font-bold text-gray-800 dark:text-gray-100">{{ fmt(c.total_amount, c.currency) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
                 <!-- Historial de pagos -->
                 <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800">
                     <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-zinc-800">

@@ -111,6 +111,8 @@ Route::middleware('auth')->group(function () {
     Route::post('contracts/renewals/check',                [\App\Http\Controllers\ContractRenewalController::class, 'runCheck'])->name('contracts.renewals.check');
     Route::post('contracts/{contract}/renew',              [\App\Http\Controllers\ContractRenewalController::class, 'start'])->name('contracts.renewals.start');
     Route::post('contracts/{contract}/renew/decline',      [\App\Http\Controllers\ContractRenewalController::class, 'decline'])->name('contracts.renewals.decline');
+    Route::get('contracts/{contract}/renew/receipt',       [\App\Http\Controllers\ContractRenewalController::class, 'receipt'])->name('contracts.renewals.receipt');
+    Route::post('contracts/{contract}/renew/send-receipt', [\App\Http\Controllers\ContractRenewalController::class, 'sendReceipt'])->name('contracts.renewals.send-receipt');
 
     // Facturación (Facturama / CFDI 4.0)
     Route::get('invoices',                                       [\App\Http\Controllers\InvoiceController::class, 'index'])->name('invoices.index');

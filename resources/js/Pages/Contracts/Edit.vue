@@ -28,6 +28,7 @@ const form = useForm({
     postal_code:          props.contract.postal_code               ?? '',
     legal_representative: props.contract.legal_representative      ?? '',
     notes:                props.contract.notes                     ?? '',
+    domain_names:         props.contract.domain_names              ?? '',
 });
 
 const clientName = computed(() =>
@@ -232,6 +233,19 @@ const submit = () => form.put(route('contracts.update', props.contract.id));
                                 <TextInput id="legal_representative" type="text" v-model="form.legal_representative" class="mt-1 block w-full" />
                                 <InputError class="mt-1" :message="form.errors.legal_representative" />
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Dominio / Hosting incluidos -->
+                    <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-6 space-y-4">
+                        <h3 class="font-semibold text-gray-700 dark:text-gray-200 border-b border-gray-100 dark:border-zinc-800 pb-3">Dominio / Hosting incluido</h3>
+                        <p class="text-xs text-gray-500 dark:text-zinc-400">Si el contrato incluye dominio y/o hosting, indícalo aquí. Aparecerá en el recibo de renovación y en el correo al cliente. Si se deja vacío, se usará el dominio registrado en el perfil del cliente.</p>
+                        <div>
+                            <InputLabel for="domain_names" value="Dominio(s) del contrato" />
+                            <TextInput id="domain_names" type="text" v-model="form.domain_names"
+                                       class="mt-1 block w-full font-mono text-sm"
+                                       placeholder="ejemplo.com, ejemplo.mx" />
+                            <InputError class="mt-1" :message="form.errors.domain_names" />
                         </div>
                     </div>
 

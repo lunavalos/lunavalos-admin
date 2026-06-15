@@ -36,8 +36,13 @@ const visibleContracts = computed(() => {
 const forecastMax = computed(() => Math.max(1, ...props.forecast.map(f => Number(f.amount) || 0)));
 
 const startRenewal = (c) => {
-    if (! confirm(`Crear cotización de renovación para ${c.contract_number}?`)) return;
+    if (! confirm(`¿Renovar el contrato ${c.contract_number}?\n\nEsto extenderá la vigencia y registrará un pago pendiente.`)) return;
     router.post(route('contracts.renewals.start', c.id), {}, { preserveScroll: true });
+};
+
+const sendReceipt = (c) => {
+    if (! confirm(`¿Enviar recibo de renovación por correo a ${c.client_email}?`)) return;
+    router.post(route('contracts.renewals.send-receipt', c.id), {}, { preserveScroll: true });
 };
 
 const declineRenewal = (c) => {
@@ -140,6 +145,7 @@ const runCheck = () => {
                                 <td class="px-4 py-2">
                                     <div class="font-medium text-gray-800">{{ c.client_name }}</div>
                                     <div class="text-xs text-gray-500">{{ c.client_email }}</div>
+                                    <div v-if="c.domain_names" class="text-xs text-indigo-600 font-mono mt-0.5">{{ c.domain_names }}</div>
                                 </td>
                                 <td class="px-4 py-2">{{ fmtDate(c.end_date) }}</td>
                                 <td class="px-4 py-2 text-right" :class="c.is_overdue ? 'text-rose-600 font-semibold' : 'text-gray-700'">
@@ -158,11 +164,17 @@ const runCheck = () => {
                                     <button @click="startRenewal(c)" class="text-emerald-700 hover:underline text-xs font-semibold">
                                         Renovar
                                     </button>
+                                    <a :href="route('contracts.renewals.receipt', c.id)" target="_blank" class="text-blue-600 hover:underline text-xs">
+                                        Ver PDF
+                                    </a>
+                                    <button @click="sendReceipt(c)" class="text-violet-600 hover:underline text-xs">
+                                        Enviar correo
+                                    </button>
                                     <button @click="declineRenewal(c)" class="text-gray-500 hover:underline text-xs">
                                         Declinar
                                     </button>
                                     <a v-if="c.token" :href="`/contratodeservicio/${c.token}`" target="_blank" class="text-indigo-600 hover:underline text-xs">
-                                        Ver
+                                        Contrato
                                     </a>
                                 </td>
                             </tr>

@@ -5,6 +5,7 @@ namespace App\Actions\Clients;
 use App\Models\Client;
 use App\Models\ClientCost;
 use App\Models\ClientService;
+use App\Models\Contract;
 use App\Models\Quote;
 use Illuminate\Support\Facades\DB;
 
@@ -23,19 +24,43 @@ use Illuminate\Support\Facades\DB;
  */
 class SyncClientFromQuote
 {
-    public function __invoke(Client $client, Quote $quote): array
+    public function __invoke(Client $client, Quote $quote, ?Contract $contract = null): array
     {
-        return DB::transaction(function () use ($client, $quote) {
+        return DB::transaction(function () use ($client, $quote, $contract) {
             $quote->loadMissing(['items.costs', 'package', 'addons.serviceAddon.costs']);
 
             $fiscal   = $this->syncFiscal($client, $quote);
-            $services = $this->syncServices($client, $quote)
-                      + $this->syncAddonsAsServices($client, $quote);
+            $services = $this->syncServices($client, $quote, $contract)
+                      + $this->syncAddonsAsServices($client, $quote, $contract);
             $costs    = $this->syncCosts($client, $quote)
                       + $this->syncAddonCosts($client, $quote);
 
             return compact('fiscal', 'services', 'costs');
         });
+    }
+
+    /**
+     * Calcula la fecha de renovación a partir del contrato.
+     * Para monthly/annual: usa end_date o start_date + payment_plan_months.
+     * Para once: null (sin renovación recurrente).
+     */
+    private function renewalDateForContract(?Contract $contract, string $billingType): ?string
+    {
+        if ($billingType === 'once' || ! $contract) {
+            return null;
+        }
+
+        if ($contract->end_date) {
+            return $contract->end_date->format('Y-m-d');
+        }
+
+        if ($contract->start_date && $contract->payment_plan_months) {
+            return $contract->start_date->copy()
+                ->addMonths((int) $contract->payment_plan_months)
+                ->format('Y-m-d');
+        }
+
+        return null;
     }
 
     /**
@@ -80,7 +105,7 @@ class SyncClientFromQuote
     /**
      * Materializa Servicios y Renovaciones desde el paquete del Quote y sus items.
      */
-    private function syncServices(Client $client, Quote $quote): int
+    private function syncServices(Client $client, Quote $quote, ?Contract $contract = null): int
     {
         $count = 0;
 
@@ -98,8 +123,10 @@ class SyncClientFromQuote
                     'service_id' => $service->id,
                 ],
                 [
+                    'contract_id'     => $contract?->id,
                     'service_name'    => $service->name,
                     'renewal_amount'  => $amount,
+                    'renewal_date'    => $this->renewalDateForContract($contract, $billing),
                     'billing_type'    => $billing,
                     'initial_payment' => (float) ($service->price ?? 0),
                     'initial_cost'    => 0,
@@ -123,8 +150,10 @@ class SyncClientFromQuote
             ClientService::updateOrCreate(
                 $lookup,
                 [
+                    'contract_id'     => $contract?->id,
                     'service_name'    => $item->concept,
                     'renewal_amount'  => $renewalPrice,
+                    'renewal_date'    => $this->renewalDateForContract($contract, $billing),
                     'billing_type'    => $billing,
                     'initial_payment' => $unitPrice * $qty,
                     'initial_cost'    => 0,
@@ -198,7 +227,7 @@ class SyncClientFromQuote
      * usamos service_id=null + service_name con prefijo "[Addon]" como
      * llave estable para updateOrCreate.
      */
-    private function syncAddonsAsServices(Client $client, Quote $quote): int
+    private function syncAddonsAsServices(Client $client, Quote $quote, ?Contract $contract = null): int
     {
         $count = 0;
 
@@ -220,7 +249,9 @@ class SyncClientFromQuote
                     'service_name' => $name,
                 ],
                 [
+                    'contract_id'     => $contract?->id,
                     'renewal_amount'  => $unit * $qty,
+                    'renewal_date'    => $this->renewalDateForContract($contract, $billing),
                     'billing_type'    => $billing,
                     'initial_payment' => $billing === 'once' ? $unit * $qty : 0,
                     'initial_cost'    => 0,

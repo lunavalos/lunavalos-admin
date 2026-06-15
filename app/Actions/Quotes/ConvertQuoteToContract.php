@@ -42,12 +42,16 @@ class ConvertQuoteToContract
             //   - pago único: (total - anticipo) / (months - 1)
             $monthlyAmount = $this->calcMonthlyAmount($quote, $packageBilling, $total, $anticipo, $months);
 
+            $startDate = \Illuminate\Support\Carbon::parse($data['paid_at'] ?? now()->toDateString());
+            $endDate   = $startDate->copy()->addMonths($months);
+
             $contract = Contract::create([
                 'quote_id'             => $quote->id,
                 'client_id'            => $client->id,
                 'token'                => Str::random(40),
                 'contract_number'      => $this->generateContractNumber(),
-                'start_date'           => $data['paid_at'] ?? now()->toDateString(),
+                'start_date'           => $startDate->toDateString(),
+                'end_date'             => $endDate->toDateString(),
                 'subtotal'             => $quote->subtotal,
                 'discount_amount'      => $quote->discount_amount ?? 0,
                 'currency'             => $quote->currency ?? config('currencies.default'),
@@ -76,7 +80,7 @@ class ConvertQuoteToContract
 
             // 3. Materializamos Servicios, Costos y datos fiscales en el Cliente
             //    (fuente única de verdad: SyncClientFromQuote, idempotente).
-            (new SyncClientFromQuote)($client, $quote);
+            (new SyncClientFromQuote)($client, $quote, $contract);
 
             // 4. Marcamos la cotización como Convertida
             $quote->update(['status' => 'Convertida']);
@@ -250,34 +254,10 @@ class ConvertQuoteToContract
             return;
         }
 
-        // ── ANUALIDAD ──────────────────────────────────────────────────────
-        if ($packageBilling === 'annual') {
-            $years      = max(1, (int) floor($months / 12));
-            $remaining  = max(0, $years - 1);
-
-            // Saldo anual: el componente anual + cualquier remanente único no
-            // cubierto por el anticipo. Lo dividimos en (años-1) cuotas anuales.
-            $annualBalance = max(0, $totalAnnual + $totalUnique + $totalMonthly - $anticipo);
-
-            if ($remaining === 0 || $annualBalance <= 0) {
-                return;
-            }
-
-            $perYear = round($annualBalance / $remaining, 2);
-            for ($i = 1; $i <= $remaining; $i++) {
-                $amount = ($i === $remaining)
-                    ? round($annualBalance - ($perYear * ($remaining - 1)), 2)
-                    : $perYear;
-                $create(
-                    $amount,
-                    $start->copy()->addYears($i)->toDateString(),
-                    $i + 1
-                );
-            }
-            return;
-        }
-
-        // ── PAGO ÚNICO con plan a meses (comportamiento histórico) ────────
+        // ── ANUALIDAD y PAGO ÚNICO ────────────────────────────────────────
+        // payment_plan_months = cuotas mensuales para dividir el pago inicial,
+        // sin importar si el servicio es anual o único.
+        // Las renovaciones anuales futuras se programan en generateAnnualRenewals().
         $balance   = max(0, $total - $anticipo);
         $remaining = max(1, $months - 1);
         if ($balance <= 0) {
@@ -317,19 +297,26 @@ class ConvertQuoteToContract
             return;
         }
 
-        // 1) Annual items y addons.
+        // 1) Annual items: si el item tiene unit_renewal_price definido, ese ES
+        //    el costo de renovación (puede diferir del unit_price inicial).
+        //    Si no tiene renewal_price, la renovación cuesta igual que el precio base.
         $annualItems = $quote->items
             ->where('billing_type', 'annual')
-            ->sum(fn ($i) => (float) $i->unit_price * (float) ($i->quantity ?: 1));
+            ->sum(fn ($i) => (float) (
+                (float) $i->unit_renewal_price > 0
+                    ? $i->unit_renewal_price
+                    : $i->unit_price
+            ) * (float) ($i->quantity ?: 1));
 
         $annualAddons = collect($quote->addons ?? [])
             ->filter(fn ($a) => in_array($a->billing_cycle, ['annual', 'semiannual'], true))
             ->sum(fn ($a) => (float) $a->unit_price * (float) ($a->quantity ?: 1));
 
-        // 2) Items con Precio de Renovación / Anualidad explícito (pago único
-        //    pero con renovación anual). Sólo cuenta como renovación a partir
-        //    del año 2.
+        // 2) Items NO anuales con Precio de Renovación explícito (pago único de
+        //    setup pero con renovación anual recurrente). Los anuales ya están
+        //    cubiertos arriba con su renewal_price, no se deben sumar de nuevo.
         $renewalPriced = $quote->items
+            ->where('billing_type', '!=', 'annual')
             ->where('unit_renewal_price', '>', 0)
             ->sum(fn ($i) => (float) $i->unit_renewal_price * (float) ($i->quantity ?: 1));
 

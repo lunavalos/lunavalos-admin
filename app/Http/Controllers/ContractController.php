@@ -138,6 +138,7 @@ class ContractController extends Controller
             'postal_code'          => 'nullable|string|max:10',
             'legal_representative' => 'nullable|string|max:255',
             'notes'                => 'nullable|string',
+            'domain_names'         => 'nullable|string|max:500',
         ]);
 
         $contract->update($validated);
@@ -265,6 +266,8 @@ class ContractController extends Controller
         $contract->load([
             'client:id,business_name,email',
             'quote:id,client_name,contact_name,email,phone,status,total,issue_date',
+            'quote.items',
+            'quote.addons.serviceAddon:id,name',
             'payments' => fn ($q) => $q->orderBy('due_date')->orderBy('created_at'),
             'createdBy:id,name',
             'renewedContract:id,contract_number',

@@ -41,6 +41,7 @@ class Contract extends Model
         'monthly_amount',
         'anticipo_amount',
         'notes',
+        'domain_names',
 
         // Renovaciones
         'renewal_status',

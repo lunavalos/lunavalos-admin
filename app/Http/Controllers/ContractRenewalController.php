@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Actions\Contracts\StartContractRenewal;
-use App\Console\Commands\CheckContractRenewals;
+use App\Actions\Contracts\RenewContract;
 use App\Models\Contract;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -16,8 +15,8 @@ class ContractRenewalController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('can:Ver Contratos',  only: ['index']),
-            new Middleware('can:Editar Contratos', only: ['start', 'decline', 'runCheck']),
+            new Middleware('can:Ver Contratos',   only: ['index', 'receipt']),
+            new Middleware('can:Editar Contratos', only: ['start', 'decline', 'runCheck', 'sendReceipt']),
         ];
     }
 
@@ -27,7 +26,7 @@ class ContractRenewalController extends Controller implements HasMiddleware
         $today     = now()->startOfDay();
 
         $contracts = Contract::query()
-            ->with(['client:id,business_name,email', 'quote:id,client_name'])
+            ->with(['client:id,business_name,email,domain_names', 'quote:id,client_name'])
             ->whereNotNull('end_date')
             ->whereNotIn('renewal_status', ['renewed', 'declined'])
             ->where(function ($q) use ($notifyMax) {
@@ -51,6 +50,9 @@ class ContractRenewalController extends Controller implements HasMiddleware
                     'renewal_status'           => $c->renewal_status,
                     'renewal_last_notified_at' => $c->renewal_last_notified_at?->toIso8601String(),
                     'token'                    => $c->token,
+                    'client_id'                => $c->client_id,
+                    'currency'                 => $c->currency ?? config('currencies.default'),
+                    'domain_names'             => $c->domain_names ?: $c->client?->domain_names,
                 ];
             });
 
@@ -102,12 +104,86 @@ class ContractRenewalController extends Controller implements HasMiddleware
         return array_values($buckets);
     }
 
-    public function start(Request $request, Contract $contract, StartContractRenewal $action)
+    public function start(Request $request, Contract $contract, RenewContract $action)
     {
-        $quote = $action($contract, $request->user());
+        $action($contract, $request->user());
 
-        return redirect()->route('quotes.manage', $quote)
-            ->with('success', "Cotización de renovación creada para {$contract->contract_number}.");
+        return back()->with('success', "Contrato {$contract->contract_number} renovado. Pago pendiente registrado.");
+    }
+
+    private function buildReceiptData(Contract $contract): array
+    {
+        $client  = $contract->client;
+        $months  = $contract->payment_plan_months ?: 12;
+        $billing = $months === 1 ? 'monthly' : 'unique';
+        $domain  = $contract->domain_names ?: $client?->domain_names;
+
+        $serviceName = $domain
+            ? "Renovación Anual — Servicios para: {$domain}"
+            : "Renovación — Contrato {$contract->contract_number}";
+
+        $client->next_renewal_date = $contract->end_date?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        return [
+            'client'              => $client,
+            'service_name'        => $serviceName,
+            'service_description' => $domain ? "Contrato {$contract->contract_number}" : null,
+            'amount'              => (float) $contract->total_amount,
+            'billing_type'        => $billing,
+            'currency'            => $contract->currency ?? config('currencies.default'),
+        ];
+    }
+
+    public function receipt(Contract $contract)
+    {
+        $contract->load('client');
+
+        if (! $contract->client) {
+            return back()->with('error', 'Este contrato no tiene cliente asociado.');
+        }
+
+        $receiptData = $this->buildReceiptData($contract);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.receipt', $receiptData);
+        return $pdf->stream("Recibo_Renovacion_{$contract->contract_number}.pdf");
+    }
+
+    public function sendReceipt(Request $request, Contract $contract)
+    {
+        $contract->load('client');
+        $client = $contract->client;
+
+        if (! $client?->email) {
+            return back()->with('error', 'Este contrato no tiene correo de cliente configurado.');
+        }
+
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            return back()->with('error', 'No se pudo generar el PDF del recibo.');
+        }
+
+        $receiptData = $this->buildReceiptData($contract);
+        $pdfContent  = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.receipt', $receiptData)->output();
+
+        try {
+            \Illuminate\Support\Facades\Mail::to($client->email)
+                ->cc('ventas@lunavalos.com')
+                ->send(new \App\Mail\RenewalReceiptMail(
+                    $client,
+                    $receiptData['service_name'],
+                    $receiptData['amount'],
+                    $receiptData['billing_type'],
+                    $pdfContent,
+                    $receiptData['currency']
+                ));
+
+            $contract->update([
+                'renewal_status'           => 'notified',
+                'renewal_last_notified_at' => now(),
+            ]);
+
+            return back()->with('message', "¡Correo enviado a {$client->email} con éxito!");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error al enviar el correo: ' . $e->getMessage());
+        }
     }
 
     public function decline(Request $request, Contract $contract)
