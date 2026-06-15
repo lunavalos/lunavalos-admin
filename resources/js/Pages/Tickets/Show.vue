@@ -318,6 +318,13 @@ const canDelete = computed(() => {
     return false;
 });
 
+const backHref = computed(() => {
+    if (props.ticket.source_type === 'recurring' && props.ticket.client_id) {
+        return route('recurring.clients.show', props.ticket.client_id);
+    }
+    return route('tickets.index');
+});
+
 const deleteTicket = () => {
     if (confirm('¿Mover este ticket a la papelera?')) {
         router.delete(route('tickets.destroy', props.ticket.id));
@@ -500,7 +507,7 @@ const saveEdit = (msg) => {
         <template #header>
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                 <div class="flex items-center min-w-0">
-                    <Link :href="route('tickets.index')" class="mr-2 p-1.5 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 hover:border-[#264ab3] text-gray-500 dark:text-zinc-400 hover:text-[#264ab3] transition-all">
+                    <Link :href="backHref" class="mr-2 p-1.5 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 hover:border-[#264ab3] text-gray-500 dark:text-zinc-400 hover:text-[#264ab3] transition-all">
                         <ChevronLeftIcon class="h-4 w-4" />
                     </Link>
                     <div class="min-w-0">
