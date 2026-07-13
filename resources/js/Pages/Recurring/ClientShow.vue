@@ -234,7 +234,7 @@ function syncAnalytics() {
                     <h2 class="mt-1 text-xl font-semibold text-gray-800 dark:text-zinc-100">
                         {{ client.business_name }}
                     </h2>
-                    <p class="text-xs text-gray-500 dark:text-zinc-400">
+                    <p v-if="$page.props.auth.user.is_admin" class="text-xs text-gray-500 dark:text-zinc-400">
                         Contrato {{ contract.contract_number }} ·
                         Mensualidad ${{ Number(contract.monthly_amount || 0).toLocaleString() }}
                     </p>

@@ -173,7 +173,8 @@ class RecurringClientController extends Controller implements HasMiddleware
                 'contract_number' => $contract->contract_number,
                 'start_date'      => $contract->start_date,
                 'end_date'        => $contract->end_date,
-                'monthly_amount'  => $contract->monthly_amount,
+                // Dato financiero sensible: solo se expone a administradores.
+                'monthly_amount'  => $request->user()->isAdmin() ? $contract->monthly_amount : null,
             ],
             'month'          => $periodStart->format('Y-m'),
             'monthLabel'     => $periodStart->locale('es')->isoFormat('MMMM YYYY'),
