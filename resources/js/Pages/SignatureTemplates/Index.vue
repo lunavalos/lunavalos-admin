@@ -24,7 +24,9 @@ const deleteTemplate = (id) => {
                     <SwatchIcon class="h-6 w-6 text-[#264ab3] dark:text-blue-400" />
                     Plantillas de Firmas
                 </h2>
-                <Link :href="route('signature-templates.create')" class="bg-[#264ab3] text-white px-4 py-2 rounded-md font-bold text-sm flex items-center">
+                <Link
+                    v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Crear Plantillas de Firma')"
+                    :href="route('signature-templates.create')" class="bg-[#264ab3] text-white px-4 py-2 rounded-md font-bold text-sm flex items-center">
                     <PlusIcon class="h-4 w-4 mr-1 text-white" />
                     Nueva Plantilla
                 </Link>
@@ -60,10 +62,14 @@ const deleteTemplate = (id) => {
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                                        <Link :href="route('signature-templates.edit', template.id)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 inline-block">
+                                        <Link
+                                            v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Editar Plantillas de Firma')"
+                                            :href="route('signature-templates.edit', template.id)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 inline-block">
                                             <PencilIcon class="h-5 w-5" />
                                         </Link>
-                                        <button @click="deleteTemplate(template.id)" class="text-red-600 dark:text-rose-400 hover:text-red-900 dark:hover:text-rose-300 inline-block">
+                                        <button
+                                            v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Eliminar Plantillas de Firma')"
+                                            @click="deleteTemplate(template.id)" class="text-red-600 dark:text-rose-400 hover:text-red-900 dark:hover:text-rose-300 inline-block">
                                             <TrashIcon class="h-5 w-5" />
                                         </button>
                                     </td>

@@ -88,6 +88,10 @@ class DatabaseSeeder extends Seeder
             'Crear Tickets',
             'Editar Tickets',
             'Eliminar Tickets',
+            'Ver Plantillas de Firma',
+            'Crear Plantillas de Firma',
+            'Editar Plantillas de Firma',
+            'Eliminar Plantillas de Firma',
         ];
 
         foreach ($permissions as $permission) {

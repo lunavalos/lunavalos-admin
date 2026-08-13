@@ -4,10 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Models\SignatureTemplate;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 
-class SignatureTemplateController extends Controller
+class SignatureTemplateController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Plantillas de Firma', only: ['index', 'show']),
+            new Middleware('can:Crear Plantillas de Firma', only: ['create', 'store']),
+            new Middleware('can:Editar Plantillas de Firma', only: ['edit', 'update']),
+            new Middleware('can:Eliminar Plantillas de Firma', only: ['destroy']),
+        ];
+    }
+
     /**
      * Display a listing of the resource.
      */

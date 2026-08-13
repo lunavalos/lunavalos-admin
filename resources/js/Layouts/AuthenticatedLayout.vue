@@ -648,8 +648,8 @@ onMounted(() => {
                             </Link>
                         </li>
 
-                        <!-- Signature Templates (Admin) -->
-                        <li v-if="$page.props.auth.user.is_admin">
+                        <!-- Signature Templates (Admin o rol con permiso) -->
+                        <li v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Ver Plantillas de Firma')">
                             <Link 
                                 :href="route('signature-templates.index')"
                                 :class="[
