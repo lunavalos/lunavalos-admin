@@ -7,7 +7,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 
 const props = defineProps({
     modelValue: { type: Object, required: true },
-    selectedPackage: { type: Object, default: null },
+    selectedPackages: { type: Array, default: () => [] },
     selectedAddons: { type: Array, required: true },
     cycleLabels: { type: Object, required: true },
     submitting: { type: Boolean, default: false },
@@ -26,15 +26,15 @@ const toQuote = (amount, from) => {
     const c = convert(Number(amount || 0), f, quoteCurrency.value);
     return c == null ? Number(amount || 0) : c;
 };
-const packagePriceQuote = computed(() => props.selectedPackage
-    ? toQuote(props.selectedPackage.price, props.selectedPackage.currency)
-    : 0);
+const packagePriceQuote = (svc) => toQuote(svc.price, svc.currency);
+const packagesTotal = computed(() =>
+    props.selectedPackages.reduce((s, svc) => s + packagePriceQuote(svc), 0)
+);
 const addonLineQuote = (a) => toQuote(Number(a.unit_price) * Number(a.quantity), a.currency);
 
 const subtotal = computed(() => {
-    const pkg = packagePriceQuote.value;
     const adds = props.selectedAddons.reduce((s, a) => s + addonLineQuote(a), 0);
-    return pkg + adds;
+    return packagesTotal.value + adds;
 });
 const taxableBase = computed(() => Math.max(0, subtotal.value - Number(props.modelValue.discount_amount || 0)));
 
@@ -54,17 +54,27 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-4">
                 <div class="rounded-lg border border-gray-200 dark:border-zinc-700 p-4">
-                    <h4 class="font-semibold mb-2">Paquete</h4>
-                    <div v-if="selectedPackage" class="flex justify-between">
-                        <div>
-                            <div class="font-bold">{{ selectedPackage.name }}</div>
-                            <div class="text-xs text-gray-500">Plan: {{ modelValue.package_payment_plan_months }} meses</div>
-                            <div v-if="(selectedPackage.currency || 'MXN').toUpperCase() !== quoteCurrency" class="text-[11px] text-gray-400">
-                                Precio nativo: {{ fmt(selectedPackage.price, selectedPackage.currency) }} → convertido a {{ quoteCurrency }}
+                    <h4 class="font-semibold mb-2">
+                        Paquetes
+                        <span class="text-xs text-gray-500 font-normal">
+                            · plan compartido de {{ modelValue.package_payment_plan_months }} meses
+                        </span>
+                    </h4>
+                    <ul v-if="selectedPackages.length" class="divide-y divide-gray-100 dark:divide-zinc-800">
+                        <li v-for="(svc, i) in selectedPackages" :key="svc.id" class="py-2 flex justify-between gap-3">
+                            <div>
+                                <div class="font-bold">
+                                    {{ svc.name }}
+                                    <span v-if="i === 0" class="text-[9px] uppercase font-bold bg-primary text-white px-1.5 py-0.5 rounded align-middle ml-1">Principal</span>
+                                </div>
+                                <div v-if="(svc.currency || 'MXN').toUpperCase() !== quoteCurrency" class="text-[11px] text-gray-400">
+                                    Precio nativo: {{ fmt(svc.price, svc.currency) }} → convertido a {{ quoteCurrency }}
+                                </div>
                             </div>
-                        </div>
-                        <div class="font-bold text-primary">{{ fmt(packagePriceQuote, quoteCurrency) }}</div>
-                    </div>
+                            <div class="font-bold text-primary whitespace-nowrap">{{ fmt(packagePriceQuote(svc), quoteCurrency) }}</div>
+                        </li>
+                    </ul>
+                    <p v-else class="text-sm text-gray-400">Sin paquetes seleccionados.</p>
                 </div>
 
                 <div class="rounded-lg border border-gray-200 dark:border-zinc-700 p-4">

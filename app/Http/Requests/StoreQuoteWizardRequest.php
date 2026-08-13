@@ -15,13 +15,27 @@ class StoreQuoteWizardRequest extends FormRequest
         return true; // Permisos verificados por middleware del controller.
     }
 
+    /**
+     * Retro-compat: el payload histórico enviaba un solo `package_service_id`.
+     * Lo normalizamos al arreglo que usa el wizard multi-paquete.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('package_service_ids') && $this->filled('package_service_id')) {
+            $this->merge(['package_service_ids' => [(int) $this->input('package_service_id')]]);
+        }
+    }
+
     public function rules(): array
     {
         $statuses = (array) config('quotes.statuses', []);
         $maxMonths = (int) config('quotes.max_payment_plan_months', 24);
 
+        // Varios paquetes por cotización; el primero es el principal y queda en
+        // `quotes.package_service_id`. El plan de pago es compartido por todos.
         return [
-            'package_service_id'           => ['required', 'integer', 'exists:services,id'],
+            'package_service_ids'          => ['required', 'array', 'min:1'],
+            'package_service_ids.*'        => ['required', 'integer', 'distinct', 'exists:services,id'],
             'package_payment_plan_months'  => ['required', 'integer', 'min:1', "max:{$maxMonths}"],
 
             'client_id'                    => ['nullable', 'integer', 'exists:clients,id'],
@@ -61,17 +75,23 @@ class StoreQuoteWizardRequest extends FormRequest
 
     /**
      * Después de las reglas base, valida que se haya seleccionado al menos
-     * un addon de la categoría obligatoria del paquete (si aplica).
+     * un addon de cada categoría obligatoria exigida por los paquetes
+     * elegidos (la unión de todos ellos, sin duplicar).
      */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $v) {
-            $service = Service::find($this->input('package_service_id'));
-            if (! $service) {
+            $services = Service::whereIn('id', (array) $this->input('package_service_ids', []))->get();
+            if ($services->isEmpty()) {
                 return;
             }
 
-            $required = $service->required_addon_categories_list;
+            $required = $services
+                ->flatMap(fn (Service $s) => $s->required_addon_categories_list)
+                ->unique()
+                ->values()
+                ->all();
+
             if (empty($required)) {
                 return;
             }

@@ -18,7 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnforceTwoFactorActivation::class,
         ]);
 
-        // Meta llama este webhook directamente — no manda token CSRF de sesión
+        // n8n llama este webhook servidor a servidor — no manda token CSRF de
+        // sesión. Va protegido con VerifyN8nSecret (ver routes/web.php).
         $middleware->validateCsrfTokens(except: [
             'whatsapp/webhook',
         ]);

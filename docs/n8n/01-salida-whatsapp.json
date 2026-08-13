@@ -1,0 +1,138 @@
+{
+  "name": "WhatsApp Salida — lunavalos-admin",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lunavalos-admin-whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-salida",
+      "name": "Webhook (desde Laravel)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "lunavalos-admin-whatsapp"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compara el secreto compartido en tiempo constante.\n// Debe coincidir con N8N_SHARED_SECRET del .env de Laravel.\nconst esperado = $env.LUNAVALOS_SHARED_SECRET;\nconst recibido = $input.first().json.headers['x-n8n-secret'] || '';\n\nconst crypto = require('crypto');\nconst a = Buffer.from(String(esperado));\nconst b = Buffer.from(String(recibido));\nconst ok = a.length === b.length && crypto.timingSafeEqual(a, b);\n\nif (!esperado || !ok) {\n  throw new Error('Secreto invalido');\n}\n\nreturn $input.all();"
+      },
+      "id": "valida-secreto",
+      "name": "Valida secreto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "send_text",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "send_text"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "version": 2 },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.action }}",
+                    "rightValue": "mark_read",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "mark_read"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "switch-action",
+      "name": "Switch por action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v23.0/1230737580126123/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', recipient_type: 'individual', to: $json.body.to, type: 'text', text: { body: $json.body.text } }) }}",
+        "options": {}
+      },
+      "id": "meta-send-text",
+      "name": "Meta · enviar texto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, -100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.facebook.com/v23.0/1230737580126123/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ messaging_product: 'whatsapp', status: 'read', message_id: $json.body.wa_message_id }) }}",
+        "options": {}
+      },
+      "id": "meta-mark-read",
+      "name": "Meta · marcar leido",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ wa_message_id: $json.messages ? $json.messages[0].id : null }) }}",
+        "options": {}
+      },
+      "id": "responde",
+      "name": "Responde a Laravel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [920, 0]
+    }
+  ],
+  "connections": {
+    "Webhook (desde Laravel)": {
+      "main": [[{ "node": "Valida secreto", "type": "main", "index": 0 }]]
+    },
+    "Valida secreto": {
+      "main": [[{ "node": "Switch por action", "type": "main", "index": 0 }]]
+    },
+    "Switch por action": {
+      "main": [
+        [{ "node": "Meta · enviar texto", "type": "main", "index": 0 }],
+        [{ "node": "Meta · marcar leido", "type": "main", "index": 0 }]
+      ]
+    },
+    "Meta · enviar texto": {
+      "main": [[{ "node": "Responde a Laravel", "type": "main", "index": 0 }]]
+    },
+    "Meta · marcar leido": {
+      "main": [[{ "node": "Responde a Laravel", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

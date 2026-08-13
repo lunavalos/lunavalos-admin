@@ -24,6 +24,7 @@ const props = defineProps({
     maxPaymentMonths: Number,
     defaultValidity: Number,
     quote: { type: Object, default: null },
+    packageServiceIds: { type: Array, default: () => [] },
 });
 
 const isEdit = !! props.quote;
@@ -36,7 +37,7 @@ const current = ref(0);
 
 const initial = isEdit
     ? {
-        package_service_id: props.quote.package_service_id,
+        package_service_ids: [...props.packageServiceIds],
         package_payment_plan_months: props.quote.package_payment_plan_months || 1,
         client_id: props.quote.client_id,
         client_name: props.quote.client_name || '',
@@ -66,7 +67,7 @@ const initial = isEdit
         })),
     }
     : {
-        package_service_id: null,
+        package_service_ids: [],
         package_payment_plan_months: 1,
         client_id: null,
         client_name: '',
@@ -94,20 +95,26 @@ const initial = isEdit
 
 const form = useForm(initial);
 
-const selectedPackage = computed(() => props.services.find(s => s.id === form.package_service_id) || null);
-const requiredCategories = computed(() => {
-    const svc = selectedPackage.value;
-    if (!svc) return [];
-    
-    let list = [];
+const selectedPackages = computed(() =>
+    form.package_service_ids
+        .map(id => props.services.find(s => s.id === id))
+        .filter(Boolean)
+);
+
+const requiredCategoriesOf = (svc) => {
     if (Array.isArray(svc.required_addon_categories_list) && svc.required_addon_categories_list.length) {
-        list = svc.required_addon_categories_list;
-    } else if (Array.isArray(svc.required_addon_categories) && svc.required_addon_categories.length) {
-        list = svc.required_addon_categories;
-    } else if (svc.required_addon_category) {
-        list = [svc.required_addon_category];
+        return svc.required_addon_categories_list;
     }
-    
+    if (Array.isArray(svc.required_addon_categories) && svc.required_addon_categories.length) {
+        return svc.required_addon_categories;
+    }
+    return svc.required_addon_category ? [svc.required_addon_category] : [];
+};
+
+// Unión de las categorías obligatorias de todos los paquetes elegidos.
+const requiredCategories = computed(() => {
+    const list = [...new Set(selectedPackages.value.flatMap(requiredCategoriesOf))];
+
     // Solo requerir categorías que tengan al menos un addon activo en el catálogo
     return list.filter(cat => props.addonsByCategory[cat] && props.addonsByCategory[cat].length > 0);
 });
@@ -207,7 +214,7 @@ const submit = () => {
                     v-else-if="current === 3"
                     :model-value="form"
                     @update:model-value="patchForm"
-                    :selected-package="selectedPackage"
+                    :selected-packages="selectedPackages"
                     :selected-addons="selectedAddons"
                     :cycle-labels="cycleLabels"
                     :submitting="form.processing"

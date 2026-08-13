@@ -252,6 +252,8 @@ Route::get('contratodeservicio/{token}', [\App\Http\Controllers\ContractControll
 Route::post('contratodeservicio/{token}/sign', [\App\Http\Controllers\ContractController::class, 'sign'])->name('contracts.sign');
 Route::get('contratodeservicio/{token}/pdf', [\App\Http\Controllers\ContractController::class, 'downloadPdf'])->name('contracts.download.pdf');
 
-// WhatsApp Business Cloud API — webhook público (Meta lo llama directamente, sin sesión/CSRF)
-Route::get('whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'verify'])->name('whatsapp.webhook.verify');
-Route::post('whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'receive'])->name('whatsapp.webhook.receive');
+// WhatsApp — n8n reenvía aquí los eventos de Meta (sin sesión/CSRF).
+// El acceso lo controla el secreto compartido, no la sesión del usuario.
+Route::post('whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'receive'])
+    ->middleware(\App\Http\Middleware\VerifyN8nSecret::class)
+    ->name('whatsapp.webhook.receive');

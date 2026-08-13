@@ -37,18 +37,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | WhatsApp Business Cloud API (Meta)
+    | n8n — pasarela de WhatsApp
     |--------------------------------------------------------------------------
-    | Webhook: {APP_URL}/whatsapp/webhook
-    | El verify_token es un valor inventado por nosotros que también se
-    | registra en el panel de Meta al suscribir el webhook.
+    | Este sistema no habla con graph.facebook.com. El token de Meta, el
+    | phone_number_id y el verify_token del webhook viven en n8n, que es
+    | quien enruta hacia el número que corresponde a cada cliente.
+    |
+    | Salida:  Laravel -> whatsapp_webhook_url (con X-N8n-Secret)
+    | Entrada: Meta -> n8n (valida X-Hub-Signature-256) -> {APP_URL}/whatsapp/webhook
+    |
+    | shared_secret protege ambas direcciones y debe ser el mismo valor
+    | configurado del lado de n8n.
     */
-    'whatsapp' => [
-        'token'               => env('WHATSAPP_TOKEN'),
-        'phone_number_id'     => env('WHATSAPP_PHONE_NUMBER_ID'),
-        'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
-        'api_version'         => env('WHATSAPP_API_VERSION', 'v21.0'),
-        'verify_token'        => env('WHATSAPP_VERIFY_TOKEN'),
+    'n8n' => [
+        'whatsapp_webhook_url' => env('N8N_WHATSAPP_WEBHOOK_URL'),
+        'shared_secret'        => env('N8N_SHARED_SECRET'),
+        'timeout'              => env('N8N_TIMEOUT', 10),
     ],
 
     /*

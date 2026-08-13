@@ -15,24 +15,11 @@ use Illuminate\Support\Str;
 class WhatsAppWebhookController extends Controller
 {
     /**
-     * Meta hace un GET aquí al suscribir/verificar el webhook.
-     * PHP convierte "hub.mode" en "hub_mode" automáticamente.
-     */
-    public function verify(Request $request)
-    {
-        if (
-            $request->query('hub_mode') === 'subscribe'
-            && hash_equals((string) config('services.whatsapp.verify_token'), (string) $request->query('hub_verify_token'))
-        ) {
-            return response((string) $request->query('hub_challenge'), 200);
-        }
-
-        return response('Forbidden', 403);
-    }
-
-    /**
-     * Eventos entrantes: mensajes de clientes, cambios de estado de envíos, etc.
-     * Siempre respondemos 200 rápido — si Meta recibe error, reintenta el envío.
+     * Eventos entrantes reenviados por n8n, con el payload de Meta tal cual.
+     * El handshake de suscripción (hub.challenge) lo resuelve n8n, no este
+     * sistema, porque es n8n quien está dado de alta como webhook en Meta.
+     *
+     * Siempre respondemos 200 rápido — si n8n recibe error, reintenta.
      */
     public function receive(Request $request, WhatsAppService $whatsapp)
     {

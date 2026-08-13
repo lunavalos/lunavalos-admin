@@ -1,0 +1,119 @@
+{
+  "name": "WhatsApp Entrada — Meta a lunavalos-admin",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "meta-whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-verify",
+      "name": "Webhook GET (handshake Meta)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, -160],
+      "webhookId": "meta-whatsapp-verify"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Meta manda hub.mode / hub.verify_token / hub.challenge al suscribir.\n// Si el verify_token coincide, hay que devolver el challenge TAL CUAL.\nconst q = $input.first().json.query || {};\nconst esperado = $env.META_VERIFY_TOKEN;\n\nif (q['hub.mode'] !== 'subscribe' || q['hub.verify_token'] !== esperado) {\n  throw new Error('verify_token invalido');\n}\n\nreturn [{ json: { challenge: q['hub.challenge'] } }];"
+      },
+      "id": "valida-verify-token",
+      "name": "Valida verify_token",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, -160]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.challenge }}",
+        "options": {}
+      },
+      "id": "responde-challenge",
+      "name": "Devuelve challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [440, -160]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meta-whatsapp",
+        "responseMode": "responseNode",
+        "options": { "rawBody": true }
+      },
+      "id": "webhook-eventos",
+      "name": "Webhook POST (eventos Meta)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 80],
+      "webhookId": "meta-whatsapp-eventos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Valida X-Hub-Signature-256: HMAC-SHA256 del cuerpo CRUDO con el App Secret.\n// Debe hacerse sobre el raw body, no sobre el JSON reserializado.\nconst crypto = require('crypto');\nconst item = $input.first().json;\n\nconst firma = item.headers['x-hub-signature-256'] || '';\nconst raw = item.body;\nconst cuerpo = Buffer.isBuffer(raw) ? raw : Buffer.from(typeof raw === 'string' ? raw : JSON.stringify(raw));\n\nconst esperada = 'sha256=' + crypto\n  .createHmac('sha256', $env.META_APP_SECRET)\n  .update(cuerpo)\n  .digest('hex');\n\nconst a = Buffer.from(firma);\nconst b = Buffer.from(esperada);\nif (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {\n  throw new Error('Firma de Meta invalida');\n}\n\n// Reenviamos el payload de Meta tal cual: Laravel ya sabe parsearlo.\nreturn [{ json: JSON.parse(cuerpo.toString()) }];"
+      },
+      "id": "valida-firma",
+      "name": "Valida firma de Meta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 80]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://admin.lunavalos.com/whatsapp/webhook",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8n-Secret",
+              "value": "={{ $env.LUNAVALOS_SHARED_SECRET }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "a-laravel",
+      "name": "Reenvia a lunavalos-admin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 80]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'ok' }) }}",
+        "options": {}
+      },
+      "id": "responde-ok",
+      "name": "200 a Meta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 80]
+    }
+  ],
+  "connections": {
+    "Webhook GET (handshake Meta)": {
+      "main": [[{ "node": "Valida verify_token", "type": "main", "index": 0 }]]
+    },
+    "Valida verify_token": {
+      "main": [[{ "node": "Devuelve challenge", "type": "main", "index": 0 }]]
+    },
+    "Webhook POST (eventos Meta)": {
+      "main": [[{ "node": "Valida firma de Meta", "type": "main", "index": 0 }]]
+    },
+    "Valida firma de Meta": {
+      "main": [[{ "node": "Reenvia a lunavalos-admin", "type": "main", "index": 0 }]]
+    },
+    "Reenvia a lunavalos-admin": {
+      "main": [[{ "node": "200 a Meta", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

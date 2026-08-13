@@ -6,7 +6,6 @@ use App\Http\Requests\StoreQuoteWizardRequest;
 use App\Models\Client;
 use App\Models\Quote;
 use App\Models\QuoteAddon;
-use App\Models\QuoteItem;
 use App\Models\Service;
 use App\Models\ServiceAddon;
 use App\Support\Money\CurrencyService;
@@ -89,15 +88,10 @@ class QuoteWizardController extends Controller implements HasMiddleware
         $exchangeRate = $fx->snapshotRate($currency, $data['issue_date'] ?? null);
 
         $quote = DB::transaction(function () use ($data, $currency, $exchangeRate, $fx) {
-            $service = Service::findOrFail($data['package_service_id']);
-
-            // Snapshot del precio del paquete convertido a la moneda de la cotización.
-            $svcCurrency  = strtoupper($service->currency ?: $fx->default());
-            $packagePrice = (float) $fx->convert((string) $service->price, $svcCurrency, $currency, $data['issue_date'] ?? null);
-            $packageRenewalPrice = $service->renewal_price !== null
-                ? (float) $fx->convert((string) $service->renewal_price, $svcCurrency, $currency, $data['issue_date'] ?? null)
-                : null;
-            $subtotal     = $packagePrice;
+            // Snapshots de los paquetes seleccionados. El primero es el principal.
+            [$services, $itemRows] = $this->packageSnapshots($data, $currency, $fx);
+            $primary  = $services->first();
+            $subtotal = array_sum(array_column($itemRows, 'unit_price'));
 
             // Snapshots de addons (cada addon puede tener su moneda nativa).
             $addonRows = [];
@@ -133,7 +127,7 @@ class QuoteWizardController extends Controller implements HasMiddleware
 
             $quote = Quote::create([
                 'client_id'                   => $data['client_id'] ?? null,
-                'package_service_id'          => $service->id,
+                'package_service_id'          => $primary->id,
                 'package_payment_plan_months' => $data['package_payment_plan_months'],
                 'client_name'                 => $data['client_name'],
                 'contact_name'                => $data['contact_name']  ?? null,
@@ -165,17 +159,11 @@ class QuoteWizardController extends Controller implements HasMiddleware
                 'legacy'                      => false,
             ]);
 
-            // QuoteItem espejo del paquete (compatibilidad con módulo legacy de PDFs/listados).
-            QuoteItem::create([
-                'quote_id'           => $quote->id,
-                'service_id'         => $service->id,
-                'concept'            => $service->name,
-                'description'        => $service->description,
-                'quantity'           => 1,
-                'unit_price'         => $packagePrice,
-                'unit_renewal_price' => $packageRenewalPrice,
-                'billing_type'       => $service->billing_type ?? 'unique',
-            ]);
+            // QuoteItem espejo por paquete (PDF, totales por tipo de cobro y
+            // materialización de servicios del cliente se apoyan en los items).
+            foreach ($itemRows as $row) {
+                $quote->items()->create($row);
+            }
 
             foreach ($addonRows as $row) {
                 $quote->addons()->create($row);
@@ -187,6 +175,39 @@ class QuoteWizardController extends Controller implements HasMiddleware
         return redirect()
             ->route('quotes.manage', $quote)
             ->with('success', 'Cotización creada correctamente.');
+    }
+
+    /**
+     * Congela los paquetes seleccionados: resuelve cada servicio en el orden
+     * elegido y devuelve [$services, $itemRows] con los precios ya convertidos
+     * a la moneda de la cotización. El primer servicio es el principal.
+     *
+     * @return array{0: \Illuminate\Support\Collection<int, Service>, 1: array<int, array<string, mixed>>}
+     */
+    private function packageSnapshots(array $data, string $currency, CurrencyService $fx): array
+    {
+        $issueDate = $data['issue_date'] ?? null;
+
+        $services = collect($data['package_service_ids'])
+            ->map(fn ($id) => Service::findOrFail($id));
+
+        $itemRows = $services->map(function (Service $service) use ($currency, $fx, $issueDate) {
+            $svcCurrency = strtoupper($service->currency ?: $fx->default());
+
+            return [
+                'service_id'         => $service->id,
+                'concept'            => $service->name,
+                'description'        => $service->description,
+                'quantity'           => 1,
+                'unit_price'         => (float) $fx->convert((string) $service->price, $svcCurrency, $currency, $issueDate),
+                'unit_renewal_price' => $service->renewal_price !== null
+                    ? (float) $fx->convert((string) $service->renewal_price, $svcCurrency, $currency, $issueDate)
+                    : null,
+                'billing_type'       => $service->billing_type ?? 'unique',
+            ];
+        })->all();
+
+        return [$services, $itemRows];
     }
 
     /**
@@ -205,6 +226,15 @@ class QuoteWizardController extends Controller implements HasMiddleware
         }
 
         $quote->load(['addons', 'items', 'client']);
+
+        // Paquetes elegidos, con el principal al frente. Las cotizaciones
+        // creadas antes del multi-paquete tienen un solo item espejo.
+        $packageServiceIds = collect([$quote->package_service_id])
+            ->merge($quote->items->pluck('service_id'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
         $services = Service::query()
             ->with([
@@ -234,7 +264,8 @@ class QuoteWizardController extends Controller implements HasMiddleware
             ]);
 
         return Inertia::render('Quotes/Wizard/Index', [
-            'quote'            => $quote,
+            'quote'             => $quote,
+            'packageServiceIds' => $packageServiceIds,
             'services'         => $services,
             'addons'           => $addons,
             'addonsByCategory' => $addons->groupBy('category')->map->values(),
@@ -271,14 +302,9 @@ class QuoteWizardController extends Controller implements HasMiddleware
             : $fx->snapshotRate($currency, $data['issue_date'] ?? null);
 
         DB::transaction(function () use ($data, $quote, $currency, $exchangeRate, $fx) {
-            $service = Service::findOrFail($data['package_service_id']);
-
-            $svcCurrency  = strtoupper($service->currency ?: $fx->default());
-            $packagePrice = (float) $fx->convert((string) $service->price, $svcCurrency, $currency, $data['issue_date'] ?? null);
-            $packageRenewalPrice = $service->renewal_price !== null
-                ? (float) $fx->convert((string) $service->renewal_price, $svcCurrency, $currency, $data['issue_date'] ?? null)
-                : null;
-            $subtotal     = $packagePrice;
+            [$services, $itemRows] = $this->packageSnapshots($data, $currency, $fx);
+            $primary  = $services->first();
+            $subtotal = array_sum(array_column($itemRows, 'unit_price'));
 
             $addonRows = [];
             foreach ($data['addons'] ?? [] as $row) {
@@ -313,7 +339,7 @@ class QuoteWizardController extends Controller implements HasMiddleware
 
             $quote->update([
                 'client_id'                   => $data['client_id'] ?? null,
-                'package_service_id'          => $service->id,
+                'package_service_id'          => $primary->id,
                 'package_payment_plan_months' => $data['package_payment_plan_months'],
                 'client_name'                 => $data['client_name'],
                 'contact_name'                => $data['contact_name']  ?? null,
@@ -347,16 +373,9 @@ class QuoteWizardController extends Controller implements HasMiddleware
             $quote->items()->delete();
             $quote->addons()->delete();
 
-            QuoteItem::create([
-                'quote_id'           => $quote->id,
-                'service_id'         => $service->id,
-                'concept'            => $service->name,
-                'description'        => $service->description,
-                'quantity'           => 1,
-                'unit_price'         => $packagePrice,
-                'unit_renewal_price' => $packageRenewalPrice,
-                'billing_type'       => $service->billing_type ?? 'unique',
-            ]);
+            foreach ($itemRows as $row) {
+                $quote->items()->create($row);
+            }
 
             foreach ($addonRows as $row) {
                 $quote->addons()->create($row);

@@ -28,8 +28,7 @@ class ConvertQuoteToContract
             $quote->loadMissing('package', 'items', 'addons');
 
             // Tipo de cobro dominante del paquete (driver del cronograma).
-            $packageBilling = optional($quote->package)->billing_type
-                ?? $this->inferBillingType($quote);
+            $packageBilling = $this->resolveBillingType($quote);
 
             $months   = (int) ($quote->package_payment_plan_months ?? 1);
             $months   = max(1, $months);
@@ -191,8 +190,7 @@ class ConvertQuoteToContract
         }
 
         $quote          = $quote ?: $contract->quote;
-        $packageBilling = $packageBilling
-            ?: (optional($quote?->package)->billing_type ?? $this->inferBillingType($quote));
+        $packageBilling = $packageBilling ?: $this->resolveBillingType($quote);
 
         $months   = max(1, (int) $contract->payment_plan_months);
         $anticipo = (float) $contract->anticipo_amount;
@@ -381,6 +379,24 @@ class ConvertQuoteToContract
                 ? round(max(0, $total - $anticipo) / max(1, $months - 1), 2)
                 : 0.0,
         };
+    }
+
+    /**
+     * Tipo de cobro que maneja el cronograma.
+     *
+     * Con varios paquetes en una misma cotización (p.ej. sitio web de pago
+     * único + sistema mensual) el componente recurrente manda: la rama
+     * `monthly` de generateSchedule ya cobra la mensualidad y reparte el
+     * remanente único sobre las cuotas. Si sólo hay un paquete, el resultado
+     * es idéntico al comportamiento anterior.
+     */
+    private function resolveBillingType(?Quote $quote): string
+    {
+        if ((float) ($quote?->total_monthly ?? 0) > 0) {
+            return 'monthly';
+        }
+
+        return optional($quote?->package)->billing_type ?? $this->inferBillingType($quote);
     }
 
     /**

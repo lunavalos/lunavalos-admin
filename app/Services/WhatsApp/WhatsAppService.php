@@ -5,39 +5,28 @@ namespace App\Services\WhatsApp;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Cliente del workflow de n8n que opera la WhatsApp Cloud API.
+ *
+ * Este sistema nunca llama a graph.facebook.com: el token de Meta vive
+ * únicamente en las credenciales de n8n. Cada sistema tiene su propia URL
+ * de webhook en n8n, y es esa URL la que determina desde qué número sale
+ * el mensaje — por eso aquí no viajan ni el phone_number_id ni el token.
+ */
 class WhatsAppService
 {
     /**
-     * Envía un mensaje de texto vía WhatsApp Cloud API.
-     * Devuelve el wa_message_id (wamid) que Meta asigna al mensaje, o null si falló.
+     * Envía un mensaje de texto. Devuelve el wamid que Meta asignó
+     * (reenviado por n8n), o null si falló.
      */
     public function sendText(string $to, string $message): ?string
     {
-        $version       = config('services.whatsapp.api_version', 'v21.0');
-        $phoneNumberId = config('services.whatsapp.phone_number_id');
-        $token         = config('services.whatsapp.token');
+        $response = $this->call('send_text', [
+            'to'   => $to,
+            'text' => $message,
+        ]);
 
-        try {
-            $response = Http::withToken($token)
-                ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/messages", [
-                    'messaging_product' => 'whatsapp',
-                    'recipient_type'    => 'individual',
-                    'to'                => $to,
-                    'type'              => 'text',
-                    'text'              => ['body' => $message],
-                ])
-                ->throw()
-                ->json();
-
-            return $response['messages'][0]['id'] ?? null;
-        } catch (\Throwable $e) {
-            Log::warning('WhatsApp: fallo al enviar mensaje', [
-                'to'    => $to,
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
+        return $response['wa_message_id'] ?? null;
     }
 
     /**
@@ -45,23 +34,39 @@ class WhatsAppService
      */
     public function markAsRead(string $waMessageId): void
     {
-        $version       = config('services.whatsapp.api_version', 'v21.0');
-        $phoneNumberId = config('services.whatsapp.phone_number_id');
-        $token         = config('services.whatsapp.token');
+        $this->call('mark_read', ['wa_message_id' => $waMessageId]);
+    }
+
+    /**
+     * Un fallo aquí nunca debe tumbar la petición que lo originó: el ticket y
+     * su mensaje ya se guardaron, y perder el envío a WhatsApp es preferible a
+     * perder el registro. Por eso se loguea y se devuelve null.
+     */
+    private function call(string $action, array $payload): ?array
+    {
+        $url    = config('services.n8n.whatsapp_webhook_url');
+        $secret = config('services.n8n.shared_secret');
+
+        if (!$url || !$secret) {
+            Log::warning('n8n: envío omitido, falta configuración', ['action' => $action]);
+
+            return null;
+        }
 
         try {
-            Http::withToken($token)
-                ->post("https://graph.facebook.com/{$version}/{$phoneNumberId}/messages", [
-                    'messaging_product' => 'whatsapp',
-                    'status'            => 'read',
-                    'message_id'        => $waMessageId,
-                ])
-                ->throw();
+            return Http::withHeaders(['X-N8n-Secret' => $secret])
+                ->timeout((int) config('services.n8n.timeout', 10))
+                ->retry(2, 200, throw: false)
+                ->post($url, array_merge(['action' => $action], $payload))
+                ->throw()
+                ->json();
         } catch (\Throwable $e) {
-            Log::warning('WhatsApp: fallo al marcar mensaje como leído', [
-                'wa_message_id' => $waMessageId,
-                'error'         => $e->getMessage(),
+            Log::warning('n8n: fallo al operar WhatsApp', [
+                'action' => $action,
+                'error'  => $e->getMessage(),
             ]);
+
+            return null;
         }
     }
 }
