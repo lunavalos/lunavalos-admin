@@ -41,6 +41,19 @@ const form = useForm({
     features: [],
 });
 
+// El significado del Precio Base cambia con el Tipo de Cobro: en `annual` es
+// el gasto fuerte inicial (desarrollo), no lo que el cliente paga cada año.
+const priceHint = computed(() => ({
+    unique:  'Pago único total del servicio.',
+    monthly: 'Lo que el cliente paga cada mes.',
+    annual:  'Pago inicial único por el desarrollo/puesta en marcha. Se puede diferir con el plan de pago de abajo. No se vuelve a cobrar.',
+}[form.billing_type] ?? ''));
+
+const renewalHint = computed(() => ({
+    monthly: 'Monto de la renovación si el servicio se renueva por periodo completo.',
+    annual:  'Anualidad: lo que el cliente paga cada año a partir del año 2 (dominio, hosting, soporte, mantenimiento).',
+}[form.billing_type] ?? ''));
+
 const addCost = () => form.costs.push({ title: '', quantity: 1, price: 0 });
 const removeCost = (index) => form.costs.splice(index, 1);
 const addFeature = () => form.features.push({ label: '', sort_order: form.features.length });
@@ -249,6 +262,7 @@ const submit = () => {
                                             required
                                         />
                                     </div>
+                                    <p class="text-xs text-gray-500 mt-1">{{ priceHint }}</p>
                                     <InputError class="mt-2" :message="form.errors.price" />
                                 </div>
 
@@ -268,6 +282,7 @@ const submit = () => {
                                             required
                                         />
                                     </div>
+                                    <p class="text-xs text-gray-500 mt-1">{{ renewalHint }}</p>
                                     <InputError class="mt-2" :message="form.errors.renewal_price" />
                                 </div>
                             </div>

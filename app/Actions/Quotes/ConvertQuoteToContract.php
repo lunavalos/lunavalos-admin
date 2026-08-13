@@ -174,9 +174,11 @@ class ConvertQuoteToContract
      *                 cotización trae un componente único (setup), su remanente
      *                 se distribuye uniformemente sobre esas N-1 cuotas.
      *
-     *   - `annual`  → plan anual. Anticipo cuenta como año 1; se generan
-     *                 (años-1) cuotas anuales del monto anual. Años se derivan
-     *                 de `payment_plan_months / 12` (mínimo 1).
+     *   - `annual`  → pago inicial único (desarrollo del proyecto) + anualidad.
+     *                 El `unit_price` es el gasto fuerte inicial y se difiere
+     *                 igual que en `unique`: anticipo + (N-1) mensualidades.
+     *                 La anualidad (`unit_renewal_price`) NO va aquí: se agenda
+     *                 en generateAnnualRenewals() a partir del año 2.
      *
      * Idempotente: si ya hay cuotas registradas para el contrato, no duplica.
      */
@@ -280,10 +282,10 @@ class ConvertQuoteToContract
      * cotización trae componentes anuales (items billing_type=annual, addons
      * annual/semiannual o items con `unit_renewal_price > 0`).
      *
-     * - Para paquetes `annual`, el cronograma principal ya cubre años 2..K
-     *   donde K = payment_plan_months/12. Aquí completamos hasta `forecast`.
-     * - Para paquetes `monthly`/`unique`, el año 1 está cubierto por el plan
-     *   principal; aquí agendamos años 2..forecast.
+     * El año 1 siempre queda cubierto por el pago inicial del proyecto (sea
+     * `unique`, `annual` o `monthly`), así que aquí agendamos años 2..forecast.
+     * Ojo: el plan a N meses financia ese pago inicial, NO compra años de
+     * servicio; un plan a 24 meses no exenta la anualidad del año 2.
      *
      * Cada cuota anual se marca como `programado` con un installment_number
      * incremental, para que cobranza pueda enviar la solicitud de pago.
@@ -295,54 +297,12 @@ class ConvertQuoteToContract
             return;
         }
 
-        // 1) Annual items: si el item tiene unit_renewal_price definido, ese ES
-        //    el costo de renovación (puede diferir del unit_price inicial).
-        //    Si no tiene renewal_price, la renovación cuesta igual que el precio base.
-        $annualItems = $quote->items
-            ->where('billing_type', 'annual')
-            ->sum(fn ($i) => (float) (
-                (float) $i->unit_renewal_price > 0
-                    ? $i->unit_renewal_price
-                    : $i->unit_price
-            ) * (float) ($i->quantity ?: 1));
-
-        $annualAddons = collect($quote->addons ?? [])
-            ->filter(fn ($a) => in_array($a->billing_cycle, ['annual', 'semiannual'], true))
-            ->sum(fn ($a) => (float) $a->unit_price * (float) ($a->quantity ?: 1));
-
-        // 2) Items NO anuales con Precio de Renovación explícito (pago único de
-        //    setup pero con renovación anual recurrente). Los anuales ya están
-        //    cubiertos arriba con su renewal_price, no se deben sumar de nuevo.
-        $renewalPriced = $quote->items
-            ->where('billing_type', '!=', 'annual')
-            ->where('unit_renewal_price', '>', 0)
-            ->sum(fn ($i) => (float) $i->unit_renewal_price * (float) ($i->quantity ?: 1));
-
-        $perYear = round($annualItems + $annualAddons + $renewalPriced, 2);
+        $perYear = $this->annualRenewalPerYear($quote);
         if ($perYear <= 0) {
             return;
         }
 
-        // Si la cotización aplicó IVA/retenciones, las cuotas de renovación
-        // deben reflejar el mismo factor fiscal (la renovación se factura
-        // bajo el mismo régimen). factor = total / subtotal de la cotización.
-        $subtotal = (float) ($quote->subtotal ?? 0);
-        $totalWithTax = (float) ($quote->total ?? 0);
-        if ($subtotal > 0 && $totalWithTax > 0) {
-            $taxFactor = $totalWithTax / $subtotal;
-            $perYear = round($perYear * $taxFactor, 2);
-        }
-
-        // Años ya cubiertos por el cronograma principal:
-        //   - annual:  payment_plan_months / 12
-        //   - resto:   1 (año 1 vía anticipo + plan mensual o pago único)
-        $alreadyCoveredYears = $packageBilling === 'annual'
-            ? max(1, (int) floor(((int) $contract->payment_plan_months) / 12))
-            : 1;
-
-        if ($forecast <= $alreadyCoveredYears) {
-            return;
-        }
+        $alreadyCoveredYears = 1;
 
         $start    = \Illuminate\Support\Carbon::parse($contract->start_date);
         $currency = $contract->currency ?? config('currencies.default');
@@ -367,18 +327,84 @@ class ConvertQuoteToContract
     }
 
     /**
+     * Anualidad recurrente de la cotización (lo que el cliente paga CADA año
+     * a partir del año 2), ya con el mismo factor fiscal de la cotización.
+     *
+     * Fuentes:
+     *   1) Items `annual`: su `unit_renewal_price`. El `unit_price` de estos
+     *      items es el pago inicial del proyecto, no la anualidad.
+     *   2) Addons con ciclo annual/semiannual.
+     *   3) Items NO anuales con Precio de Renovación explícito (setup único
+     *      pero con renovación anual recurrente).
+     */
+    private function annualRenewalPerYear(Quote $quote): float
+    {
+        // En cotizaciones legacy `annual` significaba "paga el precio base cada
+        // año" (no había Precio de Renovación), así que ahí sí caemos al
+        // unit_price cuando no hay renovación capturada.
+        $legacyFallback = (bool) $quote->legacy;
+
+        $annualItems = $quote->items
+            ->where('billing_type', 'annual')
+            ->sum(function ($i) use ($legacyFallback) {
+                $renewal = (float) $i->unit_renewal_price;
+                if ($renewal <= 0) {
+                    $renewal = $legacyFallback ? (float) $i->unit_price : 0.0;
+                }
+
+                return $renewal * (float) ($i->quantity ?: 1);
+            });
+
+        $annualAddons = collect($quote->addons ?? [])
+            ->filter(fn ($a) => in_array($a->billing_cycle, ['annual', 'semiannual'], true))
+            ->sum(fn ($a) => (float) $a->unit_price * (float) ($a->quantity ?: 1));
+
+        $renewalPriced = $quote->items
+            ->where('billing_type', '!=', 'annual')
+            ->where('unit_renewal_price', '>', 0)
+            ->sum(fn ($i) => (float) $i->unit_renewal_price * (float) ($i->quantity ?: 1));
+
+        $perYear = round($annualItems + $annualAddons + $renewalPriced, 2);
+        if ($perYear <= 0) {
+            return 0.0;
+        }
+
+        // Si la cotización aplicó IVA/retenciones, la renovación se factura
+        // bajo el mismo régimen. factor = total / subtotal de la cotización.
+        $subtotal     = (float) ($quote->subtotal ?? 0);
+        $totalWithTax = (float) ($quote->total ?? 0);
+        if ($subtotal > 0 && $totalWithTax > 0) {
+            $perYear = round($perYear * ($totalWithTax / $subtotal), 2);
+        }
+
+        return $perYear;
+    }
+
+    /**
      * Calcula el monto recurrente "de referencia" para guardar en el contrato.
      * Es lo que se muestra como MRR / cuota mensual en la UI.
+     *
+     * Para `annual` el MRR real no es el precio base (ese es un pago inicial
+     * único por el desarrollo, ya cubierto por el plan de cuotas), sino la
+     * anualidad prorrateada a 12 meses.
      */
     private function calcMonthlyAmount(Quote $quote, string $packageBilling, float $total, float $anticipo, int $months): float
     {
-        return match ($packageBilling) {
-            'monthly' => round((float) ($quote->total_monthly ?: $total), 2),
-            'annual'  => round(((float) ($quote->total_annual ?: $total)) / 12, 2),
-            default   => $months > 1
-                ? round(max(0, $total - $anticipo) / max(1, $months - 1), 2)
-                : 0.0,
-        };
+        if ($packageBilling === 'monthly') {
+            return round((float) ($quote->total_monthly ?: $total), 2);
+        }
+
+        if ($packageBilling === 'annual') {
+            $perYear = $this->annualRenewalPerYear($quote);
+
+            return $perYear > 0
+                ? round($perYear / 12, 2)
+                : round(((float) ($quote->total_annual ?: $total)) / 12, 2);
+        }
+
+        return $months > 1
+            ? round(max(0, $total - $anticipo) / max(1, $months - 1), 2)
+            : 0.0;
     }
 
     /**

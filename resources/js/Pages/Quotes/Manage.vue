@@ -67,10 +67,25 @@ const packageBilling = computed(() => {
 });
 
 /**
+ * Anualidad recurrente (año 2 en adelante): renovación de los items + addons
+ * anuales. En `annual`, el precio base NO entra aquí: es el pago inicial del
+ * desarrollo, que se cubre con el anticipo + el plan de mensualidades.
+ */
+const annualRenewal = computed(() => {
+    const items = (props.quote.items || []).reduce(
+        (s, i) => s + Number(i.unit_renewal_price || 0) * Number(i.quantity || 1), 0
+    );
+    const addons = (props.quote.addons || [])
+        .filter(a => ['annual', 'semiannual'].includes(a.billing_cycle))
+        .reduce((s, a) => s + Number(a.unit_price || 0) * Number(a.quantity || 1), 0);
+
+    return Math.round((items + addons) * 100) / 100;
+});
+
+/**
  * Anticipo sugerido SEGÚN el tipo de cobro:
  *   - monthly: 1 mes (total_monthly o total/N como fallback)
- *   - annual:  1 año (total_annual o total)
- *   - unique:  total/N si hay plan a meses, total si N=1, o porcentaje configurado.
+ *   - annual / unique: el pago inicial se difiere en N meses → total/N.
  */
 const suggestedAnticipo = computed(() => {
     const round2 = (n) => Math.round(n * 100) / 100;
@@ -78,10 +93,7 @@ const suggestedAnticipo = computed(() => {
     if (packageBilling.value === 'monthly') {
         return round2(totalMonthly.value > 0 ? totalMonthly.value : total.value / planMonths.value);
     }
-    if (packageBilling.value === 'annual') {
-        return round2(totalAnnual.value > 0 ? totalAnnual.value : total.value);
-    }
-    // unique / fallback histórico
+    // annual / unique: ambos financian un pago inicial único.
     if (planMonths.value > 1) {
         return round2(total.value / planMonths.value);
     }
@@ -92,12 +104,9 @@ const suggestedAnticipo = computed(() => {
 });
 
 // Cuántas cuotas adicionales se programarán y por cuánto.
-const remainingInstallments = computed(() => {
-    if (packageBilling.value === 'annual') {
-        return Math.max(0, Math.floor(planMonths.value / 12) - 1);
-    }
-    return Math.max(0, planMonths.value - 1);
-});
+// Las cuotas del plan siempre son MENSUALES (también en `annual`: financian el
+// pago inicial). Las renovaciones anuales se agendan aparte, desde el año 2.
+const remainingInstallments = computed(() => Math.max(0, planMonths.value - 1));
 const remainingPerMonth = computed(() => {
     if (remainingInstallments.value === 0) return 0;
     const anticipo = Number(convertForm?.anticipo_amount || suggestedAnticipo.value);
@@ -109,10 +118,6 @@ const remainingPerMonth = computed(() => {
         const excess = Math.max(0, anticipo - recurring);
         const uniqueRemainder = Math.max(0, totalUnique.value - excess);
         return Math.round((recurring + uniqueRemainder / remainingInstallments.value) * 100) / 100;
-    }
-    if (packageBilling.value === 'annual') {
-        const bal = Math.max(0, total.value - anticipo);
-        return Math.round((bal / remainingInstallments.value) * 100) / 100;
     }
     const bal = Math.max(0, total.value - anticipo);
     return Math.round((bal / remainingInstallments.value) * 100) / 100;
@@ -403,10 +408,16 @@ const submitConvert = () => {
                                 Se programarán automáticamente {{ remainingInstallments }} cuotas mensuales restantes de {{ fmt(remainingPerMonth) }}.
                             </template>
                             <template v-else-if="packageBilling === 'annual'">
-                                Plan <strong>anual</strong> por <strong>{{ fmt(totalAnnual || total) }}</strong> al año.
-                                Este pago cuenta como el <strong>año 1</strong>.
-                                <template v-if="remainingInstallments > 0">
-                                    Se programarán {{ remainingInstallments }} cuota(s) anual(es) restantes de {{ fmt(remainingPerMonth) }}.
+                                <strong>Pago inicial único</strong> de <strong>{{ fmt(total) }}</strong> por el desarrollo del proyecto
+                                <template v-if="planMonths > 1">
+                                    , diferido a <strong>{{ planMonths }} mensualidades</strong>. Este pago cuenta como la
+                                    <strong>mensualidad 1 de {{ planMonths }}</strong>. Se programarán
+                                    {{ remainingInstallments }} cuotas mensuales restantes de {{ fmt(remainingPerMonth) }}.
+                                </template>
+                                <template v-else>. Cubre el año 1 de servicio.</template>
+                                <template v-if="annualRenewal > 0">
+                                    Aparte, la <strong>anualidad de {{ fmt(annualRenewal) }}</strong> se agenda cada año
+                                    <strong>a partir del año 2</strong>.
                                 </template>
                             </template>
                             <template v-else-if="planMonths > 1">
@@ -417,6 +428,10 @@ const submitConvert = () => {
                             </template>
                             <template v-else>
                                 Cotización a un solo pago: monto total {{ fmt(total) }}.
+                            </template>
+                            <template v-if="annualRenewal > 0 && packageBilling !== 'annual'">
+                                La <strong>renovación anual de {{ fmt(annualRenewal) }}</strong> se agenda aparte,
+                                cada año <strong>a partir del año 2</strong>.
                             </template>
                         </p>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -108,6 +108,21 @@
         }
 
         $fmtDate = fn($d) => $d ? \Carbon\Carbon::parse($d)->locale('es')->isoFormat('D [de] MMMM [de] YYYY') : '—';
+
+        // Cuota del plan de pagos. `monthly_amount` es la referencia de MRR
+        // (mensualidad recurrente en contratos mensuales; anualidad/12 en los
+        // anuales), así que para diferir un pago inicial se calcula el saldo
+        // entre las cuotas restantes.
+        $planMonths  = max(1, (int) ($contract->payment_plan_months ?? 1));
+        $hasMonthly  = (bool) $contract->quote?->items?->contains(fn ($i) => $i->billing_type === 'monthly');
+        $installment = $hasMonthly
+            ? (float) $contract->monthly_amount
+            : round(max(0, (float) $contract->total_amount - (float) $contract->anticipo_amount) / max(1, $planMonths - 1), 2);
+
+        // Anualidad recurrente (año 2 en adelante) de los servicios contratados.
+        $annualRenewal = round((float) ($contract->quote?->items?->sum(
+            fn ($i) => (float) ($i->unit_renewal_price ?? 0) * (float) ($i->quantity ?: 1)
+        ) ?? 0), 2);
     @endphp
 
     <!-- Header -->
@@ -193,11 +208,19 @@
         </ul>
         <p><strong>Plan de pago:</strong>
         Anticipo al inicio: <strong>@money($contract->anticipo_amount, $cur)</strong>.
-        @if(($contract->payment_plan_months ?? 1) > 1)
-        Saldo restante en <strong>{{ $contract->payment_plan_months - 1 }} mensualidades</strong>
-        de <strong>@money($contract->monthly_amount, $cur)</strong>.
+        @if($planMonths > 1)
+        Saldo restante en <strong>{{ $planMonths - 1 }} mensualidades</strong>
+        de <strong>@money($installment, $cur)</strong>.
         @endif
         Los trabajos iniciarán una vez confirmado el anticipo.</p>
+
+        @if($annualRenewal > 0)
+        <p><strong>Renovación anual:</strong> el monto anterior corresponde al desarrollo y puesta en
+        marcha del proyecto, y se cubre una sola vez. De forma independiente, la continuidad de los
+        servicios (dominio, hosting, soporte y mantenimiento) tiene un costo de
+        <strong>@money($annualRenewal, $cur)</strong> por año, pagadero
+        <strong>a partir del segundo año</strong>; el primer año está incluido en el monto anterior.</p>
+        @endif
     @endif
 
     <!-- CUARTA: Compromisos del Prestador -->
