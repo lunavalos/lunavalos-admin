@@ -179,19 +179,53 @@ class AnnualBillingTest extends TestCase
         $this->assertStringContainsString('PAGO INICIAL ÚNICO', $html);
         $this->assertStringContainsString('+ ANUALIDAD', $html);
 
-        // Totales separados: el desarrollo es la inversión inicial…
-        $this->assertStringContainsString('INVERSI&Oacute;N INICIAL', $html);
-        $this->assertStringContainsString('desarrollo del proyecto', $html);
+        // Totales separados: el desarrollo es el pago inicial…
+        $this->assertStringContainsString('PAGO INICIAL', $html);
+        $this->assertStringContainsString('desarrollo y puesta en marcha', $html);
 
         // …y la anualidad va aparte, fuera del total de hoy.
         $this->assertStringContainsString('RENOVACI&Oacute;N ANUAL', $html);
         $this->assertStringContainsString('a partir del a&ntilde;o 2', $html);
-        $this->assertStringContainsString('C&oacute;mo funciona tu inversi&oacute;n', $html);
+        $this->assertStringContainsString('C&oacute;mo funciona el pago', $html);
 
         // El total a pagar es sólo el desarrollo (30,000), sin la anualidad.
         $this->assertStringContainsString('30,000.00', $html);
         $this->assertStringContainsString('6,000.00', $html);
         $this->assertStringNotContainsString('36,000.00', $html);
+
+        // Sin tablas de impuestos: sólo la leyenda.
+        $this->assertStringContainsString('Los precios no incluyen impuestos.', $html);
+        $this->assertStringNotContainsString('Equivalente con impuestos', $html);
+        $this->assertStringNotContainsString('IVA TRASLADADO', $html);
+        $this->assertStringNotContainsString('TOTAL A PAGAR', $html);
+    }
+
+    /**
+     * El plan de pago del servicio anual debe ofrecerse explícitamente:
+     * un sitio de $75,000 a 12 meses son 12 mensualidades de $6,250.
+     */
+    public function test_pdf_offers_the_payment_plan_for_the_upfront_price(): void
+    {
+        $svc = Service::create([
+            'name'                => 'Sitio Web Premium',
+            'description'         => 'Desarrollo a la medida',
+            'price'               => 75000,
+            'renewal_price'       => 6000,
+            'billing_type'        => 'annual',
+            'is_package'          => true,
+            'payment_plan_months' => 12,
+        ]);
+
+        $quote = $this->quoteFor($svc, 12, $this->admin());
+        $quote->load(['items.service.features', 'addons.serviceAddon']);
+
+        $html = view('pdf.quote', compact('quote'))->render();
+
+        $this->assertStringContainsString('75,000.00', $html);
+        $this->assertStringContainsString('diferirlo a 12 meses', $html);
+        $this->assertStringContainsString('12 mensualidades de', $html);
+        $this->assertStringContainsString('6,250.00', $html);      // 75,000 / 12
+        $this->assertStringContainsString('El precio total es el mismo.', $html);
     }
 
     /**
@@ -219,9 +253,10 @@ class AnnualBillingTest extends TestCase
         $this->assertStringContainsString('Iguala mensual de', $html);
         $this->assertStringContainsString('aparte de la iguala mensual', $html);
 
-        // Una iguala pura no tiene "saldo restante" que diferir.
-        $this->assertStringContainsString('Condiciones de Pago (Iguala mensual)', $html);
+        // Una iguala pura no tiene pago inicial ni "saldo restante" que diferir.
+        $this->assertStringNotContainsString('Pago inicial de', $html);
         $this->assertStringNotContainsString('saldo restante', $html);
+        $this->assertStringContainsString('Los precios no incluyen impuestos.', $html);
     }
 
     /** La anualidad de una iguala mensual también se agenda desde el año 2. */

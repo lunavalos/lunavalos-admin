@@ -262,8 +262,6 @@
             }
         }
 
-        // Total anual cobrado HOY (arranque del proyecto + primer año de addons).
-        $annualTotal = $annualBaseTotal + $annualAddonTotal;
     @endphp
 
     <!-- Header Banner -->
@@ -419,62 +417,51 @@
             @endforeach
         </table>
 
-        <!-- Totals Table -->
-        @if(!$quote->is_multiple_choice)
-            @php
-                $planMonths       = (int) ($quote->package_payment_plan_months ?? 0);
-                // El plan de pagos sólo aplica para financiar paquetes únicos/anuales en cuotas.
-                // Si la cotización ya tiene servicios mensuales recurrentes, NO se divide: se muestra IGUALA MENSUAL.
-                $usePlanSplit     = $planMonths > 1 && $monthlyTotal <= 0;
-                $monthlyPlanNet   = $usePlanSplit ? round(((float) $quote->subtotal) / $planMonths, 2) : 0;
-                $monthlyPlanGross = $usePlanSplit ? round(((float) $quote->total)    / $planMonths, 2) : 0;
-                $hasIvaBreakdown  = $quote->applies_iva && (float) $quote->iva_amount > 0;
-                // Factor para equivalentes "con impuestos" en cifras agregadas.
-                $taxFactor        = ((float) $quote->subtotal) > 0
-                    ? ((float) $quote->total) / ((float) $quote->subtotal)
-                    : 1;
-            @endphp
+        {{-- Una sola tabla de precios, SIN impuestos, con un renglón por tipo de pago. --}}
+        @php
+            $planMonths = (int) ($quote->package_payment_plan_months ?? 0);
+            $discount   = (float) ($quote->discount_amount ?? 0);
 
-            {{-- 1) Totales SIN impuestos (flujo natural del cliente). --}}
+            // Todo lo que se paga una sola vez al arrancar: desarrollo del
+            // proyecto + pagos únicos + primer año de los servicios anuales.
+            $upfrontTotal = $uniqueTotal + $annualBaseTotal + $annualAddonTotal;
+
+            // El descuento se aplica primero al arranque y el remanente a la iguala.
+            $upfrontNet = max(0, $upfrontTotal - min($discount, $upfrontTotal));
+            $monthlyNet = max(0, $monthlyTotal - max(0, $discount - $upfrontTotal));
+
+            // Plan de pago: difiere el pago inicial en mensualidades iguales.
+            $planInstallment = ($planMonths > 1 && $upfrontNet > 0)
+                ? round($upfrontNet / $planMonths, 2)
+                : 0;
+        @endphp
+
+        @if(!$quote->is_multiple_choice)
             <table class="totals-table">
-                @if($monthlyPlanNet > 0)
+                @if($upfrontNet > 0)
                     <tr>
-                        <td class="totals-label">INVERSI&Oacute;N MENSUAL
-                            <span style="font-weight:normal; font-size:10px;">(plan a {{ $planMonths }} meses)</span>
+                        <td class="totals-label">PAGO INICIAL
+                            <span style="font-weight:normal; font-size:10px;">(desarrollo y puesta en marcha &middot; una sola vez)</span>
                         </td>
-                        <td class="totals-value">@money($monthlyPlanNet, $qcur)</td>
+                        <td class="totals-value">@money($upfrontNet, $qcur)</td>
                     </tr>
-                @elseif($monthlyTotal > 0)
+                    @if($planInstallment > 0)
+                        <tr>
+                            <td colspan="2" style="background-color:#f0fdf4; color:#166534; font-size:11px; padding:6px 10px;">
+                                Tambi&eacute;n puedes pagarlo <strong>a {{ $planMonths }} meses</strong>:
+                                <strong>{{ $planMonths }} mensualidades de @money($planInstallment, $qcur)</strong>
+                                &mdash; sin costo extra, mismo precio total.
+                            </td>
+                        </tr>
+                    @endif
+                @endif
+
+                @if($monthlyNet > 0)
                     <tr>
                         <td class="totals-label">IGUALA MENSUAL
-                            <span style="font-weight:normal; font-size:10px;">(servicios recurrentes)</span>
+                            <span style="font-weight:normal; font-size:10px;">(cada mes, mientras el servicio est&eacute; activo)</span>
                         </td>
-                        <td class="totals-value">@money($monthlyTotal, $qcur)</td>
-                    </tr>
-                @endif
-
-                @if($annualBaseTotal > 0)
-                    <tr>
-                        <td class="totals-label">INVERSI&Oacute;N INICIAL
-                            <span style="font-weight:normal; font-size:10px;">(desarrollo del proyecto &middot; pago &uacute;nico)</span>
-                        </td>
-                        <td class="totals-value">@money($annualBaseTotal, $qcur)</td>
-                    </tr>
-                @endif
-
-                @if($annualAddonTotal > 0)
-                    <tr>
-                        <td class="totals-label">SERVICIOS ANUALES
-                            <span style="font-weight:normal; font-size:10px;">(primer a&ntilde;o, incluido en este pago)</span>
-                        </td>
-                        <td class="totals-value">@money($annualAddonTotal, $qcur)</td>
-                    </tr>
-                @endif
-
-                @if($uniqueTotal > 0)
-                    <tr>
-                        <td class="totals-label">TOTAL PAGO &Uacute;NICO <span style="font-weight:normal; font-size:10px;">(un solo pago)</span></td>
-                        <td class="totals-value">@money($uniqueTotal, $qcur)</td>
+                        <td class="totals-value">@money($monthlyNet, $qcur)</td>
                     </tr>
                 @endif
 
@@ -482,7 +469,7 @@
                     <tr>
                         <td class="totals-label" style="color: #b45309; background-color: #fffbeb;">
                             RENOVACI&Oacute;N ANUAL
-                            <span style="font-weight:normal; font-size:10px;">(cada a&ntilde;o, a partir del a&ntilde;o 2 &middot; no incluida en el total de hoy)</span>
+                            <span style="font-weight:normal; font-size:10px;">(una vez al a&ntilde;o, a partir del a&ntilde;o 2)</span>
                         </td>
                         <td class="totals-value" style="color: #b45309; background-color: #fffbeb;">
                             @money($annualRenewalTotal, $qcur)
@@ -490,182 +477,64 @@
                     </tr>
                 @endif
 
-                @if($uniqueTotal <= 0 && $monthlyTotal <= 0 && $annualTotal <= 0)
+                @if($upfrontNet <= 0 && $monthlyNet <= 0 && $annualRenewalTotal <= 0)
                     <tr>
                         <td class="totals-label">TOTAL</td>
                         <td class="totals-value">$0.00</td>
                     </tr>
                 @endif
-            </table>
-        @endif
 
-        @php
-            $hasTaxSnapshot = ($quote->applies_iva || $quote->applies_isr_retention || $quote->applies_iva_retention)
-                || ((float)($quote->subtotal ?? 0) > 0);
-        @endphp
-
-        {{-- 2) Desglose fiscal: SUBTOTAL → IVA/retenciones → TOTAL A PAGAR. --}}
-        @if(!$quote->is_multiple_choice && !$quote->legacy && $hasTaxSnapshot)
-            <table class="totals-table" style="margin-top: 14px;">
-                <tr>
-                    <td class="totals-label" style="background-color:#eff3f9; color:#264ab3;">SUBTOTAL</td>
-                    <td class="totals-value" style="color:#111;">@money($quote->subtotal, $qcur)</td>
-                </tr>
-                @if((float) $quote->discount_amount > 0)
+                @if($discount > 0)
                     <tr>
-                        <td class="totals-label">DESCUENTO</td>
-                        <td class="totals-value" style="color:#b45309;">- @money($quote->discount_amount, $qcur)</td>
-                    </tr>
-                @endif
-                @if($quote->applies_iva && (float) $quote->iva_amount > 0)
-                    <tr>
-                        <td class="totals-label">IVA TRASLADADO ({{ rtrim(rtrim(number_format($quote->iva_rate, 4), '0'), '.') }}%)</td>
-                        <td class="totals-value" style="color:#264ab3;">+ @money($quote->iva_amount, $qcur)</td>
-                    </tr>
-                @endif
-                @if($quote->applies_isr_retention && (float) $quote->isr_retention_amount > 0)
-                    <tr>
-                        <td class="totals-label">RET. ISR ({{ rtrim(rtrim(number_format($quote->isr_retention_rate, 4), '0'), '.') }}%)</td>
-                        <td class="totals-value" style="color:#b91c1c;">- @money($quote->isr_retention_amount, $qcur)</td>
-                    </tr>
-                @endif
-                @if($quote->applies_iva_retention && (float) $quote->iva_retention_amount > 0)
-                    <tr>
-                        <td class="totals-label">RET. IVA ({{ rtrim(rtrim(number_format($quote->iva_retention_rate, 4), '0'), '.') }}%)</td>
-                        <td class="totals-value" style="color:#b91c1c;">- @money($quote->iva_retention_amount, $qcur)</td>
-                    </tr>
-                @endif
-                <tr>
-                    <td class="totals-label" style="background-color:#ecfdf5; color:#065f46; font-size:14px;">TOTAL A PAGAR</td>
-                    <td class="totals-value" style="color:#16a34a; font-size:15px;">@money($quote->total, $qcur)</td>
-                </tr>
-                @if($quote->tax_regime)
-                    @php $regimes = config('sat.tax_regimes'); $regLabel = $regimes[$quote->tax_regime]['label'] ?? null; @endphp
-                    <tr>
-                        <td colspan="2" style="font-size:10px; color:#555; background-color:#fafafa; text-align:right;">
-                            Régimen fiscal: <strong>{{ $quote->tax_regime }}</strong>@if($regLabel) · {{ $regLabel }}@endif
+                        <td colspan="2" style="font-size:10px; color:#166534; background-color:#f0fdf4; text-align:right;">
+                            Precios con un descuento aplicado de <strong>@money($discount, $qcur)</strong>.
                         </td>
                     </tr>
                 @endif
             </table>
-
-            {{-- 3) Equivalentes CON impuestos (sólo si aplica IVA). --}}
-            @if(!$quote->is_multiple_choice && $hasIvaBreakdown && ($monthlyPlanGross > 0 || $monthlyTotal > 0 || $annualTotal > 0 || $uniqueTotal > 0))
-                <table class="totals-table" style="margin-top: 14px;">
-                    <tr>
-                        <td colspan="2" style="background-color:#fffbeb; color:#92400e; font-size:11px; padding:6px 10px; text-align:right;">
-                            <strong>Equivalente con impuestos</strong>
-                        </td>
-                    </tr>
-                    @if($monthlyPlanGross > 0)
-                        <tr>
-                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">INVERSI&Oacute;N MENSUAL
-                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
-                            </td>
-                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money($monthlyPlanGross, $qcur)</td>
-                        </tr>
-                    @elseif($monthlyTotal > 0)
-                        <tr>
-                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">IGUALA MENSUAL
-                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
-                            </td>
-                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money(round($monthlyTotal * $taxFactor, 2), $qcur)</td>
-                        </tr>
-                    @endif
-                    @if($annualTotal > 0 && $monthlyPlanGross <= 0)
-                        <tr>
-                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">INVERSI&Oacute;N INICIAL
-                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
-                            </td>
-                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money(round($annualTotal * $taxFactor, 2), $qcur)</td>
-                        </tr>
-                    @endif
-                    @if($annualRenewalTotal > 0)
-                        <tr>
-                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">RENOVACI&Oacute;N ANUAL
-                                <span style="font-weight:normal; font-size:10px;">(con impuestos &middot; desde el a&ntilde;o 2)</span>
-                            </td>
-                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money(round($annualRenewalTotal * $taxFactor, 2), $qcur)</td>
-                        </tr>
-                    @endif
-                    {{-- @if($uniqueTotal > 0)
-                        <tr>
-                            <td class="totals-label" style="background-color:#fffbeb; color:#92400e;">TOTAL PAGO &Uacute;NICO
-                                <span style="font-weight:normal; font-size:10px;">(con impuestos)</span>
-                            </td>
-                            <td class="totals-value" style="background-color:#fffbeb; color:#92400e;">@money(round($uniqueTotal * $taxFactor, 2), $qcur)</td>
-                        </tr>
-                    @endif --}}
-                </table>
-            @endif
         @endif
 
-        {{-- Cómo se compone el pago: inversión inicial vs. anualidad. --}}
-        @if(!$quote->is_multiple_choice && ($annualBaseTotal > 0 || $annualRenewalTotal > 0))
-            @php
-                $planMonths = (int) ($quote->package_payment_plan_months ?? 0);
-                $upfrontTotal = $annualBaseTotal + $annualAddonTotal + $uniqueTotal;
-            @endphp
+        <div style="font-size: 10px; color: #555; text-align: right; margin-top: 6px; margin-bottom: 14px;">
+            Los precios no incluyen impuestos.
+        </div>
+
+        {{-- Explicación en palabras: qué es cada pago y cuándo se cobra. --}}
+        @if(!$quote->is_multiple_choice && ($upfrontNet > 0 || $monthlyNet > 0 || $annualRenewalTotal > 0))
             <div class="notes-section" style="margin-bottom: 15px; border: 1px solid #fde68a; background-color: #fffbeb; padding: 8px 10px; border-radius: 4px;">
-                <strong style="color:#92400e;">C&oacute;mo funciona tu inversi&oacute;n</strong>
+                <strong style="color:#92400e;">C&oacute;mo funciona el pago</strong>
                 <ol style="margin-top: 4px; color:#4b5563;">
-                    @if($upfrontTotal > 0)
+                    @if($upfrontNet > 0)
                         <li>
-                            <strong>Pago inicial de @money($upfrontTotal, $qcur) (una sola vez).</strong>
-                            Cubre el desarrollo y la puesta en marcha del proyecto.
-                            @if($planMonths > 1)
-                                Se puede diferir en <strong>{{ $planMonths }} mensualidades</strong> de
-                                @money(round($upfrontTotal / $planMonths, 2), $qcur).
+                            <strong>Pago inicial de @money($upfrontNet, $qcur), una sola vez.</strong>
+                            Cubre el desarrollo y la puesta en marcha del proyecto; no se vuelve a cobrar.
+                            @if($planInstallment > 0)
+                                Lo puedes liquidar en un solo pago o <strong>diferirlo a {{ $planMonths }} meses</strong>:
+                                {{ $planMonths }} mensualidades de <strong>@money($planInstallment, $qcur)</strong>,
+                                la primera al contratar. El precio total es el mismo.
+                            @elseif($quote->include_payment_terms)
+                                Se cubre 50% al contratar (@money(round($upfrontNet / 2, 2), $qcur))
+                                y 50% al entregar (@money(round($upfrontNet / 2, 2), $qcur)).
                             @endif
-                            No se vuelve a cobrar.
                         </li>
                     @endif
-                    @if($monthlyTotal > 0)
+                    @if($monthlyNet > 0)
                         <li>
-                            <strong>Iguala mensual de @money($monthlyTotal, $qcur) al mes.</strong>
-                            Es el cobro recurrente de los servicios contratados mes con mes,
-                            mientras el servicio siga activo.
+                            <strong>Iguala mensual de @money($monthlyNet, $qcur) al mes.</strong>
+                            Es el cobro recurrente de los servicios contratados, pagadero por adelantado
+                            mes con mes{{ $planMonths > 1 ? " durante {$planMonths} meses de compromiso" : '' }}.
                         </li>
                     @endif
                     @if($annualRenewalTotal > 0)
                         <li>
-                            <strong>Anualidad de @money($annualRenewalTotal, $qcur) por a&ntilde;o, a partir del a&ntilde;o 2.</strong>
-                            Se cobra una vez al a&ntilde;o, aparte de {{ $monthlyTotal > 0 ? 'la iguala mensual' : 'lo anterior' }},
+                            <strong>Renovaci&oacute;n anual de @money($annualRenewalTotal, $qcur) por a&ntilde;o, a partir del a&ntilde;o 2.</strong>
+                            Se cobra una sola vez al a&ntilde;o{{ $monthlyNet > 0 ? ', aparte de la iguala mensual,' : '' }}
                             y cubre los servicios que mantienen el proyecto en l&iacute;nea (dominio, hosting,
-                            soporte y mantenimiento). El primer a&ntilde;o ya est&aacute; incluido.
+                            soporte y mantenimiento). El primer a&ntilde;o ya est&aacute; incluido{{ $upfrontNet > 0 ? ' en el pago inicial' : '' }},
+                            y no forma parte del total de esta cotizaci&oacute;n.
                         </li>
                     @endif
                 </ol>
-                <div style="font-size: 10px; color: #92400e; margin-top: 4px;">
-                    La renovaci&oacute;n anual no forma parte del total a pagar de esta cotizaci&oacute;n.
-                </div>
             </div>
-        @endif
-
-        <!-- Notes Section underneath -->
-        @if(($uniqueTotal > 0 || $monthlyTotal > 0 || $annualBaseTotal > 0) && $quote->include_payment_terms)
-            @php
-                $planMonths = (int) ($quote->package_payment_plan_months ?? 0);
-                $upfrontOnce = $uniqueTotal + $annualBaseTotal + $annualAddonTotal;
-            @endphp
-            @if($upfrontOnce <= 0 && $monthlyTotal > 0)
-                {{-- Iguala pura: el plan de meses es el compromiso, no un saldo diferido. --}}
-                <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
-                    <strong>Condiciones de Pago (Iguala mensual):</strong>
-                    @money($monthlyTotal, $qcur) al mes, pagaderos por adelantado{{ $planMonths > 1 ? " durante {$planMonths} meses de compromiso" : '' }}.
-                </div>
-            @elseif($planMonths > 1)
-                <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
-                    <strong>Condiciones de Pago (Plan a {{ $planMonths }} mensualidades):</strong>
-                    Pago inicial al contratar + {{ $planMonths - 1 }} {{ $planMonths - 1 === 1 ? 'mensualidad' : 'mensualidades' }} del saldo restante.
-                </div>
-            @elseif($upfrontOnce > 0)
-                <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
-                    <strong>Condiciones de Proyecto ("Pago Único"):</strong> 50% de anticipo al inicio
-                    (@money($upfrontOnce / 2, $qcur)) y 50% restante al entregar
-                    (@money($upfrontOnce / 2, $qcur)).
-                </div>
-            @endif
         @endif
 
         @if($quote->duration)
