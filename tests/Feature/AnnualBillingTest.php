@@ -56,6 +56,20 @@ class AnnualBillingTest extends TestCase
         ]);
     }
 
+    /** Iguala mensual que además trae una anualidad (dominio/hosting). */
+    private function monthlyPackageWithRenewal(): Service
+    {
+        return Service::create([
+            'name'                => 'Iguala de Marketing',
+            'description'         => 'Gestión mensual de campañas',
+            'price'               => 4500,    // se cobra CADA MES
+            'renewal_price'       => 3200,    // anualidad, aparte de la iguala
+            'billing_type'        => 'monthly',
+            'is_package'          => true,
+            'payment_plan_months' => 6,
+        ]);
+    }
+
     private function payload(array $overrides = []): array
     {
         return array_merge([
@@ -178,6 +192,59 @@ class AnnualBillingTest extends TestCase
         $this->assertStringContainsString('30,000.00', $html);
         $this->assertStringContainsString('6,000.00', $html);
         $this->assertStringNotContainsString('36,000.00', $html);
+    }
+
+    /**
+     * Mensualidad/iguala: el Precio Base se cobra cada mes y la anualidad debe
+     * aparecer igual en el PDF, como cobro aparte una vez al año.
+     */
+    public function test_monthly_quote_shows_its_annual_renewal_in_the_pdf(): void
+    {
+        $quote = $this->quoteFor($this->monthlyPackageWithRenewal(), 6, $this->admin());
+        $quote->load(['items.service.features', 'addons.serviceAddon']);
+
+        // El total de hoy es sólo la iguala: la anualidad no se suma.
+        $this->assertEquals(4500.00, (float) $quote->total);
+
+        $html = view('pdf.quote', compact('quote'))->render();
+
+        $this->assertStringContainsString('MENSUAL', $html);
+        $this->assertStringContainsString('+ ANUALIDAD', $html);
+        $this->assertStringContainsString('al mes', $html);
+
+        // Iguala mensual y renovación anual, cada una en su renglón.
+        $this->assertStringContainsString('IGUALA MENSUAL', $html);
+        $this->assertStringContainsString('RENOVACI&Oacute;N ANUAL', $html);
+        $this->assertStringContainsString('3,200.00', $html);
+        $this->assertStringContainsString('Iguala mensual de', $html);
+        $this->assertStringContainsString('aparte de la iguala mensual', $html);
+
+        // Una iguala pura no tiene "saldo restante" que diferir.
+        $this->assertStringContainsString('Condiciones de Pago (Iguala mensual)', $html);
+        $this->assertStringNotContainsString('saldo restante', $html);
+    }
+
+    /** La anualidad de una iguala mensual también se agenda desde el año 2. */
+    public function test_monthly_package_renewal_is_scheduled_yearly(): void
+    {
+        $admin = $this->admin();
+        $quote = $this->quoteFor($this->monthlyPackageWithRenewal(), 6, $admin);
+
+        $contract = (new ConvertQuoteToContract)($quote, [
+            'anticipo_amount'   => 4500,
+            'payment_method'    => 'transferencia',
+            'payment_reference' => 'TEST-MON-1',
+            'paid_at'           => '2026-08-12',
+        ], $admin);
+
+        $renewals = ClientPayment::where('contract_id', $contract->id)
+            ->whereNotNull('concept')
+            ->orderBy('due_date')
+            ->get();
+
+        $this->assertTrue($renewals->isNotEmpty());
+        $this->assertEquals(3200.00, (float) $renewals->first()->amount);
+        $this->assertSame('2027-08-12', $renewals->first()->due_date->toDateString());
     }
 
     /** El contrato imprime la cuota real del plan y explica la anualidad. */

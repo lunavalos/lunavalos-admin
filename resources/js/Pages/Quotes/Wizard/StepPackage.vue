@@ -48,7 +48,9 @@ const months = computed(() => Number(props.modelValue.package_payment_plan_month
 const billingInfo = (svc) => {
     const hasRenewal = Number(svc.renewal_price) > 0;
     if (svc.billing_type === 'monthly') {
-        return { label: 'Mensualidad', color: 'bg-blue-100 text-blue-700', icon: '↻' };
+        return hasRenewal
+            ? { label: 'Mensualidad + anualidad', color: 'bg-blue-100 text-blue-700', icon: '↻' }
+            : { label: 'Mensualidad', color: 'bg-blue-100 text-blue-700', icon: '↻' };
     }
     if (hasRenewal) {
         return { label: 'Inicio + renovación anual', color: 'bg-amber-100 text-amber-700', icon: '⟳' };

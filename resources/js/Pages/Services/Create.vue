@@ -50,7 +50,7 @@ const priceHint = computed(() => ({
 }[form.billing_type] ?? ''));
 
 const renewalHint = computed(() => ({
-    monthly: 'Monto de la renovación si el servicio se renueva por periodo completo.',
+    monthly: 'Anualidad que se cobra UNA vez al año, aparte de la mensualidad (dominio, hosting, licencias), a partir del año 2. Aparece en la cotización. Déjalo en 0 si no aplica.',
     annual:  'Anualidad: lo que el cliente paga cada año a partir del año 2 (dominio, hosting, soporte, mantenimiento).',
 }[form.billing_type] ?? ''));
 

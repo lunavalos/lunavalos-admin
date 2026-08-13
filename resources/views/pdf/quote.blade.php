@@ -342,6 +342,9 @@
                                 @endif
                             @else
                                 <span class="concept-badge badge-monthly">MENSUAL</span>
+                                @if(($item->unit_renewal_price ?? 0) > 0)
+                                    <span class="concept-badge badge-annual">+ ANUALIDAD</span>
+                                @endif
                             @endif
                         </div>
                         @if($item->description)
@@ -366,7 +369,10 @@
                     </td>
                     <td class="text-right" style="vertical-align: middle;">
                         @money($item->unit_price * $item->quantity, $qcur)
-                        @if($item->billing_type != 'monthly' && ($item->unit_renewal_price ?? 0) > 0)
+                        @if($item->billing_type == 'monthly')
+                            <div style="font-size: 9px; font-weight: normal; color: #555;">al mes</div>
+                        @endif
+                        @if(($item->unit_renewal_price ?? 0) > 0)
                             <div style="font-size: 10px; font-weight: normal; color: #b45309; margin-top: 4px;">
                                 + @money($item->unit_renewal_price * $item->quantity, $qcur) / a&ntilde;o
                                 <div style="font-size: 9px; color: #92400e;">desde el a&ntilde;o 2</div>
@@ -614,11 +620,19 @@
                             No se vuelve a cobrar.
                         </li>
                     @endif
+                    @if($monthlyTotal > 0)
+                        <li>
+                            <strong>Iguala mensual de @money($monthlyTotal, $qcur) al mes.</strong>
+                            Es el cobro recurrente de los servicios contratados mes con mes,
+                            mientras el servicio siga activo.
+                        </li>
+                    @endif
                     @if($annualRenewalTotal > 0)
                         <li>
                             <strong>Anualidad de @money($annualRenewalTotal, $qcur) por a&ntilde;o, a partir del a&ntilde;o 2.</strong>
-                            Cubre los servicios que mantienen el proyecto en l&iacute;nea (dominio, hosting,
-                            soporte y mantenimiento). El primer a&ntilde;o ya est&aacute; incluido en el pago inicial.
+                            Se cobra una vez al a&ntilde;o, aparte de {{ $monthlyTotal > 0 ? 'la iguala mensual' : 'lo anterior' }},
+                            y cubre los servicios que mantienen el proyecto en l&iacute;nea (dominio, hosting,
+                            soporte y mantenimiento). El primer a&ntilde;o ya est&aacute; incluido.
                         </li>
                     @endif
                 </ol>
@@ -634,7 +648,13 @@
                 $planMonths = (int) ($quote->package_payment_plan_months ?? 0);
                 $upfrontOnce = $uniqueTotal + $annualBaseTotal + $annualAddonTotal;
             @endphp
-            @if($planMonths > 1)
+            @if($upfrontOnce <= 0 && $monthlyTotal > 0)
+                {{-- Iguala pura: el plan de meses es el compromiso, no un saldo diferido. --}}
+                <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
+                    <strong>Condiciones de Pago (Iguala mensual):</strong>
+                    @money($monthlyTotal, $qcur) al mes, pagaderos por adelantado{{ $planMonths > 1 ? " durante {$planMonths} meses de compromiso" : '' }}.
+                </div>
+            @elseif($planMonths > 1)
                 <div class="notes-section" style="margin-bottom: 15px; color: #16a34a; font-size: 14px;">
                     <strong>Condiciones de Pago (Plan a {{ $planMonths }} mensualidades):</strong>
                     Pago inicial al contratar + {{ $planMonths - 1 }} {{ $planMonths - 1 === 1 ? 'mensualidad' : 'mensualidades' }} del saldo restante.
