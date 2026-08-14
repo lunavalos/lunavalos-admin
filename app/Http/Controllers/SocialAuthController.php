@@ -54,6 +54,7 @@ class SocialAuthController extends Controller
 
         /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
         $driver = Socialite::driver(self::DRIVERS[$provider]);
+        $driver->redirectUrl($this->redirectUrlFor($provider));
 
         // Parámetros extra por provider. NO se mandan a todos por defecto
         // porque Facebook/LinkedIn rechazan/ignoran `access_type=offline` y
@@ -101,7 +102,11 @@ class SocialAuthController extends Controller
         $client = Client::findOrFail($clientId);
 
         try {
-            $socialUser = Socialite::driver(self::DRIVERS[$provider])->user();
+            // El redirect_uri tiene que ser idéntico al que se usó al abrir el
+            // diálogo; Meta valida que coincida al canjear el code.
+            $socialUser = Socialite::driver(self::DRIVERS[$provider])
+                ->redirectUrl($this->redirectUrlFor($provider))
+                ->user();
             Log::info('[oauth-debug] callback:socialite-user', [
                 'provider' => $provider,
                 'driver' => self::DRIVERS[$provider],
@@ -259,6 +264,25 @@ class SocialAuthController extends Controller
                 'https://www.googleapis.com/auth/youtube.upload',
             ],
         };
+    }
+
+    /**
+     * Callback propio de CADA provider lógico, no el del driver de Socialite.
+     *
+     * Instagram entra por el driver `facebook`, y Socialite arma el
+     * redirect_uri desde `services.facebook.redirect`. Sin esto, el diálogo de
+     * Instagram regresaba a /social/oauth/facebook/callback, el parámetro de
+     * ruta llegaba como `facebook` y corría handleFacebook(): `handleInstagram()`
+     * era inalcanzable y no se podía conectar ninguna cuenta de Instagram.
+     *
+     * Cada URL de estas debe estar dada de alta en Valid OAuth Redirect URIs.
+     */
+    private function redirectUrlFor(string $provider): string
+    {
+        return (string) (
+            config("services.{$provider}.redirect")
+            ?: config('services.' . self::DRIVERS[$provider] . '.redirect')
+        );
     }
 
     /**

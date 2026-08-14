@@ -35,6 +35,7 @@ class SocialOauthScopesTest extends TestCase
             'services.facebook.client_id'     => 'test-id',
             'services.facebook.client_secret' => 'test-secret',
             'services.facebook.redirect'      => 'https://admin.test/social/oauth/facebook/callback',
+            'services.instagram.redirect'     => 'https://admin.test/social/oauth/instagram/callback',
         ]);
 
         $client = Client::create(['business_name' => 'Cliente de prueba']);
@@ -108,5 +109,22 @@ class SocialOauthScopesTest extends TestCase
 
         $this->assertArrayNotHasKey('config_id', $query);
         $this->assertStringContainsString('pages_manage_posts', $query['scope']);
+    }
+
+    public function test_cada_provider_regresa_a_su_propio_callback(): void
+    {
+        // Instagram usa el driver de Facebook. Si el redirect_uri apunta al
+        // callback de facebook, el parámetro de ruta llega como `facebook` y
+        // corre handleFacebook(): handleInstagram() queda inalcanzable y no se
+        // puede conectar ninguna cuenta de Instagram.
+        $this->assertSame(
+            'https://admin.test/social/oauth/facebook/callback',
+            $this->queryDelDialogo('facebook')['redirect_uri'] ?? null
+        );
+
+        $this->assertSame(
+            'https://admin.test/social/oauth/instagram/callback',
+            $this->queryDelDialogo('instagram')['redirect_uri'] ?? null
+        );
     }
 }
