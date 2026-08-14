@@ -252,8 +252,12 @@ Route::get('contratodeservicio/{token}', [\App\Http\Controllers\ContractControll
 Route::post('contratodeservicio/{token}/sign', [\App\Http\Controllers\ContractController::class, 'sign'])->name('contracts.sign');
 Route::get('contratodeservicio/{token}/pdf', [\App\Http\Controllers\ContractController::class, 'downloadPdf'])->name('contracts.download.pdf');
 
-// WhatsApp — n8n reenvía aquí los eventos de Meta (sin sesión/CSRF).
-// El acceso lo controla el secreto compartido, no la sesión del usuario.
+// WhatsApp — Meta llama aquí directo (sin sesión/CSRF).
+// GET  = handshake de suscripción, autenticado por el verify_token.
+// POST = eventos, autenticados por la firma HMAC del App Secret.
+Route::get('whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'verify'])
+    ->name('whatsapp.webhook.verify');
+
 Route::post('whatsapp/webhook', [\App\Http\Controllers\WhatsAppWebhookController::class, 'receive'])
-    ->middleware(\App\Http\Middleware\VerifyN8nSecret::class)
+    ->middleware(\App\Http\Middleware\VerifyMetaSignature::class)
     ->name('whatsapp.webhook.receive');

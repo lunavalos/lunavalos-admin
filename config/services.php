@@ -37,17 +37,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | n8n — pasarela de WhatsApp
+    | WhatsApp — webhook de entrada (Meta directo)
     |--------------------------------------------------------------------------
-    | Este sistema no habla con graph.facebook.com. El token de Meta, el
-    | phone_number_id y el verify_token del webhook viven en n8n, que es
-    | quien enruta hacia el número que corresponde a cada cliente.
+    | Meta llama a {APP_URL}/whatsapp/webhook:
+    |   GET  -> handshake, se compara hub.verify_token contra verify_token.
+    |   POST -> eventos, se valida X-Hub-Signature-256 con app_secret.
+    |
+    | verify_token lo elegimos nosotros y se copia tal cual en el panel de Meta.
+    | app_secret es el App Secret de la app (Settings > Basic).
+    |
+    | La salida todavía va por n8n (ver bloque siguiente); cuando pase a hablar
+    | con Graph directo hará falta también el token por cliente.
+    */
+    'whatsapp' => [
+        'app_id'         => env('WHATSAPP_APP_ID'),
+        'app_secret'     => env('WHATSAPP_APP_SECRET'),
+        'verify_token'   => env('WHATSAPP_VERIFY_TOKEN'),
+        'graph_version'  => env('WHATSAPP_GRAPH_VERSION', 'v26.0'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | n8n — pasarela de WhatsApp (solo salida)
+    |--------------------------------------------------------------------------
+    | Solo para ENVIAR. Este sistema todavía no habla con graph.facebook.com:
+    | el token de Meta y el phone_number_id viven en n8n, que es quien enruta
+    | hacia el número que corresponde a cada cliente.
     |
     | Salida:  Laravel -> whatsapp_webhook_url (con X-N8n-Secret)
-    | Entrada: Meta -> n8n (valida X-Hub-Signature-256) -> {APP_URL}/whatsapp/webhook
+    | Entrada: Meta -> {APP_URL}/whatsapp/webhook — n8n ya no participa.
     |
-    | shared_secret protege ambas direcciones y debe ser el mismo valor
-    | configurado del lado de n8n.
+    | shared_secret debe ser el mismo valor configurado del lado de n8n.
     */
     'n8n' => [
         'whatsapp_webhook_url' => env('N8N_WHATSAPP_WEBHOOK_URL'),

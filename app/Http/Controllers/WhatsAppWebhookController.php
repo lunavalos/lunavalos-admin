@@ -10,16 +10,46 @@ use App\Models\User;
 use App\Services\WhatsApp\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class WhatsAppWebhookController extends Controller
 {
     /**
-     * Eventos entrantes reenviados por n8n, con el payload de Meta tal cual.
-     * El handshake de suscripción (hub.challenge) lo resuelve n8n, no este
-     * sistema, porque es n8n quien está dado de alta como webhook en Meta.
+     * Handshake de suscripción. Meta lo hace por GET al guardar el Callback URL
+     * y cada vez que reactiva la suscripción.
      *
-     * Siempre respondemos 200 rápido — si n8n recibe error, reintenta.
+     * Dos detalles que rompen la verificación si se pasan por alto:
+     *   1. PHP convierte los puntos de la query en guiones bajos, así que los
+     *      parámetros llegan como `hub_challenge`, no `hub.challenge`.
+     *   2. El challenge se devuelve TAL CUAL, como texto plano. Si se responde
+     *      JSON, Meta rechaza la suscripción.
+     */
+    public function verify(Request $request)
+    {
+        $esperado = (string) config('services.whatsapp.verify_token');
+
+        $params    = $request->query();
+        $recibido  = (string) ($params['hub_verify_token'] ?? $params['hub.verify_token'] ?? '');
+        $challenge = (string) ($params['hub_challenge']    ?? $params['hub.challenge']    ?? '');
+
+        if ($esperado === '' || !hash_equals($esperado, $recibido)) {
+            Log::warning('meta: handshake rechazado', [
+                'ip'         => $request->ip(),
+                'sin_config' => $esperado === '',
+            ]);
+
+            return response('Forbidden', 403);
+        }
+
+        return response($challenge, 200)->header('Content-Type', 'text/plain');
+    }
+
+    /**
+     * Eventos entrantes de Meta, autenticados por VerifyMetaSignature.
+     *
+     * Siempre respondemos 200 rápido — si Meta recibe error, reintenta y
+     * termina degradando la suscripción.
      */
     public function receive(Request $request, WhatsAppService $whatsapp)
     {

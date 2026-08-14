@@ -57,7 +57,7 @@ Vale la pena dejarlo escrito, porque el repo documenta una arquitectura que
 | `whatsapp_business_messaging` | ⚠️ Standard Access ("Ready for testing", 46 llamadas) |
 | `whatsapp_business_management` | ⚠️ Standard Access ("Ready for testing", 60 llamadas) |
 
-### El bug que hay que arreglar sí o sí
+### El bug que hay que arreglar sí o sí — ✅ corregido en código (2026-08-14, ver Fase 1)
 
 El **Callback URL configurado en Meta apunta directo a Laravel**, no a n8n:
 
@@ -285,11 +285,20 @@ que tiene reloj, y no depende de una línea de código.
 - App Review con **Advanced Access** en los dos permisos de WhatsApp.
 - Publicar la app.
 
-**Fase 1 — Arreglar el webhook (se puede hacer ya, sin esperar a Meta)**
-- Ruta GET + handshake.
-- `VerifyMetaSignature` en lugar de `VerifyN8nSecret`.
-- Tests: handshake OK/KO, firma válida/inválida/ausente.
-- Esto por sí solo arregla la integración de un número, hoy rota.
+**Fase 1 — Arreglar el webhook — ✅ hecha el 2026-08-14**
+- Ruta GET + handshake (`WhatsAppWebhookController::verify`). Devuelve el
+  challenge como texto plano. Ojo con el detalle que rompe la verificación: PHP
+  convierte los puntos de la query, así que los parámetros llegan como
+  `hub_challenge`, no `hub.challenge`.
+- `VerifyMetaSignature` (HMAC del cuerpo crudo) en lugar de `VerifyN8nSecret`,
+  que se eliminó por quedar sin uso.
+- Config `services.whatsapp` + variables en `.env.example`.
+- 10 tests en `WhatsAppWebhookSecurityTest`: handshake OK/KO/sin config, firma
+  ausente/inválida/válida-de-otro-cuerpo/sin app secret, alta de ticket e
+  idempotencia.
+- **Falta desplegar y poner `WHATSAPP_APP_SECRET` y `WHATSAPP_VERIFY_TOKEN` en
+  el `.env` de producción**, y volver a guardar el Callback URL en Meta para que
+  dispare el handshake.
 
 **Fase 2 — Esquema multi-tenant**
 - Migraciones y modelos `WhatsAppAccount` / `WhatsAppNumber`.
