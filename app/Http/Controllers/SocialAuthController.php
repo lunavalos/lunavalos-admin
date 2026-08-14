@@ -55,16 +55,26 @@ class SocialAuthController extends Controller
         /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
         $driver = Socialite::driver(self::DRIVERS[$provider]);
 
-        // setScopes() REEMPLAZA; scopes() fusiona con los del driver
-        // (`FacebookProvider::$scopes = ['email']`). Con scopes() el diálogo de
-        // Meta recibía `email` aunque no esté en nuestra lista ni aprobado en
-        // App Review, y respondía "Invalid Scopes: email" sin dejar conectar.
-        $driver->setScopes($this->scopesFor($provider));
-
         // Parámetros extra por provider. NO se mandan a todos por defecto
         // porque Facebook/LinkedIn rechazan/ignoran `access_type=offline` y
         // `prompt=consent` puede romper algunos flujos.
         $extra = $this->extraParamsFor($provider);
+
+        $configId = $this->loginConfigIdFor($provider);
+
+        if ($configId !== null) {
+            // Facebook Login for Business: los permisos y los activos vienen de
+            // la configuración del panel. Mandar `scope` además del config_id
+            // no aporta y Meta lo ignora, así que se limpia.
+            $driver->setScopes([]);
+            $extra['config_id'] = $configId;
+        } else {
+            // setScopes() REEMPLAZA; scopes() fusiona con los del driver
+            // (`FacebookProvider::$scopes = ['email']`) y con los de
+            // config/services.php. Con scopes() el diálogo recibía `email`
+            // aunque no esté aprobado, y Meta respondía "Invalid Scopes: email".
+            $driver->setScopes($this->scopesFor($provider));
+        }
         if (!empty($extra)) {
             $driver->with($extra);
         }
@@ -249,6 +259,21 @@ class SocialAuthController extends Controller
                 'https://www.googleapis.com/auth/youtube.upload',
             ],
         };
+    }
+
+    /**
+     * ID de la configuración de Facebook Login for Business, si está definida.
+     * Solo aplica a los providers que entran por el OAuth de Meta.
+     */
+    private function loginConfigIdFor(string $provider): ?string
+    {
+        if (!in_array($provider, ['facebook', 'instagram'], true)) {
+            return null;
+        }
+
+        $configId = (string) config("services.{$provider}.login_config_id", '');
+
+        return $configId !== '' ? $configId : null;
     }
 
     private function extraParamsFor(string $provider): array

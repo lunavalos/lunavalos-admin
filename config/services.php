@@ -86,6 +86,12 @@ return [
         'client_id'     => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect'      => env('APP_URL') . '/social/oauth/facebook/callback',
+        // Facebook Login for Business: los permisos y los activos (páginas,
+        // cuentas de IG) los define una CONFIGURACIÓN en el panel de Meta, no
+        // el parámetro `scope`. Sin config_id el diálogo solo concede perfil
+        // básico y nunca ofrece elegir páginas.
+        // Panel: Facebook Login for Business → Configurations.
+        'login_config_id' => env('FACEBOOK_LOGIN_CONFIG_ID'),
         'graph_version' => env('FACEBOOK_GRAPH_VERSION', 'v21.0'),
         // Sin clave `scopes` a propósito. Socialite SÍ la lee
         // (SocialiteManager::buildProvider) y la FUSIONA con los scopes por
@@ -99,7 +105,10 @@ return [
         'client_id'     => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect'      => env('APP_URL') . '/social/oauth/instagram/callback',
-        // Instagram usa el mismo flujo Facebook — los scopes los maneja facebook arriba
+        // Instagram entra por el OAuth de Facebook. Puede tener su propia
+        // configuración de Login for Business; si no se define, se reutiliza
+        // la de Facebook siempre que incluya los activos de Instagram.
+        'login_config_id' => env('INSTAGRAM_LOGIN_CONFIG_ID', env('FACEBOOK_LOGIN_CONFIG_ID')),
     ],
     
     'linkedin-openid' => [

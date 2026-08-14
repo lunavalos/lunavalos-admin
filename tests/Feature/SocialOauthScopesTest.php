@@ -29,7 +29,7 @@ class SocialOauthScopesTest extends TestCase
         return $user;
     }
 
-    private function scopesDelDialogo(string $provider): array
+    private function queryDelDialogo(string $provider): array
     {
         config([
             'services.facebook.client_id'     => 'test-id',
@@ -46,7 +46,12 @@ class SocialOauthScopesTest extends TestCase
 
         parse_str(parse_url($respuesta->headers->get('Location'), PHP_URL_QUERY) ?? '', $query);
 
-        return array_filter(explode(',', $query['scope'] ?? ''));
+        return $query;
+    }
+
+    private function scopesDelDialogo(string $provider): array
+    {
+        return array_filter(explode(',', $this->queryDelDialogo($provider)['scope'] ?? ''));
     }
 
     public function test_facebook_no_pide_email(): void
@@ -72,5 +77,36 @@ class SocialOauthScopesTest extends TestCase
         $this->assertContains('instagram_basic', $scopes);
         $this->assertContains('instagram_content_publish', $scopes);
         $this->assertNotContains('instagram_business_basic', $scopes);
+    }
+
+    public function test_con_configuracion_de_login_for_business_se_manda_config_id_y_no_scope(): void
+    {
+        config([
+            'services.facebook.login_config_id'  => '1234567890',
+            'services.instagram.login_config_id' => '1234567890',
+        ]);
+
+        $query = $this->queryDelDialogo('facebook');
+
+        // En Login for Business los permisos salen de la configuración del
+        // panel; sin config_id el diálogo solo concede el perfil básico y
+        // nunca ofrece elegir páginas.
+        $this->assertSame('1234567890', $query['config_id'] ?? null);
+        // Socialite siempre incluye el parámetro; lo que importa es que vaya
+        // vacío, para que no compita con lo que declara la configuración.
+        $this->assertSame('', $query['scope'] ?? null);
+    }
+
+    public function test_sin_configuracion_se_siguen_mandando_los_scopes(): void
+    {
+        config([
+            'services.facebook.login_config_id'  => null,
+            'services.instagram.login_config_id' => null,
+        ]);
+
+        $query = $this->queryDelDialogo('facebook');
+
+        $this->assertArrayNotHasKey('config_id', $query);
+        $this->assertStringContainsString('pages_manage_posts', $query['scope']);
     }
 }
