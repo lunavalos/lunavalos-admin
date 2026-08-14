@@ -54,7 +54,12 @@ class SocialAuthController extends Controller
 
         /** @var \Laravel\Socialite\Two\AbstractProvider $driver */
         $driver = Socialite::driver(self::DRIVERS[$provider]);
-        $driver->scopes($this->scopesFor($provider));
+
+        // setScopes() REEMPLAZA; scopes() fusiona con los del driver
+        // (`FacebookProvider::$scopes = ['email']`). Con scopes() el diálogo de
+        // Meta recibía `email` aunque no esté en nuestra lista ni aprobado en
+        // App Review, y respondía "Invalid Scopes: email" sin dejar conectar.
+        $driver->setScopes($this->scopesFor($provider));
 
         // Parámetros extra por provider. NO se mandan a todos por defecto
         // porque Facebook/LinkedIn rechazan/ignoran `access_type=offline` y

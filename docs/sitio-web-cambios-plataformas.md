@@ -643,6 +643,13 @@ pages_manage_posts, pages_show_list, pages_read_engagement,
 business_management, public_profile
 ```
 
+> **Los scopes se aplican con `setScopes()`, nunca con `scopes()`.** Socialite
+> fusiona desde tres fuentes: `FacebookProvider::$scopes = ['email']`, la clave
+> `scopes` de `config/services.php` (la lee `SocialiteManager::buildProvider`) y
+> la llamada del controlador. La unión mandaba `email` al diálogo y Meta
+> respondía *"Invalid Scopes: email"* sin dejar conectar nada. Fuente única:
+> `SocialAuthController::scopesFor()`.
+
 > **Instagram va por Facebook Login.** Meta ofrece dos familias y no son
 > intercambiables: `instagram_business_*` pertenece a *API setup with Instagram
 > login* (otro flujo de OAuth) e `instagram_basic` / `instagram_content_publish`

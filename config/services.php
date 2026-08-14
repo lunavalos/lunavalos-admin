@@ -87,18 +87,12 @@ return [
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect'      => env('APP_URL') . '/social/oauth/facebook/callback',
         'graph_version' => env('FACEBOOK_GRAPH_VERSION', 'v21.0'),
-        // Informativo: los scopes que se piden de verdad viven en
-        // SocialAuthController::scopesFor(), porque Socialite no los lee de
-        // aquí. Se dejan sincronizados para no despistar al leer este archivo.
-        'scopes'        => [
-            'public_profile',
-            'pages_show_list',
-            'pages_read_engagement',
-            'pages_manage_posts',        // publicar en páginas
-            'business_management',
-            'instagram_basic',
-            'instagram_content_publish', // publicar en IG Business
-        ],
+        // Sin clave `scopes` a propósito. Socialite SÍ la lee
+        // (SocialiteManager::buildProvider) y la FUSIONA con los scopes por
+        // omisión del driver, así que tener la lista aquí además de en
+        // SocialAuthController::scopesFor() producía la unión de las dos —
+        // justo el bug que mandaba `email` al diálogo de Meta.
+        // Fuente única: scopesFor(), aplicada con setScopes().
     ],
 
     'instagram' => [
