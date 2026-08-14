@@ -31,9 +31,19 @@ class SocialAccount extends Model
         'status', 'connected_by', 'last_synced_at',
     ];
 
+    /**
+     * Los tokens van cifrados en reposo: son credenciales de un tercero, no
+     * nuestras, y las políticas públicas del sitio declaran ese cifrado.
+     *
+     * `meta` NO lleva credenciales — se serializa hacia el frontend en el
+     * payload de Inertia. El page_token de Facebook/Instagram vive únicamente
+     * en `access_token`.
+     */
     protected $casts = [
         'scopes'           => 'array',
         'meta'             => 'array',
+        'access_token'     => 'encrypted',
+        'refresh_token'    => 'encrypted',
         'token_expires_at' => 'datetime',
         'last_synced_at'   => 'datetime',
     ];

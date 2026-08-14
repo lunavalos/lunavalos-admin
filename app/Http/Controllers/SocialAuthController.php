@@ -260,10 +260,11 @@ class SocialAuthController extends Controller
                 continue;
             }
 
+            // Sin page_token: el token va en access_token, que sí está cifrado
+            // y oculto. `meta` viaja al frontend en el payload de Inertia.
             $meta = [
                 'page_id'    => $pageId,
                 'page_name'  => $page['name'] ?? null,
-                'page_token' => $pageToken,
                 'category'   => $page['category'] ?? null,
                 'tasks'      => $page['tasks'] ?? null,
             ];
@@ -327,11 +328,11 @@ class SocialAuthController extends Controller
                 'page_token' => $this->maskSecret($pageToken),
             ]);
 
+            // Sin page_token: ver el comentario en handleFacebook().
             $meta = [
                 'ig_business_id' => (string) $igId,
                 'page_id'        => $page['id'] ?? null,
                 'page_name'      => $page['name'] ?? null,
-                'page_token'     => $pageToken,
                 'ig_username'    => $igProfile['username'] ?? null,
             ];
 
@@ -680,10 +681,12 @@ class SocialAuthController extends Controller
         // conservamos (importante para Google/YouTube, que sólo devuelve el
         // refresh_token la primera vez salvo prompt=consent forzado).
         if ($refreshToken === null) {
+            // Vía modelo, no ->value(): la columna está cifrada y hace falta el
+            // cast para recuperar el valor en claro antes de volver a guardarlo.
             $existingRefresh = SocialAccount::query()
                 ->where('provider', $provider)
                 ->where('provider_user_id', $providerUserId)
-                ->value('refresh_token');
+                ->first()?->refresh_token;
             if ($existingRefresh) {
                 $refreshToken = $existingRefresh;
             }

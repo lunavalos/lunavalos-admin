@@ -10,8 +10,9 @@ class FacebookPublisher extends AbstractPublisher
     {
         $account = $target->account;
         $post    = $target->post;
-        $pageId  = $account->meta['page_id']    ?? $account->provider_user_id;
-        $token   = $account->meta['page_token'] ?? $account->access_token;
+        $pageId  = $account->meta['page_id'] ?? $account->provider_user_id;
+        // access_token ya es el page token (lo guarda así handleFacebook).
+        $token   = $account->access_token;
         $version = config('services.facebook.graph_version', 'v19.0');
 
         $media = $this->mediaUrls($target);

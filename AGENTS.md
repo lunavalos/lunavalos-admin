@@ -18,7 +18,7 @@ This repository is a Laravel 12 admin application with Inertia/Vue 3 front-end a
 ## Startup and local onboarding
 Use the repo scripts first:
 - `composer setup` — installs PHP and JS dependencies, creates `.env`, generates app key, migrates the database, and builds assets.
-- `npm run dev` — starts Vite for local frontend development.
+- `in run dev` — starts Vite for local frontend development.
 - `php artisan serve` — serves the application.
 - `php artisan migrate --force` — run migrations.
 - `php artisan db:seed` — seed default data.

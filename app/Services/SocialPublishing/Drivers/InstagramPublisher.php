@@ -16,7 +16,8 @@ class InstagramPublisher extends AbstractPublisher
         $account = $target->account;
         $post    = $target->post;
         $igId    = $account->meta['ig_business_id'] ?? null;
-        $token   = $account->meta['page_token']     ?? $account->access_token;
+        // access_token ya es el page token (lo guarda así handleInstagram).
+        $token   = $account->access_token;
         $version = config('services.facebook.graph_version', 'v19.0');
 
         if (!$igId) {
