@@ -56,7 +56,21 @@ class PlatformReviewerSeeder extends Seeder
             ]
         );
 
-        $user->syncRoles([$role]);
+        // Dos roles a propósito:
+        //
+        //   Cliente  -> TicketController acota por ESE rol, no por client_id, y
+        //               el módulo de Tickets es visible para todo el mundo (no
+        //               hay permiso que lo cubra). Sin este rol, la cuenta de
+        //               revisión ve TODOS los tickets, incluidas conversaciones
+        //               de WhatsApp de clientes finales de otros clientes.
+        //   Revisor  -> exime del 2FA obligatorio y concede Ver Social.
+        //
+        // Se reutiliza el acotamiento que ya existe y está probado en vez de
+        // tocar los 17 puntos donde TicketController pregunta por el rol.
+        $user->syncRoles([
+            $role,
+            Role::firstOrCreate(['name' => config('roles.client', 'Cliente'), 'guard_name' => 'web']),
+        ]);
 
         $this->demoWhatsappTicket($client, $user);
 
@@ -75,12 +89,11 @@ class PlatformReviewerSeeder extends Seeder
     }
 
     /**
-     * Solo `Ver Social`: es el flujo que el revisor tiene que recorrer.
+     * Lo mínimo para recorrer el flujo descrito en las instrucciones de prueba.
      *
-     * A propósito NO lleva `Ver Tickets`. `TicketController::index()` acota por
-     * el rol Cliente, no por `client_id`, así que esa cuenta vería las
-     * conversaciones de WhatsApp de todos los clientes. El flujo de WhatsApp se
-     * demuestra con screencast.
+     * `Ver Tickets` es informativo: el módulo de Tickets no está protegido por
+     * ningún permiso —el enlace del sidebar es visible para todos—, así que lo
+     * que de verdad protege esos datos es el rol Cliente que se asigna abajo.
      */
     private function reviewerRole(): Role
     {
@@ -89,7 +102,7 @@ class PlatformReviewerSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
-        $permisos = collect(['Ver Dashboard', 'Ver Social'])
+        $permisos = collect(['Ver Dashboard', 'Ver Social', 'Ver Tickets'])
             ->map(fn (string $nombre) => Permission::firstOrCreate([
                 'name'       => $nombre,
                 'guard_name' => 'web',

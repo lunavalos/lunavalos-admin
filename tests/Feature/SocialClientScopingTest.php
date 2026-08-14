@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Client;
 use App\Models\SocialAccount;
+use App\Models\Ticket;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -46,9 +47,27 @@ class SocialClientScopingTest extends TestCase
             'client_id'         => $client->id,
             'email_verified_at' => now(),
         ]);
-        $user->assignRole($role);
+        $user->syncRoles([
+            $role,
+            Role::findOrCreate(config('roles.client'), 'web'),
+        ]);
 
         return $user;
+    }
+
+    private function ticketDe(Client $client, string $titulo, User $autor): Ticket
+    {
+        return Ticket::create([
+            'title'             => $titulo,
+            'content'           => 'contenido',
+            'priority'          => 'Media',
+            'status'            => 'Nuevos',
+            'source_type'       => Ticket::SOURCE_SUPPORT,
+            'channel'           => Ticket::CHANNEL_WHATSAPP,
+            'creator_id'        => $autor->id,
+            'client_id'         => $client->id,
+            'visible_to_client' => true,
+        ]);
     }
 
     public function test_el_revisor_solo_ve_su_cliente_en_el_listado(): void
@@ -109,5 +128,23 @@ class SocialClientScopingTest extends TestCase
             ->get('/social')
             ->assertOk()
             ->assertInertia(fn ($page) => $page->has('clients', 2));
+    }
+
+    public function test_el_revisor_no_ve_los_tickets_de_otros_clientes(): void
+    {
+        $suyo  = $this->cliente('Demo Coffee Roasters');
+        $ajeno = $this->cliente('Cliente Real');
+
+        $revisor = $this->revisor($suyo);
+        $staff   = User::factory()->create(['client_id' => null, 'email_verified_at' => now()]);
+
+        $this->ticketDe($suyo,  'WhatsApp demo',              $staff);
+        $this->ticketDe($ajeno, 'Conversacion real privada',  $staff);
+
+        $respuesta = $this->actingAs($revisor)->get('/tickets');
+
+        $respuesta->assertOk();
+        // El contenido de otros clientes no debe aparecer por ningún lado.
+        $respuesta->assertDontSee('Conversacion real privada');
     }
 }
