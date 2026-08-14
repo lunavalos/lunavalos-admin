@@ -143,7 +143,7 @@ class SocialController extends Controller
         }
 
         return redirect()->route('social.clients.show', $client->id)
-            ->with('success', $data['action'] === 'publish_now' ? 'Post encolado para publicación.' : 'Post guardado.');
+            ->with('success', $data['action'] === 'publish_now' ? 'Publicación en proceso. En unos momentos verás el resultado de cada red en la lista.' : 'Post guardado.');
     }
 
     public function updatePost(Client $client, SocialPost $post, Request $request)
@@ -205,7 +205,7 @@ class SocialController extends Controller
         abort_if($post->client_id !== $client->id, 404);
         $post->update(['status' => SocialPost::STATUS_PUBLISHING]);
         PublishSocialPostJob::dispatch($post->id);
-        return back()->with('success', 'Post encolado para publicación inmediata.');
+        return back()->with('success', 'Publicación en proceso. En unos momentos verás el resultado de cada red en la lista.');
     }
 
     private function validatePost(Request $request): array

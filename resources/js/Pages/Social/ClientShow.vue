@@ -35,6 +35,23 @@ const statusColors = {
     canceled:   'bg-zinc-200 text-zinc-700',
 };
 
+// Estado por red. El estado del post es un resumen; cuando una red falla y otra
+// no, el detalle solo vive aquí y antes no se mostraba en ningún lado: el
+// composer decía "encolado" y el fallo se quedaba mudo en la base.
+const targetStatusColors = {
+    pending:    'bg-gray-100 text-gray-600 border-gray-200',
+    publishing: 'bg-blue-50 text-blue-700 border-blue-200',
+    published:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+    failed:     'bg-rose-50 text-rose-700 border-rose-300',
+};
+const targetStatusLabels = {
+    pending: 'pendiente', publishing: 'publicando', published: 'publicado', failed: 'falló',
+};
+
+function failedTargets(post) {
+    return (post.targets || []).filter(t => t.status === 'failed' && t.error_message);
+}
+
 const connectedProviders = computed(() => props.accounts.map(a => a.provider));
 
 function connect(provider) {
@@ -229,10 +246,29 @@ const view = ref('calendar'); // calendar | list
                                     <p class="text-xs text-gray-500 truncate">{{ p.body }}</p>
                                 </td>
                                 <td class="px-3 py-2">
-                                    <span v-for="t in p.targets" :key="t.id"
-                                        :class="['inline-block text-[10px] px-1.5 py-0.5 rounded-full font-medium border mr-1', providerColors[t.provider]]">
-                                        {{ t.provider }}
-                                    </span>
+                                    <div class="flex flex-wrap gap-1">
+                                        <component v-for="t in p.targets" :key="t.id"
+                                            :is="t.platform_url ? 'a' : 'span'"
+                                            :href="t.platform_url || undefined"
+                                            :target="t.platform_url ? '_blank' : undefined"
+                                            rel="noopener"
+                                            :title="t.error_message || (t.platform_url ? 'Ver publicación' : null)"
+                                            :class="['inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium border',
+                                                     targetStatusColors[t.status] || 'bg-gray-100 text-gray-600 border-gray-200',
+                                                     t.platform_url ? 'hover:underline' : '']">
+                                            <span :class="['w-1.5 h-1.5 rounded-full', providerColors[t.provider]]"></span>
+                                            {{ providerLabels[t.provider] || t.provider }}
+                                            <span class="opacity-70">· {{ targetStatusLabels[t.status] || t.status }}</span>
+                                        </component>
+                                    </div>
+
+                                    <!-- El motivo del fallo: sin esto hay que ir a la base de datos. -->
+                                    <p v-for="t in failedTargets(p)" :key="'e' + t.id"
+                                       class="mt-1 text-[10px] text-rose-700 dark:text-rose-400 break-words"
+                                       :title="t.error_message">
+                                        <span class="font-semibold">{{ providerLabels[t.provider] || t.provider }}:</span>
+                                        {{ t.error_message.length > 140 ? t.error_message.slice(0, 140) + '…' : t.error_message }}
+                                    </p>
                                 </td>
                                 <td class="px-3 py-2">
                                     <span :class="['text-[10px] px-2 py-0.5 rounded-full font-semibold', statusColors[p.status]]">
