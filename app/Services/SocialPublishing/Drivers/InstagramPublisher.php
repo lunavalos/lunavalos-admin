@@ -80,8 +80,32 @@ class InstagramPublisher extends AbstractPublisher
 
         return [
             'id'  => $mediaId,
-            'url' => $mediaId ? "https://www.instagram.com/p/{$mediaId}/" : null,
+            'url' => $mediaId ? $this->permalink($mediaId, $token, $version) : null,
         ];
+    }
+
+    /**
+     * El permalink hay que pedirlo: el id que devuelve media_publish es
+     * numérico y las URLs públicas de Instagram usan un shortcode distinto,
+     * así que armar "instagram.com/p/{id}" da 404 aunque el post exista.
+     *
+     * Si la consulta falla no se tumba la publicación —ya salió—, solo se
+     * queda sin enlace.
+     */
+    private function permalink(string $mediaId, string $token, string $version): ?string
+    {
+        try {
+            $resp = $this->http()->get("https://graph.facebook.com/{$version}/{$mediaId}", [
+                'fields'       => 'permalink',
+                'access_token' => $token,
+            ])->throw()->json();
+
+            return $resp['permalink'] ?? null;
+        } catch (\Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**

@@ -84,6 +84,7 @@ class SocialVideoPublishingTest extends TestCase
             '*/456/media'         => Http::response(['id' => 'cont_1'], 200),
             '*/cont_1*'           => Http::response(['status_code' => 'FINISHED'], 200),
             '*/456/media_publish' => Http::response(['id' => 'ig_1'], 200),
+            '*/ig_1*'             => Http::response(['permalink' => 'https://www.instagram.com/reel/ABC123/'], 200),
         ]);
 
         $publisher = new class extends InstagramPublisher {
@@ -94,6 +95,8 @@ class SocialVideoPublishingTest extends TestCase
 
         $this->assertSame(SocialPostTarget::STATUS_PUBLISHED, $target->status);
         $this->assertSame('ig_1', $target->platform_post_id);
+        // El permalink se pide a Meta: armar la URL con el id numérico da 404.
+        $this->assertSame('https://www.instagram.com/reel/ABC123/', $target->platform_url);
 
         Http::assertSent(fn ($r) => str_contains($r->url(), '/456/media')
             && ($r['media_type'] ?? null) === 'REELS'
@@ -128,6 +131,7 @@ class SocialVideoPublishingTest extends TestCase
         Http::fake([
             '*/456/media'         => Http::response(['id' => 'cont_2'], 200),
             '*/456/media_publish' => Http::response(['id' => 'ig_2'], 200),
+            '*/ig_2*'             => Http::response(['permalink' => 'https://www.instagram.com/p/XYZ789/'], 200),
         ]);
 
         (new InstagramPublisher())->publish($this->target('instagram', 'social/foto.jpg', 'image/jpeg'));
@@ -135,5 +139,21 @@ class SocialVideoPublishingTest extends TestCase
         Http::assertSent(fn ($r) => str_contains($r->url(), '/456/media') && isset($r['image_url']));
         // Sin sondeo: las imágenes quedan listas al instante.
         Http::assertNotSent(fn ($r) => $r->method() === 'GET' && str_contains($r->url(), 'cont_2'));
+    }
+
+    public function test_instagram_publica_aunque_no_se_pueda_obtener_el_permalink(): void
+    {
+        Http::fake([
+            '*/456/media'         => Http::response(['id' => 'cont_3'], 200),
+            '*/456/media_publish' => Http::response(['id' => 'ig_3'], 200),
+            '*/ig_3*'             => Http::response(['error' => ['message' => 'nope']], 400),
+        ]);
+
+        $target = (new InstagramPublisher())->publish($this->target('instagram', 'social/foto.jpg', 'image/jpeg'));
+
+        // Ya salió publicado: quedarse sin enlace no lo invalida.
+        $this->assertSame(SocialPostTarget::STATUS_PUBLISHED, $target->status);
+        $this->assertSame('ig_3', $target->platform_post_id);
+        $this->assertNull($target->platform_url);
     }
 }
