@@ -6,11 +6,15 @@ use App\Models\SocialPostTarget;
 
 /**
  * Instagram Graph API — requiere cuenta IG Business vinculada a una página de Facebook.
- * Flujo: 1) crear media container, 2) publicar container.
+ * Flujo: 1) crear media container, 2) esperar si es video, 3) publicar container.
  * Las imágenes/videos DEBEN estar accesibles públicamente por HTTPS.
  */
 class InstagramPublisher extends AbstractPublisher
 {
+    /** Tope de espera al procesado del video, por debajo del timeout del job (300s). */
+    private const ESPERA_MAXIMA_SEGUNDOS = 240;
+    private const INTERVALO_SONDEO_SEGUNDOS = 5;
+
     protected function doPublish(SocialPostTarget $target): array
     {
         $account = $target->account;
@@ -29,14 +33,26 @@ class InstagramPublisher extends AbstractPublisher
             throw new \RuntimeException('Instagram requiere al menos una imagen o video.');
         }
 
-        // 1) Crear contenedor (single image, flujo más simple)
+        $esVideo = $this->primerAdjuntoEsVideo($target);
+
+        // 1) Crear contenedor.
+        $payload = [
+            'caption'      => $post->body,
+            'access_token' => $token,
+        ];
+
+        if ($esVideo) {
+            // REELS es el único formato de video que acepta la API de
+            // publicación de contenido; `video_url`, no `image_url`.
+            $payload['media_type'] = 'REELS';
+            $payload['video_url']  = $media[0];
+        } else {
+            $payload['image_url'] = $media[0];
+        }
+
         $containerResp = $this->http()->asForm()->post(
             "https://graph.facebook.com/{$version}/{$igId}/media",
-            [
-                'image_url'    => $media[0],
-                'caption'      => $post->body,
-                'access_token' => $token,
-            ]
+            $payload
         )->throw()->json();
 
         $creationId = $containerResp['id'] ?? null;
@@ -44,7 +60,14 @@ class InstagramPublisher extends AbstractPublisher
             throw new \RuntimeException('No se pudo crear el media container de Instagram.');
         }
 
-        // 2) Publicar contenedor
+        // 2) Los contenedores de video se procesan en segundo plano: Meta
+        //    descarga el archivo y lo transcodifica. Publicar antes de que
+        //    termine falla. Las imágenes quedan listas de inmediato.
+        if ($esVideo) {
+            $this->esperarProcesado($creationId, $token, $version);
+        }
+
+        // 3) Publicar contenedor.
         $publishResp = $this->http()->asForm()->post(
             "https://graph.facebook.com/{$version}/{$igId}/media_publish",
             [
@@ -59,5 +82,45 @@ class InstagramPublisher extends AbstractPublisher
             'id'  => $mediaId,
             'url' => $mediaId ? "https://www.instagram.com/p/{$mediaId}/" : null,
         ];
+    }
+
+    /**
+     * Sondea el contenedor hasta que Meta termine de procesar el video.
+     */
+    private function esperarProcesado(string $creationId, string $token, string $version): void
+    {
+        $limite = time() + self::ESPERA_MAXIMA_SEGUNDOS;
+
+        while (time() < $limite) {
+            $this->dormir(self::INTERVALO_SONDEO_SEGUNDOS);
+
+            $estado = $this->http()->get("https://graph.facebook.com/{$version}/{$creationId}", [
+                'fields'       => 'status_code,status',
+                'access_token' => $token,
+            ])->throw()->json();
+
+            $codigo = $estado['status_code'] ?? '';
+
+            if ($codigo === 'FINISHED') {
+                return;
+            }
+
+            if (in_array($codigo, ['ERROR', 'EXPIRED'], true)) {
+                throw new \RuntimeException(
+                    'Instagram no pudo procesar el video: ' . ($estado['status'] ?? $codigo)
+                );
+            }
+        }
+
+        throw new \RuntimeException(
+            'Instagram seguía procesando el video después de '
+            . self::ESPERA_MAXIMA_SEGUNDOS . ' segundos. Prueba con un archivo más ligero.'
+        );
+    }
+
+    /** Aislado para poder anularlo en pruebas. */
+    protected function dormir(int $segundos): void
+    {
+        sleep($segundos);
     }
 }

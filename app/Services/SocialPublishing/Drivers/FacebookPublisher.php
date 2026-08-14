@@ -30,6 +30,24 @@ class FacebookPublisher extends AbstractPublisher
             ];
         }
 
+        // Video: endpoint distinto y parámetros distintos. Mandarlo por /photos
+        // devuelve 400 "Invalid parameter" (subcode 1366046), que no menciona
+        // el video por ningún lado.
+        if ($this->primerAdjuntoEsVideo($target)) {
+            $resp = $this->http()->asForm()->post("https://graph.facebook.com/{$version}/{$pageId}/videos", [
+                'file_url'     => $media[0],
+                'description'  => $post->body,
+                'access_token' => $token,
+            ])->throw()->json();
+
+            $videoId = $resp['id'] ?? null;
+
+            return [
+                'id'  => $videoId,
+                'url' => $videoId ? "https://facebook.com/{$videoId}" : null,
+            ];
+        }
+
         // Con foto (single image - flujo simple). Para múltiples imágenes habría que subir cada una
         // como unpublished y luego attached_media en /feed.
         $resp = $this->http()->asForm()->post("https://graph.facebook.com/{$version}/{$pageId}/photos", [

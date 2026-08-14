@@ -57,6 +57,30 @@ abstract class AbstractPublisher implements Publisher
         })->filter()->values()->all();
     }
 
+    /**
+     * Si el primer adjunto es video. Solo se publica el primero.
+     *
+     * Importa porque Meta usa endpoints y parámetros distintos para foto y
+     * video: mandar un .mp4 por la vía de imagen falla con errores que no
+     * mencionan el video (400 subcode 1366046 en Pages, 500 "reduce the amount
+     * of data" en Instagram).
+     */
+    protected function primerAdjuntoEsVideo(SocialPostTarget $target): bool
+    {
+        $primero = ($target->post->media ?? [])[0] ?? null;
+        if ($primero === null) {
+            return false;
+        }
+
+        if (is_array($primero) && str_starts_with((string) ($primero['mime'] ?? ''), 'video/')) {
+            return true;
+        }
+
+        $path = is_array($primero) ? (string) ($primero['path'] ?? '') : (string) $primero;
+
+        return (bool) preg_match('/\.(mp4|mov|m4v|webm)$/i', $path);
+    }
+
     protected function http()
     {
         return Http::acceptJson()->timeout(60);
