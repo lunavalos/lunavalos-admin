@@ -621,6 +621,37 @@ Las políticas y la descripción del servicio van en `lunavalos.com`, que es lo
 correcto: los revisores verifican **al negocio**. Pero hay un segundo grupo de
 URLs que apunta a donde corre la app, y ahí es donde se cometen los errores.
 
+## E.0 — Estado de la app de Meta al 2026-08-14
+
+Auditado y configurado en el panel:
+
+| Punto | Estado |
+|---|---|
+| Business verification | ✅ Verified |
+| **Access verification (Tech Provider)** | ✅ **Verified** — se acabó el plazo del 10/12/2026 |
+| Basic settings (dominios, URLs, dirección fiscal, ícono, categoría) | ✅ Completo |
+| Callback URL del webhook | ✅ `https://admin.lunavalos.com/whatsapp/webhook` |
+| App Review | ❌ **Not submitted** (cola ya depurada, ver abajo) |
+| Publish | ❌ Unpublished — mientras tanto Meta **solo entrega webhooks de prueba** |
+
+Cola de App Review, alineada con `SocialAuthController::scopesFor()`:
+
+```
+whatsapp_business_messaging, whatsapp_business_management,
+instagram_basic, instagram_content_publish,
+pages_manage_posts, pages_show_list, pages_read_engagement,
+business_management, public_profile
+```
+
+> **Instagram va por Facebook Login.** Meta ofrece dos familias y no son
+> intercambiables: `instagram_business_*` pertenece a *API setup with Instagram
+> login* (otro flujo de OAuth) e `instagram_basic` / `instagram_content_publish`
+> a *API setup with Facebook login*, que es la que usa nuestro código. La app
+> estaba pidiendo la primera. Ya se corrigió.
+
+Falta en el panel: llenar *Provide testing instructions* (ver E.3) y enviar el
+App Review.
+
 ## E.1 — URLs a registrar en los paneles
 
 | Campo | Valor |

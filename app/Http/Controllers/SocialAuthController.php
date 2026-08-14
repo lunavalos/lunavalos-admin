@@ -172,18 +172,35 @@ class SocialAuthController extends Controller
     // Scopes y parámetros extra por provider
     // ---------------------------------------------------------------------
 
+    /**
+     * Los scopes de Meta deben coincidir exactamente con los permisos que la
+     * app tiene en App Review; pedir uno no aprobado hace que el diálogo lo
+     * ignore o falle. Cola de App Review al 2026-08-14:
+     *
+     *   public_profile, pages_show_list, pages_read_engagement,
+     *   pages_manage_posts, business_management,
+     *   instagram_basic, instagram_content_publish,
+     *   whatsapp_business_messaging, whatsapp_business_management
+     *
+     * Instagram va por Facebook Login ("API setup with Facebook login"), que es
+     * la familia `instagram_basic` / `instagram_content_publish`. NO la de
+     * `instagram_business_*`, que corresponde a Instagram Login y usa otro
+     * flujo de OAuth.
+     *
+     * `email` se quitó: nunca guardamos el correo del usuario que autoriza
+     * —guardamos páginas y cuentas IG— y no está en la solicitud de review.
+     */
     private function scopesFor(string $provider): array
     {
         return match ($provider) {
             'facebook' => [
-                'email',
                 'public_profile',
                 'pages_show_list',
                 'pages_read_engagement',
                 'pages_manage_posts',
+                'business_management',
             ],
             'instagram' => [
-                'email',
                 'public_profile',
                 'pages_show_list',
                 'pages_read_engagement',
