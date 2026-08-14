@@ -21,6 +21,14 @@ class EnforceTwoFactorActivation
 
         $user = $request->user();
 
+        // La cuenta de revisión de plataformas queda exenta: un revisor externo
+        // (Meta App Review, LinkedIn, TikTok) no puede configurar 2FA con un
+        // autenticador nuestro, y sin esta excepción entraría y solo vería la
+        // pantalla de perfil pidiéndole activarlo. Ver config/roles.php.
+        if ($user && $user->hasRole(config('roles.reviewer', 'Revisor de Plataforma'))) {
+            return $next($request);
+        }
+
         // Si el usuario está autenticado, es Cliente y NO ha activado el 2FA
         if ($user && $user->hasRole('Cliente') && !$user->hasTwoFactorEnabled()) {
             

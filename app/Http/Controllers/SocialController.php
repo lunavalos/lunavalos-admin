@@ -14,10 +14,29 @@ use Inertia\Inertia;
 
 class SocialController extends Controller
 {
+    /**
+     * Un usuario amarrado a un cliente (`users.client_id`) solo ve ese cliente.
+     * Aplica a los usuarios del portal y a la cuenta que se entrega a los
+     * revisores de plataforma, que entra al admin real: sin esto veía la lista
+     * completa de clientes con sus publicaciones programadas, y podía publicar
+     * en las páginas de un cliente que no le corresponde.
+     *
+     * Mismo criterio que `RecurringClientController`.
+     */
+    private function autorizarCliente(Client $client): void
+    {
+        $propio = request()->user()?->client_id;
+
+        abort_if($propio !== null && $propio !== $client->id, 403, 'Acceso denegado.');
+    }
+
     public function index()
     {
+        $propio = request()->user()?->client_id;
+
         $clients = Client::query()
             ->whereHas('socialAccounts')
+            ->when($propio, fn ($q) => $q->whereKey($propio))
             ->with(['socialAccounts:id,client_id,provider,name,status,avatar_url'])
             ->withCount([
                 'socialPosts as scheduled_count' => fn ($q) => $q->where('status', SocialPost::STATUS_SCHEDULED),
@@ -28,12 +47,17 @@ class SocialController extends Controller
 
         return Inertia::render('Social/Dashboard', [
             'clients' => $clients,
-            'allClients' => Client::orderBy('business_name')->get(['id', 'business_name']),
+            'allClients' => Client::query()
+                ->when($propio, fn ($q) => $q->whereKey($propio))
+                ->orderBy('business_name')
+                ->get(['id', 'business_name']),
         ]);
     }
 
     public function show(Client $client, Request $request)
     {
+        $this->autorizarCliente($client);
+
         $month = $request->input('month', now()->format('Y-m'));
         $start = Carbon::parse($month . '-01')->startOfMonth();
         $end   = $start->copy()->endOfMonth();
@@ -56,6 +80,8 @@ class SocialController extends Controller
 
     public function createPost(Client $client)
     {
+        $this->autorizarCliente($client);
+
         $accounts = $client->socialAccounts()->where('status', 'active')->get();
         return Inertia::render('Social/PostComposer', [
             'client'   => $client->only(['id', 'business_name']),
@@ -66,6 +92,8 @@ class SocialController extends Controller
 
     public function editPost(Client $client, SocialPost $post)
     {
+        $this->autorizarCliente($client);
+
         abort_if($post->client_id !== $client->id, 404);
         $post->load('targets');
         return Inertia::render('Social/PostComposer', [
@@ -77,6 +105,8 @@ class SocialController extends Controller
 
     public function storePost(Client $client, Request $request)
     {
+        $this->autorizarCliente($client);
+
         $data = $this->validatePost($request);
 
         $post = DB::transaction(function () use ($data, $client, $request) {
@@ -118,6 +148,8 @@ class SocialController extends Controller
 
     public function updatePost(Client $client, SocialPost $post, Request $request)
     {
+        $this->autorizarCliente($client);
+
         abort_if($post->client_id !== $client->id, 404);
         abort_if(in_array($post->status, [SocialPost::STATUS_PUBLISHED, SocialPost::STATUS_PUBLISHING], true),
             422, 'No se puede editar un post ya publicado o en publicación.');
@@ -158,6 +190,8 @@ class SocialController extends Controller
 
     public function destroyPost(Client $client, SocialPost $post)
     {
+        $this->autorizarCliente($client);
+
         abort_if($post->client_id !== $client->id, 404);
         abort_if($post->status === SocialPost::STATUS_PUBLISHED, 422, 'No se puede eliminar un post publicado.');
         $post->delete();
@@ -166,6 +200,8 @@ class SocialController extends Controller
 
     public function publishNow(Client $client, SocialPost $post)
     {
+        $this->autorizarCliente($client);
+
         abort_if($post->client_id !== $client->id, 404);
         $post->update(['status' => SocialPost::STATUS_PUBLISHING]);
         PublishSocialPostJob::dispatch($post->id);

@@ -30,6 +30,19 @@ return [
     'client' => env('ROLE_CLIENT', 'Cliente'),
 
     /**
+     * Cuenta de revisión de plataformas (Meta App Review y equivalentes).
+     *
+     * Existe porque `EnforceTwoFactorActivation` manda a `profile.edit` a
+     * cualquier usuario de staff sin 2FA: un revisor externo entraría y solo
+     * vería una pantalla en español pidiéndole activar 2FA, sin llegar nunca
+     * a la app. Este rol queda exento de esa obligación.
+     *
+     * Se asigna únicamente a la cuenta demo que se entrega a la plataforma, y
+     * nunca debe usarse para personal interno.
+     */
+    'reviewer' => env('ROLE_REVIEWER', 'Revisor de Plataforma'),
+
+    /**
      * Internal staff roles eligible to be assigned to tickets and
      * other internal workflows. Order is not significant.
      */

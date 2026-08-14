@@ -46,6 +46,7 @@ class SocialAuthController extends Controller
     public function redirect(Request $request, string $provider, Client $client)
     {
         abort_unless(isset(self::DRIVERS[$provider]), 404);
+        $this->autorizarCliente($request, $client->id);
 
         // Guardamos client_id en sesión para recuperarlo en el callback.
         $request->session()->put('social_oauth.client_id', $client->id);
@@ -159,9 +160,21 @@ class SocialAuthController extends Controller
         return redirect()->route('social.clients.show', $client->id)->with('success', $msg);
     }
 
-    public function disconnect(SocialAccount $account)
+    /**
+     * Un usuario amarrado a un cliente (`users.client_id`) no puede conectar ni
+     * desconectar cuentas de otro. Mismo criterio que SocialController.
+     */
+    private function autorizarCliente(Request $request, int $clientId): void
+    {
+        $propio = $request->user()?->client_id;
+
+        abort_if($propio !== null && $propio !== $clientId, 403, 'Acceso denegado.');
+    }
+
+    public function disconnect(Request $request, SocialAccount $account)
     {
         $clientId = $account->client_id;
+        $this->autorizarCliente($request, $clientId);
         $account->delete();
 
         return redirect()->route('social.clients.show', $clientId)
