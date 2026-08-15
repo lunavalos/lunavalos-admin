@@ -178,6 +178,9 @@ Route::middleware('auth')->group(function () {
     // OAuth Social — conectar/desconectar cuentas
     Route::get('social/oauth/{provider}/{client}/redirect',            [\App\Http\Controllers\SocialAuthController::class, 'redirect'])->name('social.oauth.redirect');
     Route::get('social/oauth/{provider}/callback',                     [\App\Http\Controllers\SocialAuthController::class, 'callback'])->name('social.oauth.callback');
+    // Elegir qué páginas/cuentas conectar cuando el token alcanza varias.
+    Route::get('social/clients/{client}/conexiones/elegir',            [\App\Http\Controllers\SocialAuthController::class, 'selectAccounts'])->name('social.oauth.select');
+    Route::post('social/clients/{client}/conexiones/elegir',           [\App\Http\Controllers\SocialAuthController::class, 'storeSelection'])->name('social.oauth.select.store');
     Route::delete('social/accounts/{account}',                         [\App\Http\Controllers\SocialAuthController::class, 'disconnect'])->name('social.accounts.disconnect');
 
     // Tickets

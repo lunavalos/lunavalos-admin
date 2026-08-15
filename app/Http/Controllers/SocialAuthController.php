@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\SocialAccount;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Inertia\Inertia;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
 
@@ -149,6 +152,13 @@ class SocialAuthController extends Controller
                 'tiktok'    => $this->handleTikTok($client, $socialUser, $request),
                 'youtube'   => $this->handleYouTube($client, $socialUser, $request),
             };
+
+            // Facebook/Instagram pueden pedir que el usuario elija qué activos
+            // conectar antes de guardar nada.
+            if ($saved instanceof RedirectResponse) {
+                return $saved;
+            }
+
             Log::info('[oauth-debug] callback:accounts-saved', [
                 'provider' => $provider,
                 'client_id' => $client->id,
@@ -266,6 +276,165 @@ class SocialAuthController extends Controller
         };
     }
 
+    // ---------------------------------------------------------------------
+    // Selección de activos
+    // ---------------------------------------------------------------------
+
+    /** Clave de sesión donde viajan los candidatos entre el callback y la selección. */
+    private const SESION_PENDIENTES = 'social_oauth.pendientes';
+
+    /**
+     * Decide si guardar directo o pedirle al usuario que elija.
+     *
+     * Una misma cuenta de Facebook suele administrar páginas de VARIOS
+     * clientes de la agencia. Guardar todo lo que alcanza el token mete
+     * páginas ajenas en el cliente equivocado, y como el índice único es
+     * (provider, provider_user_id), reasignarlas se las quita al cliente que
+     * ya las tenía. Por eso, en cuanto hay más de un candidato —o el único
+     * candidato pertenece hoy a otro cliente— se pregunta.
+     */
+    private function resolverCandidatos(Client $client, string $provider, array $candidatos, Request $request): array|RedirectResponse
+    {
+        if (empty($candidatos)) {
+            return [];
+        }
+
+        $duenos = $this->duenosActuales($candidatos);
+
+        $requiereEleccion = count($candidatos) > 1
+            || collect($duenos)->contains(fn ($dueno) => $dueno !== null && $dueno['client_id'] !== $client->id);
+
+        if (!$requiereEleccion) {
+            return [$this->guardarCandidato($client, $candidatos[0], $request)];
+        }
+
+        // Los candidatos traen page tokens: se cifran antes de tocar la sesión,
+        // que según el driver puede acabar en disco en texto plano.
+        $request->session()->put(self::SESION_PENDIENTES, Crypt::encrypt([
+            'client_id'  => $client->id,
+            'provider'   => $provider,
+            'candidatos' => $candidatos,
+        ]));
+
+        return redirect()->route('social.oauth.select', $client->id);
+    }
+
+    /**
+     * Cliente al que pertenece hoy cada candidato, indexado por provider_user_id.
+     */
+    private function duenosActuales(array $candidatos): array
+    {
+        $cuentas = SocialAccount::query()
+            ->whereIn('provider_user_id', array_column($candidatos, 'provider_user_id'))
+            ->whereIn('provider', array_unique(array_column($candidatos, 'provider')))
+            ->with('client:id,business_name')
+            ->get();
+
+        $duenos = [];
+        foreach ($candidatos as $candidato) {
+            $cuenta = $cuentas->first(fn ($c) => $c->provider === $candidato['provider']
+                && $c->provider_user_id === $candidato['provider_user_id']);
+
+            $duenos[$candidato['provider_user_id']] = $cuenta
+                ? ['client_id' => $cuenta->client_id, 'client_name' => $cuenta->client?->business_name]
+                : null;
+        }
+
+        return $duenos;
+    }
+
+    /** Pantalla donde el usuario elige qué activos conectar a este cliente. */
+    public function selectAccounts(Request $request, Client $client)
+    {
+        $this->autorizarCliente($request, $client->id);
+
+        $pendiente = $this->pendientes($request, $client);
+        $duenos    = $this->duenosActuales($pendiente['candidatos']);
+
+        return Inertia::render('Social/ConnectSelect', [
+            'client'   => $client->only(['id', 'business_name']),
+            'provider' => $pendiente['provider'],
+            // Sin tokens: esto viaja al navegador.
+            'accounts' => collect($pendiente['candidatos'])->map(fn ($c) => [
+                'provider_user_id' => $c['provider_user_id'],
+                'name'             => $c['name'],
+                'handle'           => $c['handle'],
+                'avatar_url'       => $c['avatar_url'],
+                'owner'            => $duenos[$c['provider_user_id']] ?? null,
+            ])->values(),
+        ]);
+    }
+
+    /** Guarda únicamente los activos marcados. */
+    public function storeSelection(Request $request, Client $client)
+    {
+        $this->autorizarCliente($request, $client->id);
+
+        $datos = $request->validate([
+            'provider_user_ids'   => 'required|array|min:1',
+            'provider_user_ids.*' => 'string',
+        ]);
+
+        $pendiente = $this->pendientes($request, $client);
+
+        $elegidos = collect($pendiente['candidatos'])
+            ->whereIn('provider_user_id', $datos['provider_user_ids'])
+            ->values();
+
+        if ($elegidos->isEmpty()) {
+            return back()->withErrors(['seleccion' => 'No se reconoció ninguna de las cuentas seleccionadas.']);
+        }
+
+        $ids = $elegidos->map(fn ($c) => $this->guardarCandidato($client, $c, $request))->all();
+
+        $request->session()->forget(self::SESION_PENDIENTES);
+
+        $etiqueta = $pendiente['provider'];
+        $msg = count($ids) === 1
+            ? "Cuenta de {$etiqueta} conectada."
+            : count($ids) . " cuentas de {$etiqueta} conectadas.";
+
+        return redirect()->route('social.clients.show', $client->id)->with('success', $msg);
+    }
+
+    /**
+     * Recupera y descifra los candidatos, verificando que sean de este cliente.
+     */
+    private function pendientes(Request $request, Client $client): array
+    {
+        $crudo = $request->session()->get(self::SESION_PENDIENTES);
+        abort_unless($crudo, 410, 'La selección expiró. Vuelve a conectar la red.');
+
+        try {
+            $pendiente = Crypt::decrypt($crudo);
+        } catch (\Throwable $e) {
+            report($e);
+            abort(410, 'La selección expiró. Vuelve a conectar la red.');
+        }
+
+        abort_unless(($pendiente['client_id'] ?? null) === $client->id, 403, 'Acceso denegado.');
+
+        return $pendiente;
+    }
+
+    private function guardarCandidato(Client $client, array $candidato, Request $request): int
+    {
+        return $this->upsertAccount(
+            client:         $client,
+            provider:       $candidato['provider'],
+            providerUserId: $candidato['provider_user_id'],
+            name:           $candidato['name'],
+            handle:         $candidato['handle'],
+            avatarUrl:      $candidato['avatar_url'],
+            accessToken:    $candidato['access_token'],
+            refreshToken:   null,
+            expiresAt:      null,
+            scopes:         $this->scopesFor($candidato['provider']),
+            meta:           $candidato['meta'],
+            connectedBy:    $request->user()?->id,
+        );
+    }
+
     /**
      * Callback propio de CADA provider lógico, no el del driver de Socialite.
      *
@@ -320,7 +489,7 @@ class SocialAuthController extends Controller
      * cada Page como su propia fila usando el page_access_token (no expira si
      * el user token es long-lived).
      */
-    private function handleFacebook(Client $client, SocialiteUser $u, Request $request): array
+    private function handleFacebook(Client $client, SocialiteUser $u, Request $request): array|RedirectResponse
     {
         $userToken = $this->exchangeFbLongLivedToken($u->token) ?? $u->token;
         $pages     = $this->fetchFacebookPages($userToken);
@@ -336,7 +505,7 @@ class SocialAuthController extends Controller
             return [];
         }
 
-        $ids = [];
+        $candidatos = [];
         foreach ($pages as $page) {
             $pageId    = (string) ($page['id'] ?? '');
             $pageToken = $page['access_token'] ?? null;
@@ -356,22 +525,18 @@ class SocialAuthController extends Controller
                 $meta['ig_business_id'] = $page['instagram_business_account']['id'];
             }
 
-            $ids[] = $this->upsertAccount(
-                client:         $client,
-                provider:       'facebook',
-                providerUserId: $pageId,
-                name:           $page['name'] ?? 'Facebook Page',
-                handle:         $page['username'] ?? null,
-                avatarUrl:      null,
-                accessToken:    $pageToken,           // page tokens son los útiles
-                refreshToken:   null,
-                expiresAt:      null,                 // page tokens no expiran (con long-lived user token)
-                scopes:         $this->scopesFor('facebook'),
-                meta:           $meta,
-                connectedBy:    $request->user()?->id,
-            );
+            $candidatos[] = [
+                'provider'         => 'facebook',
+                'provider_user_id' => $pageId,
+                'name'             => $page['name'] ?? 'Facebook Page',
+                'handle'           => $page['username'] ?? null,
+                'avatar_url'       => null,
+                'access_token'     => $pageToken,     // page tokens son los útiles
+                'meta'             => $meta,
+            ];
         }
-        return $ids;
+
+        return $this->resolverCandidatos($client, 'facebook', $candidatos, $request);
     }
 
     /**
@@ -379,7 +544,7 @@ class SocialAuthController extends Controller
      * (o actualizar) una fila con provider='instagram' y provider_user_id =
      * ig_business_id. NO se guarda la Page de Facebook ni el usuario personal.
      */
-    private function handleInstagram(Client $client, SocialiteUser $u, Request $request): array
+    private function handleInstagram(Client $client, SocialiteUser $u, Request $request): array|RedirectResponse
     {
         $userToken = $this->exchangeFbLongLivedToken($u->token) ?? $u->token;
         $pages     = $this->fetchFacebookPages($userToken);
@@ -391,7 +556,7 @@ class SocialAuthController extends Controller
             'used_user_token' => $this->maskSecret($userToken),
         ]);
 
-        $ids = [];
+        $candidatos = [];
         foreach ($pages as $page) {
             $igId = $page['instagram_business_account']['id'] ?? null;
             if (!$igId) {
@@ -420,22 +585,18 @@ class SocialAuthController extends Controller
                 'ig_username'    => $igProfile['username'] ?? null,
             ];
 
-            $ids[] = $this->upsertAccount(
-                client:         $client,
-                provider:       'instagram',
-                providerUserId: (string) $igId,
-                name:           $igProfile['name'] ?? ($page['name'] ?? 'Instagram Business'),
-                handle:         $igProfile['username'] ?? null,
-                avatarUrl:      $igProfile['profile_picture_url'] ?? null,
-                accessToken:    $pageToken,
-                refreshToken:   null,
-                expiresAt:      null,
-                scopes:         $this->scopesFor('instagram'),
-                meta:           $meta,
-                connectedBy:    $request->user()?->id,
-            );
+            $candidatos[] = [
+                'provider'         => 'instagram',
+                'provider_user_id' => (string) $igId,
+                'name'             => $igProfile['name'] ?? ($page['name'] ?? 'Instagram Business'),
+                'handle'           => $igProfile['username'] ?? null,
+                'avatar_url'       => $igProfile['profile_picture_url'] ?? null,
+                'access_token'     => $pageToken,
+                'meta'             => $meta,
+            ];
         }
-        return $ids;
+
+        return $this->resolverCandidatos($client, 'instagram', $candidatos, $request);
     }
 
     /**
