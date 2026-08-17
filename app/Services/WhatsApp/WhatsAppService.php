@@ -42,6 +42,51 @@ class WhatsAppService
     }
 
     /**
+     * Envía una plantilla aprobada. Es lo único que Meta entrega fuera de la
+     * ventana de 24 h — el texto libre ahí se rechaza con 131047.
+     *
+     * Los parámetros son posicionales y rellenan los {{1}}, {{2}}… del cuerpo,
+     * en orden. Devuelve el wamid, o null si el envío falló.
+     *
+     * @param list<string> $parametros
+     */
+    public function sendTemplate(
+        string $to,
+        string $nombre,
+        string $idioma,
+        array $parametros = [],
+        ?string $phoneNumberId = null,
+        ?string $token = null,
+    ): ?string {
+        $plantilla = [
+            'name'     => $nombre,
+            'language' => ['code' => $idioma],
+        ];
+
+        // Meta rechaza un `components` vacío: si la plantilla no tiene
+        // variables, la clave no debe ir.
+        if ($parametros !== []) {
+            $plantilla['components'] = [[
+                'type'       => 'body',
+                'parameters' => array_map(
+                    fn ($valor) => ['type' => 'text', 'text' => (string) $valor],
+                    array_values($parametros),
+                ),
+            ]];
+        }
+
+        $respuesta = $this->call([
+            'messaging_product' => 'whatsapp',
+            'recipient_type'    => 'individual',
+            'to'                => $to,
+            'type'              => 'template',
+            'template'          => $plantilla,
+        ], 'send_template', $phoneNumberId, $token);
+
+        return $respuesta['messages'][0]['id'] ?? null;
+    }
+
+    /**
      * Marca un mensaje entrante como leído (doble check azul).
      */
     public function markAsRead(

@@ -3,6 +3,9 @@
 > Escrito el 2026-08-13 tras auditar el código, la instancia de n8n y el panel de Meta.
 > **Revisado el 2026-08-16**: Fases 1 y 4 hechas, Tech Provider aprobado, y se
 > incorpora la arquitectura del módulo de Conversaciones (§3.2).
+> **Revisado el 2026-08-17**: Fases 3 y 5 hechas. La configuración de Embedded
+> Signup se creó en el panel y App Review resultó estar **sin enviar**, no en
+> revisión.
 > Sustituye al modelo descrito en `docs/n8n/README.md`, que quedó obsoleto.
 
 ## 1. Qué cambia y por qué
@@ -54,7 +57,9 @@ Vale la pena dejarlo escrito, porque el repo documenta una arquitectura que
 | Campo `messages` suscrito | ✅ (`calls` también) |
 | App Publish Status | ❌ **Unpublished** |
 | Access Verification (Tech Provider) | ✅ **Verified** (aprobado el 2026-08-16) |
-| App Review | ❌ Sin enviar |
+| App Review | ❌ **Not submitted** (verificado en el panel el 2026-08-17) |
+| Configuración de Embedded Signup | ✅ Creada el 2026-08-17 → `935973882857232` |
+| Campo `message_template_status_update` | ✅ Suscrito |
 | `whatsapp_business_messaging` | ⚠️ Standard Access ("Ready for testing", 46 llamadas) |
 | `whatsapp_business_management` | ⚠️ Standard Access ("Ready for testing", 60 llamadas) |
 
@@ -447,8 +452,21 @@ que tiene reloj, y no depende de una línea de código.
   Meta solo entrega los webhooks de prueba del dashboard, no tráfico real.
   No requiere video ni App Review — es un switch.
 - ❌ App Review con **Advanced Access** en los dos permisos de WhatsApp.
-  Requiere screencast, y el screencast requiere Embedded Signup funcionando
-  (Fase 3). No se puede adelantar.
+  Al 2026-08-17 la solicitud está en **Not submitted**: los 9 permisos
+  (`whatsapp_business_messaging`, `whatsapp_business_management`,
+  `instagram_content_publish`, `instagram_basic`, `pages_manage_posts`,
+  `pages_show_list`, `business_management`, `pages_read_engagement`,
+  `public_profile`) están en el carrito de *New requests*, sin enviar.
+  El chip "In review" que aparece en la página de onboarding es engañoso.
+  Meta pide **dos videos distintos**:
+
+  | Permiso | Video |
+  |---|---|
+  | `whatsapp_business_messaging` | La app enviando un mensaje, con las dos pantallas: la app enviando y WhatsApp recibiendo el mismo mensaje |
+  | `whatsapp_business_management` | Aparte: creando una plantilla + llamadas de prueba a la API |
+
+  Lo que exige no es el Embedded Signup, sino esas dos demostraciones. El
+  segundo video es el que obligó a adelantar la Fase 5.
 
 > **Atajo para el primer cliente (Macadam).** Standard Access ya permite operar
 > WABAs que el propio negocio posee. Dando de alta el número del cliente bajo
@@ -521,11 +539,24 @@ Pendiente menor:
   falla, se deja de usar el token igual.
 - 8 tests en `WhatsAppOnboardingTest`.
 
-Pendiente de configuración (no de código):
-- Crear el flujo de Embedded Signup en el panel de Meta y poner su
-  `configuration_id` en `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`. La pantalla avisa
-  si falta.
-- Añadir `WHATSAPP_APP_ID` en producción.
+Configuración — ✅ hecha el 2026-08-17:
+- La configuración de Embedded Signup **no existía**: en *Facebook Login for
+  Business → Configurations* solo estaba `Publishing - Pages and IG`. Por eso
+  no se encontraba el `config_id`; no era que estuviera escondido.
+- Creada desde la plantilla *WhatsApp Embedded Signup Configuration With 60
+  Expiration Token* → `configuration_id` **935973882857232**. Concede
+  `whatsapp_business_messaging` + `whatsapp_business_management` sobre el
+  activo *WhatsApp accounts*, con las tareas `manage`, `manage_templates` y
+  `manage_phone_assets`.
+- **El token del cliente caduca a los 60 días.** El canje ahora guarda
+  `expires_in` en `token_expires_at`; falta el aviso antes de que muera
+  (ver §11, revocación silenciosa).
+
+Pendiente de configuración:
+- Añadir `WHATSAPP_APP_ID` y `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` en producción.
+- Mientras la app siga `Unpublished`, Embedded Signup solo lo puede completar
+  alguien con rol en la app: en Standard Access, Meta no pide permisos a
+  terceros. Publicar la app es lo que abre el flujo a clientes reales.
 
 **Fase 4 — Salida directa a Graph — ✅ hecha el 2026-08-16**
 - `WhatsAppService` contra `graph.facebook.com`, con número y token opcionales
@@ -536,10 +567,34 @@ Pendiente de configuración (no de código):
 - 5 tests nuevos: URL y Bearer correctos, `status: read`, número y token
   alternos, `null` sin lanzar ante error 131047, y no llamar a Meta sin config.
 
-**Fase 5 — Ventana de 24h y plantillas**
-- Procesar `value['statuses']` para alimentar `delivery_status`.
-- Bloquear texto libre y ofrecer plantilla cuando `last_inbound_at` > 24 h.
-- **Mostrar el fallo de entrega en la UI.** Es lo que hoy falta.
+**Fase 5 — Ventana de 24h y plantillas — ✅ hecha el 2026-08-17**
+
+Dejó de ser opcional: Meta exige un video **creando una plantilla** para
+aprobar `whatsapp_business_management`, y sin UI de plantillas ese video no se
+puede grabar. Es prerrequisito de App Review, no un extra.
+
+- Migración y modelo `WhatsAppTemplate`, espejo local de las plantillas de la
+  WABA (`meta_id`, estado, componentes, número de variables del cuerpo).
+- `WhatsAppTemplateService`: crear, sincronizar y borrar contra
+  `/{waba_id}/message_templates`. Va aparte de `WhatsAppService` porque usa
+  otro permiso (`whatsapp_business_management`) y otro endpoint. Aquí sí se
+  lanzan excepciones: crear una plantilla es una acción explícita y tiene que
+  fallar a la vista, al revés que un envío.
+- `WhatsAppService::sendTemplate()` con parámetros posicionales.
+- `WhatsAppTemplateController` + `WhatsApp/Templates.vue`: listar, crear con
+  conteo de `{{n}}` en vivo, sincronizar y borrar. Acotado por `client_id`.
+- En Conversaciones, con la ventana cerrada la UI ofrece las plantillas
+  **aprobadas** de esa WABA, con vista previa del texto final antes de enviar.
+  El mensaje se guarda con el texto ya sustituido: en el hilo tiene que leerse
+  lo que recibió el contacto, no `pedido_listo`.
+- Webhook `message_template_status_update` → estado y motivo de rechazo. El
+  campo ya estaba suscrito en Meta.
+- Permiso `Gestionar Plantillas WhatsApp` y entrada en el sidebar.
+- 12 tests en `WhatsAppTemplateTest`.
+
+Ya venía de la Fase 2, y se mantiene: `value['statuses']` alimentando
+`delivery_status`, el bloqueo del texto libre fuera de la ventana, y el fallo
+de entrega visible en la burbuja.
 
 **Fase 6 — Agente de IA y automatizaciones (n8n)**
 - Contrato de eventos Laravel → n8n, sin tokens de Meta de por medio.
@@ -562,8 +617,8 @@ WHATSAPP_PHONE_NUMBER_ID=1230737580126123
 WHATSAPP_BUSINESS_ACCOUNT_ID=2436841820155807
 WHATSAPP_TIMEOUT=10
 
-# Fase 3
-WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID=
+# Fase 3 — creada en el panel el 2026-08-17
+WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID=935973882857232
 ```
 
 > ⚠️ En producción la variable de versión está como `WHATSAPP_API_VERSION`, y

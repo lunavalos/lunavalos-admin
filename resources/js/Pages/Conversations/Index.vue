@@ -109,6 +109,53 @@ const estadoEntrega = {
 const ventanaCerrada = computed(
     () => props.conversation && !props.conversation.ventana_abierta
 );
+
+// --- Plantillas: la única salida con la ventana cerrada ---
+
+const plantillas = computed(() => props.conversation?.plantillas ?? []);
+const plantillaId = ref(null);
+const parametros = ref([]);
+const plantillaForm = useForm({ template_id: null, parametros: [] });
+
+const plantillaElegida = computed(
+    () => plantillas.value.find((p) => p.id === plantillaId.value) ?? null
+);
+
+// Cambiar de plantilla tiene que limpiar los valores: los de la anterior no
+// corresponden a los huecos de la nueva.
+watch(plantillaId, () => { parametros.value = []; });
+watch(() => props.conversation?.id, () => { plantillaId.value = null; parametros.value = []; });
+
+const vistaPrevia = computed(() => {
+    if (!plantillaElegida.value) return '';
+    return plantillaElegida.value.body.replace(
+        /\{\{\s*(\d+)\s*\}\}/g,
+        (coincidencia, n) => parametros.value[Number(n) - 1] || coincidencia
+    );
+});
+
+const plantillaListaParaEnviar = computed(() => {
+    if (!plantillaElegida.value) return false;
+    const faltan = plantillaElegida.value.body_variables;
+    for (let i = 0; i < faltan; i++) {
+        if (!parametros.value[i]?.trim()) return false;
+    }
+    return true;
+});
+
+const enviarPlantilla = () => {
+    if (!plantillaListaParaEnviar.value) return;
+    plantillaForm.template_id = plantillaId.value;
+    plantillaForm.parametros = parametros.value.slice(0, plantillaElegida.value.body_variables);
+    plantillaForm.post(route('conversations.replyTemplate', props.conversation.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            plantillaId.value = null;
+            parametros.value = [];
+            nextTick(bajarAlFinal);
+        },
+    });
+};
 </script>
 
 <template>
@@ -292,16 +339,60 @@ const ventanaCerrada = computed(
                             </div>
 
                             <footer class="border-t border-gray-200 dark:border-zinc-800 p-3">
-                                <div
-                                    v-if="ventanaCerrada"
-                                    class="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300"
-                                >
-                                    <ExclamationTriangleIcon class="h-4 w-4 shrink-0 mt-0.5" />
-                                    <span>
-                                        Pasaron más de 24 horas desde el último mensaje del contacto.
-                                        Meta no entrega texto libre fuera de esa ventana; hace falta
-                                        una plantilla aprobada.
-                                    </span>
+                                <div v-if="ventanaCerrada" class="space-y-3">
+                                    <div class="flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-900/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+                                        <ExclamationTriangleIcon class="h-4 w-4 shrink-0 mt-0.5" />
+                                        <span>
+                                            Pasaron más de 24 horas desde el último mensaje del contacto.
+                                            Meta no entrega texto libre fuera de esa ventana; hace falta
+                                            una plantilla aprobada.
+                                        </span>
+                                    </div>
+
+                                    <p v-if="!plantillas.length" class="text-xs text-gray-500">
+                                        No hay plantillas aprobadas para este número.
+                                        <Link :href="route('whatsapp.templates.index')" class="text-[#264ab3] hover:underline">
+                                            Crear una →
+                                        </Link>
+                                    </p>
+
+                                    <form v-else @submit.prevent="enviarPlantilla" class="space-y-2">
+                                        <select
+                                            v-model="plantillaId"
+                                            class="w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                        >
+                                            <option :value="null">Elige una plantilla…</option>
+                                            <option v-for="p in plantillas" :key="p.id" :value="p.id">
+                                                {{ p.name }} ({{ p.language }})
+                                            </option>
+                                        </select>
+
+                                        <template v-if="plantillaElegida">
+                                            <!-- Se ve el texto final antes de mandarlo: una plantilla
+                                                 mal rellenada llega igual al contacto. -->
+                                            <p class="rounded-md bg-gray-50 dark:bg-zinc-800 p-2 text-xs text-gray-700 dark:text-zinc-300 whitespace-pre-wrap">
+                                                {{ vistaPrevia }}
+                                            </p>
+
+                                            <input
+                                                v-for="n in plantillaElegida.body_variables"
+                                                :key="n"
+                                                v-model="parametros[n - 1]"
+                                                :placeholder="`Valor ${n}`"
+                                                class="w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                            />
+                                        </template>
+
+                                        <button
+                                            type="submit"
+                                            :disabled="!plantillaListaParaEnviar || plantillaForm.processing"
+                                            class="px-4 py-2 text-sm rounded-full bg-[#264ab3] text-white disabled:opacity-50"
+                                        >Enviar plantilla</button>
+
+                                        <p v-if="plantillaForm.errors.template_id" class="text-xs text-red-600">
+                                            {{ plantillaForm.errors.template_id }}
+                                        </p>
+                                    </form>
                                 </div>
 
                                 <form v-else @submit.prevent="responder" class="flex gap-2">

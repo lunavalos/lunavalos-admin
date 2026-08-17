@@ -189,12 +189,20 @@ Route::middleware('auth')->group(function () {
     Route::post('clients/{client}/whatsapp/conectar', [\App\Http\Controllers\WhatsAppConnectController::class, 'store'])->name('whatsapp.connect.store');
     Route::delete('clients/{client}/whatsapp/{account}', [\App\Http\Controllers\WhatsAppConnectController::class, 'destroy'])->name('whatsapp.connect.destroy');
 
+    // Plantillas de mensaje. Viven por WABA y usan whatsapp_business_management.
+    Route::get('whatsapp/plantillas',                          [\App\Http\Controllers\WhatsAppTemplateController::class, 'index'])->name('whatsapp.templates.index');
+    Route::post('whatsapp/plantillas/{account}',               [\App\Http\Controllers\WhatsAppTemplateController::class, 'store'])->name('whatsapp.templates.store');
+    Route::post('whatsapp/plantillas/{account}/sincronizar',   [\App\Http\Controllers\WhatsAppTemplateController::class, 'sync'])->name('whatsapp.templates.sync');
+    Route::delete('whatsapp/plantillas/{template}',            [\App\Http\Controllers\WhatsAppTemplateController::class, 'destroy'])->name('whatsapp.templates.destroy');
+
     // Conversaciones de WhatsApp. Módulo aparte de Tickets a propósito: una
     // conversación no se cierra, un ticket sí. El ticket se crea desde aquí
     // cuando de la conversación sale trabajo que hay que rastrear.
     Route::get('conversaciones',                    [\App\Http\Controllers\ConversationController::class, 'index'])->name('conversations.index');
     Route::get('conversaciones/{conversation}',     [\App\Http\Controllers\ConversationController::class, 'show'])->name('conversations.show');
     Route::post('conversaciones/{conversation}/responder', [\App\Http\Controllers\ConversationController::class, 'reply'])->name('conversations.reply');
+    // Con la ventana de 24 h cerrada, la plantilla es la única salida.
+    Route::post('conversaciones/{conversation}/plantilla',  [\App\Http\Controllers\ConversationController::class, 'replyTemplate'])->name('conversations.replyTemplate');
     Route::post('conversaciones/{conversation}/asignar',   [\App\Http\Controllers\ConversationController::class, 'assign'])->name('conversations.assign');
     Route::post('conversaciones/{conversation}/estado',    [\App\Http\Controllers\ConversationController::class, 'updateStatus'])->name('conversations.status');
     Route::post('conversaciones/{conversation}/ia',        [\App\Http\Controllers\ConversationController::class, 'toggleAi'])->name('conversations.toggleAi');

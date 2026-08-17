@@ -7,6 +7,7 @@ use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\WhatsAppAccount;
 use App\Models\WhatsAppNumber;
+use App\Models\WhatsAppTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -65,7 +66,16 @@ class WhatsAppWebhookController extends Controller
             }
 
             foreach ($entry['changes'] ?? [] as $change) {
-                $value  = $change['value'] ?? [];
+                $value = $change['value'] ?? [];
+
+                // Las plantillas cuelgan de la WABA, no de un número: este
+                // evento no trae metadata.phone_number_id y hay que atenderlo
+                // antes de exigirlo.
+                if (($change['field'] ?? null) === 'message_template_status_update') {
+                    $this->procesarEstadoDePlantilla($value, $account);
+                    continue;
+                }
+
                 $numero = $this->resolverNumero($value);
 
                 if (!$numero) {
@@ -180,6 +190,53 @@ class WhatsAppWebhookController extends Controller
         $mensaje->update([
             'delivery_status' => $estado,
             'delivery_error'  => $status['errors'][0]['title'] ?? null,
+        ]);
+    }
+
+    /**
+     * Meta revisa las plantillas por su cuenta y puede tardar horas. Este
+     * evento es la única forma de enterarse de que una pasó a APPROVED —o de
+     * que la rechazó y por qué— sin que nadie esté refrescando el panel.
+     *
+     * Se empareja por `message_template_id`, que es lo que guardamos como
+     * meta_id; el nombre y el idioma sirven de respaldo cuando la plantilla se
+     * creó desde el Business Manager del cliente y todavía no se ha
+     * sincronizado.
+     */
+    private function procesarEstadoDePlantilla(array $value, WhatsAppAccount $account): void
+    {
+        $estado = $value['event'] ?? null;
+
+        if (!$estado) {
+            return;
+        }
+
+        $plantilla = WhatsAppTemplate::query()
+            ->where('whatsapp_account_id', $account->id)
+            ->when(
+                !empty($value['message_template_id']),
+                fn ($q) => $q->where('meta_id', (string) $value['message_template_id']),
+                fn ($q) => $q
+                    ->where('name', $value['message_template_name'] ?? '')
+                    ->where('language', $value['message_template_language'] ?? ''),
+            )
+            ->first();
+
+        if (!$plantilla) {
+            Log::info('whatsapp: estado de una plantilla que no tenemos', [
+                'waba_id'  => $account->waba_id,
+                'plantilla' => $value['message_template_name'] ?? null,
+            ]);
+
+            return;
+        }
+
+        $plantilla->update([
+            'status' => $estado,
+            // `reason` llega como "NONE" cuando no hubo rechazo.
+            'rejected_reason' => ($value['reason'] ?? 'NONE') !== 'NONE'
+                ? $value['reason']
+                : null,
         ]);
     }
 

@@ -46,6 +46,11 @@ class WhatsAppAccount extends Model
         return $this->hasMany(WhatsAppNumber::class, 'whatsapp_account_id');
     }
 
+    public function templates(): HasMany
+    {
+        return $this->hasMany(WhatsAppTemplate::class, 'whatsapp_account_id');
+    }
+
     public function connectedBy()
     {
         return $this->belongsTo(User::class, 'connected_by');

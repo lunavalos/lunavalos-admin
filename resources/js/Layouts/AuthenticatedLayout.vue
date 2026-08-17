@@ -307,6 +307,27 @@ onMounted(() => {
                             </Link>
                         </li>
 
+                        <!-- Plantillas de WhatsApp: lo único que Meta entrega
+                             fuera de la ventana de 24 h. -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Gestionar Plantillas WhatsApp'))">
+                            <Link
+                                :href="route('whatsapp.templates.index')"
+                                :class="[
+                                    route().current('whatsapp.templates.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Plantillas WhatsApp' : ''"
+                            >
+                                <DocumentTextIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Plantillas WA
+                                </span>
+                            </Link>
+                        </li>
+
                         <!-- Recurring Clients Link (Admin / internal team) -->
                         <li v-if="($page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Ver Recurrentes'))) && (!$page.props.auth.user.is_client || $page.props.auth.user.client_id)">
                             <Link

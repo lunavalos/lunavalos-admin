@@ -33,7 +33,7 @@ class WhatsAppOnboardingService
      */
     public function conectar(Client $client, string $code, ?string $wabaIdSugerida = null): WhatsAppAccount
     {
-        $token = $this->canjearCode($code);
+        [$token, $expiraEn] = $this->canjearCode($code);
         $wabaId = $wabaIdSugerida ?: $this->resolverWabaId($token);
 
         $info = $this->infoDeWaba($wabaId, $token);
@@ -41,12 +41,13 @@ class WhatsAppOnboardingService
         $cuenta = WhatsAppAccount::updateOrCreate(
             ['waba_id' => $wabaId],
             [
-                'name'         => $info['name'] ?? $client->business_name,
-                'access_token' => $token,
-                'status'       => WhatsAppAccount::STATUS_ACTIVE,
-                'last_error'   => null,
-                'last_error_at' => null,
-                'connected_by' => auth()->id(),
+                'name'             => $info['name'] ?? $client->business_name,
+                'access_token'     => $token,
+                'token_expires_at' => $expiraEn,
+                'status'           => WhatsAppAccount::STATUS_ACTIVE,
+                'last_error'       => null,
+                'last_error_at'    => null,
+                'connected_by'     => auth()->id(),
             ],
         );
 
@@ -61,8 +62,16 @@ class WhatsAppOnboardingService
 
     /**
      * Canjea el code de corta vida por el token del negocio.
+     *
+     * La configuración de Embedded Signup que usamos emite tokens con 60 días
+     * de vida, así que Meta devuelve `expires_in`. Guardarlo es lo único que
+     * permite avisar antes de que el acceso muera en silencio; si algún día la
+     * configuración pasa a emitir tokens sin caducidad, `expires_in` no viene y
+     * la expiración queda en null, que es justamente lo que significa.
+     *
+     * @return array{0: string, 1: ?\Illuminate\Support\Carbon}
      */
-    private function canjearCode(string $code): string
+    private function canjearCode(string $code): array
     {
         $respuesta = $this->graph()->get('/oauth/access_token', [
             'client_id'     => config('services.whatsapp.app_id'),
@@ -76,7 +85,9 @@ class WhatsAppOnboardingService
             $this->reventar('no se pudo canjear el code', $respuesta->json('error', []));
         }
 
-        return $token;
+        $expiraEn = (int) $respuesta->json('expires_in', 0);
+
+        return [$token, $expiraEn > 0 ? now()->addSeconds($expiraEn) : null];
     }
 
     /**

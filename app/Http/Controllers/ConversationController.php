@@ -6,6 +6,7 @@ use App\Events\ConversationMessageSent;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\Ticket;
+use App\Models\WhatsAppTemplate;
 use App\Services\WhatsApp\WhatsAppService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -60,6 +61,9 @@ class ConversationController extends Controller
                 'assignee'       => $conversation->assignee?->only(['id', 'name']),
                 'numero'         => $conversation->number?->display_phone_number,
                 'tickets'        => $conversation->tickets()->get(['id', 'title', 'status']),
+                // Fuera de la ventana de 24 h es la única salida que hay, así
+                // que la UI necesita las plantillas para poder ofrecerlas.
+                'plantillas'     => $this->plantillasDisponibles($conversation),
                 'messages'       => $conversation->messages()
                     ->with('user:id,name')
                     ->orderBy('id')
@@ -77,6 +81,32 @@ class ConversationController extends Controller
                     ]),
             ],
         ]);
+    }
+
+    /**
+     * Solo las APPROVED de la WABA por la que va esta conversación. Ofrecer una
+     * PENDING sería ofrecer un envío que Meta va a rechazar.
+     */
+    private function plantillasDisponibles(Conversation $conversation): array
+    {
+        $cuenta = $conversation->number?->account;
+
+        if (!$cuenta) {
+            return [];
+        }
+
+        return $cuenta->templates()
+            ->where('status', WhatsAppTemplate::STATUS_APPROVED)
+            ->orderBy('name')
+            ->get()
+            ->map(fn (WhatsAppTemplate $p) => [
+                'id'             => $p->id,
+                'name'           => $p->name,
+                'language'       => $p->language,
+                'body'           => $p->cuerpo(),
+                'body_variables' => $p->body_variables,
+            ])
+            ->all();
     }
 
     private function bandeja(Request $request)
@@ -145,6 +175,74 @@ class ConversationController extends Controller
                 ? ConversationMessage::DELIVERY_SENT
                 : ConversationMessage::DELIVERY_FAILED,
             'delivery_error'  => $waMessageId ? null : 'Meta no aceptó el envío. Revisa el log.',
+        ]);
+
+        $conversation->registrarSaliente();
+
+        broadcast(new ConversationMessageSent($mensaje))->toOthers();
+
+        return back();
+    }
+
+    /**
+     * Responder con una plantilla aprobada.
+     *
+     * Es el camino que sí funciona con la ventana cerrada, y también sirve
+     * dentro de ella. El mensaje se guarda con el texto ya sustituido: en el
+     * hilo tiene que leerse lo que recibió el contacto, no `pedido_listo`.
+     */
+    public function replyTemplate(Request $request, Conversation $conversation, WhatsAppService $whatsapp)
+    {
+        $this->autorizar($conversation);
+
+        $datos = $request->validate([
+            'template_id' => 'required|integer',
+            'parametros'  => 'array',
+            'parametros.*' => 'required|string|max:1024',
+        ]);
+
+        $numero = $conversation->number;
+
+        // La plantilla tiene que ser de la WABA por la que va esta
+        // conversación: un id en el body no puede alcanzar la de otro cliente.
+        $plantilla = WhatsAppTemplate::where('id', $datos['template_id'])
+            ->where('whatsapp_account_id', $numero?->whatsapp_account_id)
+            ->first();
+
+        if (!$plantilla || !$plantilla->estaAprobada()) {
+            return back()->withErrors([
+                'template_id' => 'Esa plantilla no está disponible para esta conversación.',
+            ]);
+        }
+
+        $parametros = array_values($datos['parametros'] ?? []);
+
+        if (count($parametros) !== $plantilla->body_variables) {
+            return back()->withErrors([
+                'template_id' => "La plantilla necesita exactamente {$plantilla->body_variables} valor(es).",
+            ]);
+        }
+
+        $waMessageId = $whatsapp->sendTemplate(
+            $conversation->contact_wa_id,
+            $plantilla->name,
+            $plantilla->language,
+            $parametros,
+            $numero?->phone_number_id,
+            $numero?->tokenParaEnviar(),
+        );
+
+        $mensaje = $conversation->messages()->create([
+            'user_id'         => Auth::id(),
+            'author_type'     => ConversationMessage::AUTHOR_STAFF,
+            'direction'       => ConversationMessage::DIRECTION_OUT,
+            'wa_message_id'   => $waMessageId,
+            'type'            => 'template',
+            'body'            => $plantilla->previsualizar($parametros),
+            'delivery_status' => $waMessageId
+                ? ConversationMessage::DELIVERY_SENT
+                : ConversationMessage::DELIVERY_FAILED,
+            'delivery_error'  => $waMessageId ? null : 'Meta no aceptó la plantilla. Revisa el log.',
         ]);
 
         $conversation->registrarSaliente();
