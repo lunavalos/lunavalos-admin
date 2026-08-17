@@ -88,6 +88,8 @@ class DatabaseSeeder extends Seeder
             'Crear Tickets',
             'Editar Tickets',
             'Eliminar Tickets',
+            'Ver Conversaciones',
+            'Responder Conversaciones',
             'Ver Plantillas de Firma',
             'Crear Plantillas de Firma',
             'Editar Plantillas de Firma',

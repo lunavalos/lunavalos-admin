@@ -184,6 +184,17 @@ Route::middleware('auth')->group(function () {
     Route::post('social/clients/{client}/conexiones/elegir',           [\App\Http\Controllers\SocialAuthController::class, 'storeSelection'])->name('social.oauth.select.store');
     Route::delete('social/accounts/{account}',                         [\App\Http\Controllers\SocialAuthController::class, 'disconnect'])->name('social.accounts.disconnect');
 
+    // Conversaciones de WhatsApp. Módulo aparte de Tickets a propósito: una
+    // conversación no se cierra, un ticket sí. El ticket se crea desde aquí
+    // cuando de la conversación sale trabajo que hay que rastrear.
+    Route::get('conversaciones',                    [\App\Http\Controllers\ConversationController::class, 'index'])->name('conversations.index');
+    Route::get('conversaciones/{conversation}',     [\App\Http\Controllers\ConversationController::class, 'show'])->name('conversations.show');
+    Route::post('conversaciones/{conversation}/responder', [\App\Http\Controllers\ConversationController::class, 'reply'])->name('conversations.reply');
+    Route::post('conversaciones/{conversation}/asignar',   [\App\Http\Controllers\ConversationController::class, 'assign'])->name('conversations.assign');
+    Route::post('conversaciones/{conversation}/estado',    [\App\Http\Controllers\ConversationController::class, 'updateStatus'])->name('conversations.status');
+    Route::post('conversaciones/{conversation}/ia',        [\App\Http\Controllers\ConversationController::class, 'toggleAi'])->name('conversations.toggleAi');
+    Route::post('conversaciones/{conversation}/ticket',    [\App\Http\Controllers\ConversationController::class, 'createTicket'])->name('conversations.createTicket');
+
     // Tickets
     Route::get('tickets/trash', [\App\Http\Controllers\TicketController::class, 'trash'])->name('tickets.trash');
     Route::post('tickets/{id}/restore', [\App\Http\Controllers\TicketController::class, 'restore'])->name('tickets.restore');

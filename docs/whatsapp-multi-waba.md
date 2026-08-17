@@ -487,14 +487,26 @@ Backend — ✅ hecho el 2026-08-16:
   históricos se migran como `failed` con la razón real: nunca se enviaron.
 - 13 tests del webhook (18 en total con los de salida).
 
-UI — pendiente:
-- Bandeja de Conversaciones, con permiso propio de Spatie
-  (`Ver Conversaciones`) y acotada por `client_id` para el rol Cliente.
-- Evento de broadcasting `ConversationMessageSent` para el tiempo real.
-- Responder desde la conversación (hoy responder sigue viviendo en el ticket).
-- Botón **Crear ticket** desde la conversación.
-- Retiro del envío por WhatsApp de `TicketController::addMessage()`, que queda
-  como camino heredado hasta que la bandeja lo sustituya.
+UI — ✅ hecha el 2026-08-16:
+- `ConversationController` + rutas bajo `/conversaciones`.
+- Bandeja de dos paneles (`Conversations/Index.vue`): lista filtrable por
+  estado y hilo con burbujas, estado de entrega por mensaje y aviso de ventana
+  cerrada.
+- Acotado por `client_id`: un usuario de portal solo ve lo suyo, y el canal de
+  broadcasting **es privado** y filtra igual — a diferencia del de tickets, que
+  es público. Aquí viajan mensajes de clientes finales de terceros.
+- `ConversationMessageSent` para el tiempo real.
+- Responder bloqueado fuera de la ventana de 24 h, **antes** de intentar el
+  envío.
+- Botón **Crear ticket**, que deja la conversación abierta.
+- Permisos `Ver Conversaciones` y `Responder Conversaciones` en
+  `DatabaseSeeder`, y entrada en el sidebar.
+- 9 tests en `ConversationInboxTest`.
+
+Pendiente menor:
+- Retirar el envío por WhatsApp de `TicketController::addMessage()`, que queda
+  como camino heredado. No se toca todavía para no romper el flujo que hoy usa
+  el equipo.
 
 **Fase 3 — Embedded Signup**
 - Página de conexión, canje de code, `subscribed_apps`, reconexión y revocación.
