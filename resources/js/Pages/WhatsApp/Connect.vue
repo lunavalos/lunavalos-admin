@@ -118,10 +118,16 @@ onUnmounted(() => window.removeEventListener('message', escucharMensajes));
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 dark:text-zinc-100 leading-tight flex items-center gap-2">
-                <ChatBubbleLeftRightIcon class="h-6 w-6" />
-                WhatsApp — {{ client.business_name }}
-            </h2>
+            <div>
+                <Link
+                    :href="route('social.clients.show', client.id)"
+                    class="text-xs text-[#264ab3] hover:underline"
+                >← {{ client.business_name }}</Link>
+                <h2 class="font-semibold text-xl text-gray-800 dark:text-zinc-100 leading-tight flex items-center gap-2 mt-1">
+                    <ChatBubbleLeftRightIcon class="h-6 w-6" />
+                    WhatsApp — {{ client.business_name }}
+                </h2>
+            </div>
         </template>
 
         <div class="py-6">

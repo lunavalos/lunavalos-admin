@@ -6,14 +6,30 @@ use App\Models\Client;
 use App\Models\WhatsAppAccount;
 use App\Services\WhatsApp\WhatsAppOnboardingService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use RuntimeException;
 
-class WhatsAppConnectController extends Controller
+class WhatsAppConnectController extends Controller implements HasMiddleware
 {
     /**
-     * Mismo criterio que SocialController y ConversationController: un usuario
-     * amarrado a un cliente solo opera ese cliente.
+     * Conectar una WABA es entregarle a esta app el acceso a la cuenta de
+     * WhatsApp de un tercero, y desconectarla deja al cliente sin canal. Sin
+     * este gate bastaba estar autenticado y escribir la URL: el scoping por
+     * `client_id` no protege a los usuarios internos, que tienen `client_id`
+     * null y pasaban de largo.
+     *
+     * Mismo problema que ya se había corregido en SocialController.
+     */
+    public static function middleware(): array
+    {
+        return [new Middleware('can:Gestionar WhatsApp')];
+    }
+
+    /**
+     * El permiso decide si entras al módulo; esto decide de qué cliente. Mismo
+     * criterio que SocialController y ConversationController.
      */
     private function autorizar(Client $client): void
     {

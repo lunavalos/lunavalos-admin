@@ -6,6 +6,8 @@ use App\Models\WhatsAppAccount;
 use App\Models\WhatsAppTemplate;
 use App\Services\WhatsApp\WhatsAppTemplateService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use RuntimeException;
 
@@ -16,8 +18,18 @@ use RuntimeException;
  * 24 h son la única forma de escribirle a un contacto, y Meta exige un video
  * creando una para aprobar whatsapp_business_management.
  */
-class WhatsAppTemplateController extends Controller
+class WhatsAppTemplateController extends Controller implements HasMiddleware
 {
+    /**
+     * Una plantilla se crea en la WABA del cliente y queda a nombre suyo ante
+     * Meta, así que el módulo va cerrado por permiso además del scoping: un
+     * usuario interno tiene `client_id` null y el scoping no lo detiene.
+     */
+    public static function middleware(): array
+    {
+        return [new Middleware('can:Gestionar Plantillas WhatsApp')];
+    }
+
     /**
      * Las cuentas que este usuario puede operar.
      *

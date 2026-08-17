@@ -97,6 +97,21 @@ class SocialController extends Controller implements HasMiddleware
             'posts'    => $posts,
             'month'    => $start->format('Y-m'),
             'availableProviders' => SocialAccount::PROVIDERS,
+            // WhatsApp no es un proveedor más de SocialAccount: se conecta por
+            // Embedded Signup y devuelve una WABA con N números, no una cuenta.
+            // Aquí solo viaja el resumen para poder mostrar el estado; el flujo
+            // vive en su propia pantalla.
+            'whatsappNumeros' => $client->whatsappNumbers()
+                ->with('account:id,status')
+                ->get()
+                ->map(fn ($n) => [
+                    'id'                   => $n->id,
+                    'display_phone_number' => $n->display_phone_number,
+                    'verified_name'        => $n->verified_name,
+                    'quality_rating'       => $n->quality_rating,
+                    'is_active'            => $n->is_active,
+                    'account_status'       => $n->account?->status,
+                ]),
         ]);
     }
 

@@ -8,6 +8,7 @@ use App\Models\WhatsAppAccount;
 use App\Models\WhatsAppNumber;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
@@ -44,7 +45,19 @@ class WhatsAppOnboardingTest extends TestCase
 
     private function staff(): User
     {
-        return User::factory()->create(['client_id' => null]);
+        return $this->conPermiso(User::factory()->create(['client_id' => null]));
+    }
+
+    /**
+     * El módulo va cerrado por `Gestionar WhatsApp`. Los usuarios de las
+     * pruebas de scoping también lo llevan: así el 403 que se comprueba viene
+     * del cliente equivocado y no del permiso, que es lo que se quiere probar.
+     */
+    private function conPermiso(User $usuario): User
+    {
+        $usuario->givePermissionTo(Permission::findOrCreate('Gestionar WhatsApp', 'web'));
+
+        return $usuario;
     }
 
     /**
@@ -194,12 +207,33 @@ class WhatsAppOnboardingTest extends TestCase
         $this->assertSame(WhatsAppAccount::STATUS_ACTIVE, $cuenta->fresh()->status);
     }
 
+    public function test_sin_el_permiso_no_se_puede_conectar_ni_desconectar(): void
+    {
+        $cliente = $this->cliente();
+
+        Http::fake();
+
+        // Usuario interno: client_id null, así que el scoping por cliente lo
+        // deja pasar. Antes de este gate bastaba con escribir la URL.
+        $sinPermiso = User::factory()->create(['client_id' => null]);
+
+        $this->actingAs($sinPermiso)
+            ->get(route('whatsapp.connect.show', $cliente))
+            ->assertForbidden();
+
+        $this->actingAs($sinPermiso)
+            ->post(route('whatsapp.connect.store', $cliente), ['code' => 'code-de-prueba'])
+            ->assertForbidden();
+
+        Http::assertNothingSent();
+    }
+
     public function test_un_usuario_de_portal_no_conecta_para_otro_cliente(): void
     {
         $suyo  = $this->cliente();
         $ajeno = Client::create(['business_name' => 'Otro Cliente']);
 
-        $usuario = User::factory()->create(['client_id' => $suyo->id]);
+        $usuario = $this->conPermiso(User::factory()->create(['client_id' => $suyo->id]));
 
         $this->actingAs($usuario)
             ->get(route('whatsapp.connect.show', $ajeno))

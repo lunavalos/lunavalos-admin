@@ -90,6 +90,7 @@ class DatabaseSeeder extends Seeder
             'Eliminar Tickets',
             'Ver Conversaciones',
             'Responder Conversaciones',
+            'Gestionar WhatsApp',
             'Gestionar Plantillas WhatsApp',
             'Ver Plantillas de Firma',
             'Crear Plantillas de Firma',

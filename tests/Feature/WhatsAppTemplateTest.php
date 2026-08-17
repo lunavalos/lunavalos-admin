@@ -11,6 +11,7 @@ use App\Models\WhatsAppNumber;
 use App\Models\WhatsAppTemplate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
@@ -61,7 +62,19 @@ class WhatsAppTemplateTest extends TestCase
 
     private function staff(): User
     {
-        return User::factory()->create(['client_id' => null]);
+        return $this->conPermiso(User::factory()->create(['client_id' => null]));
+    }
+
+    /**
+     * El módulo va cerrado por `Gestionar Plantillas WhatsApp`. Los usuarios de
+     * las pruebas de scoping también lo llevan, para que el 403 que se
+     * comprueba venga del cliente equivocado y no del permiso.
+     */
+    private function conPermiso(User $usuario): User
+    {
+        $usuario->givePermissionTo(Permission::findOrCreate('Gestionar Plantillas WhatsApp', 'web'));
+
+        return $usuario;
     }
 
     // -----------------------------------------------------------------
@@ -171,6 +184,32 @@ class WhatsAppTemplateTest extends TestCase
         $this->assertSame(1, $plantilla->body_variables);
     }
 
+    public function test_sin_el_permiso_no_se_entra_al_modulo(): void
+    {
+        $cuenta = $this->cuenta();
+
+        Http::fake();
+
+        // Usuario interno: client_id null, así que el scoping por cliente no lo
+        // detiene. Lo único que lo para es el permiso.
+        $sinPermiso = User::factory()->create(['client_id' => null]);
+
+        $this->actingAs($sinPermiso)
+            ->get(route('whatsapp.templates.index'))
+            ->assertForbidden();
+
+        $this->actingAs($sinPermiso)
+            ->post(route('whatsapp.templates.store', $cuenta), [
+                'name'     => 'aviso',
+                'language' => 'es_MX',
+                'category' => 'UTILITY',
+                'body'     => 'Hola.',
+            ])
+            ->assertForbidden();
+
+        Http::assertNothingSent();
+    }
+
     public function test_un_usuario_de_portal_no_puede_tocar_la_waba_de_otro_cliente(): void
     {
         $cuenta = $this->cuenta();
@@ -181,7 +220,7 @@ class WhatsAppTemplateTest extends TestCase
 
         Http::fake();
 
-        $this->actingAs(User::factory()->create(['client_id' => $suyo->id]))
+        $this->actingAs($this->conPermiso(User::factory()->create(['client_id' => $suyo->id])))
             ->post(route('whatsapp.templates.store', $cuenta), [
                 'name'     => 'aviso',
                 'language' => 'es_MX',

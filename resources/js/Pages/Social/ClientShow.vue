@@ -5,7 +5,9 @@ import { ref, computed } from 'vue';
 import {
     MegaphoneIcon, PlusIcon, TrashIcon, PaperAirplaneIcon,
     LinkIcon, ChevronLeftIcon, ChevronRightIcon, CalendarDaysIcon, PencilSquareIcon,
+    ChatBubbleLeftRightIcon,
 } from '@heroicons/vue/24/outline';
+import { usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     client: { type: Object, required: true },
@@ -13,7 +15,21 @@ const props = defineProps({
     posts: { type: Array, default: () => [] },
     month: { type: String, required: true },
     availableProviders: { type: Array, default: () => [] },
+    whatsappNumeros: { type: Array, default: () => [] },
 });
+
+const page = usePage();
+
+const puedeWhatsapp = computed(() => {
+    const u = page.props.auth?.user;
+    return Boolean(u?.is_admin || u?.permissions?.includes('Gestionar WhatsApp'));
+});
+
+const colorCalidad = (r) => ({
+    GREEN: 'text-emerald-600',
+    YELLOW: 'text-amber-600',
+    RED: 'text-red-600',
+}[r] ?? 'text-gray-400');
 
 const providerLabels = {
     facebook: 'Facebook', instagram: 'Instagram', linkedin: 'LinkedIn', tiktok: 'TikTok', youtube: 'YouTube',
@@ -170,6 +186,54 @@ const view = ref('calendar'); // calendar | list
                         <PlusIcon class="w-3 h-3" /> {{ providerLabels[p] }}
                     </button>
                 </div>
+            </div>
+
+            <!-- WhatsApp Business. Tarjeta aparte a propósito: no es un
+                 proveedor más de la fila de arriba. Aquellos son un redirect
+                 de OAuth que devuelve una cuenta; este es Embedded Signup, que
+                 devuelve una WABA con varios números y su propio ciclo de vida. -->
+            <div
+                v-if="puedeWhatsapp"
+                class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-5"
+            >
+                <div class="flex items-center justify-between border-b border-gray-100 dark:border-zinc-800 pb-3 mb-4">
+                    <h3 class="font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                        <ChatBubbleLeftRightIcon class="w-5 h-5 text-[#25D366]" /> WhatsApp Business
+                    </h3>
+                    <Link
+                        :href="route('whatsapp.connect.show', client.id)"
+                        class="text-xs font-bold text-primary hover:text-secondary"
+                    >
+                        {{ whatsappNumeros.length ? 'Administrar →' : 'Conectar →' }}
+                    </Link>
+                </div>
+
+                <p v-if="!whatsappNumeros.length" class="text-sm text-gray-500 italic">
+                    Sin número conectado. El cliente autoriza su cuenta desde una pantalla
+                    aparte, iniciando sesión con su Facebook.
+                </p>
+
+                <ul v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <li
+                        v-for="n in whatsappNumeros"
+                        :key="n.id"
+                        class="border border-gray-200 dark:border-zinc-700 rounded-lg p-3"
+                    >
+                        <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
+                            {{ n.display_phone_number }}
+                            <span v-if="n.verified_name" class="font-normal text-gray-500">· {{ n.verified_name }}</span>
+                        </p>
+                        <p class="text-xs mt-0.5">
+                            <span :class="colorCalidad(n.quality_rating)">
+                                Calidad: {{ n.quality_rating ?? 'sin dato' }}
+                            </span>
+                            <span v-if="n.account_status === 'revoked'" class="ml-1 text-rose-600">
+                                · acceso revocado
+                            </span>
+                            <span v-else-if="!n.is_active" class="ml-1 text-gray-400">· inactivo</span>
+                        </p>
+                    </li>
+                </ul>
             </div>
 
             <!-- Calendar / list toggle -->

@@ -567,6 +567,20 @@ Configuración — ✅ hecha el 2026-08-17:
 > El código soporta las dos: el canje guarda `expires_in` en
 > `token_expires_at`, y con "Never" queda `null`.
 
+Punto de entrada — ✅ el 2026-08-17:
+- La pantalla estaba **huérfana**: existían la ruta y `Connect.vue`, pero
+  ningún enlace en toda la interfaz. Solo se llegaba escribiendo la URL.
+- Ahora cuelga de `Social/ClientShow`, que es donde el equipo ya va a conectar
+  las cuentas de un cliente. Va en **tarjeta aparte**, no como un proveedor más
+  de la fila de redes: aquéllos son un redirect de OAuth que devuelve una
+  cuenta, éste es Embedded Signup por SDK y devuelve una WABA con N números.
+- Gate `Gestionar WhatsApp` en `WhatsAppConnectController` y
+  `Gestionar Plantillas WhatsApp` en `WhatsAppTemplateController`. **Antes no
+  había ninguno**: el scoping por `client_id` no frena a un usuario interno,
+  que lo tiene en null, así que cualquier autenticado podía conectar o
+  desconectar la WABA de un cliente escribiendo la URL. Es el mismo fallo que
+  ya se había corregido en `SocialController`.
+
 Pendiente de configuración:
 - Añadir `WHATSAPP_APP_ID` y `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` en producción.
 - Mientras la app siga `Unpublished`, Embedded Signup solo lo puede completar
