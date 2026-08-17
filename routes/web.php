@@ -174,6 +174,7 @@ Route::middleware('auth')->group(function () {
     Route::post('social/clients/{client}/posts/{post}',                [\App\Http\Controllers\SocialController::class, 'updatePost'])->name('social.posts.update');
     Route::delete('social/clients/{client}/posts/{post}',              [\App\Http\Controllers\SocialController::class, 'destroyPost'])->name('social.posts.destroy');
     Route::post('social/clients/{client}/posts/{post}/publish',        [\App\Http\Controllers\SocialController::class, 'publishNow'])->name('social.posts.publishNow');
+    Route::post('social/clients/{client}/posts/{post}/duplicate',      [\App\Http\Controllers\SocialController::class, 'duplicatePost'])->name('social.posts.duplicate');
 
     // OAuth Social — conectar/desconectar cuentas
     Route::get('social/oauth/{provider}/{client}/redirect',            [\App\Http\Controllers\SocialAuthController::class, 'redirect'])->name('social.oauth.redirect');

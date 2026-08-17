@@ -95,12 +95,55 @@ class SocialController extends Controller
         $this->autorizarCliente($client);
 
         abort_if($post->client_id !== $client->id, 404);
-        $post->load('targets');
+        // El nombre de la cuenta se muestra en el resumen de un post ya
+        // publicado; sin esto solo habría el id.
+        $post->load('targets.account:id,provider,name');
+
         return Inertia::render('Social/PostComposer', [
             'client'   => $client->only(['id', 'business_name']),
             'accounts' => $client->socialAccounts()->where('status', 'active')->get(),
             'post'     => $post,
         ]);
+    }
+
+    /**
+     * Copia un post a un borrador nuevo.
+     *
+     * Un post publicado no se puede editar (`updatePost` responde 422), y el
+     * motivo real por el que alguien lo abre es querer reutilizarlo. Duplicar
+     * le da esa salida sin tocar lo que ya salió a las redes.
+     */
+    public function duplicatePost(Client $client, SocialPost $post, Request $request)
+    {
+        $this->autorizarCliente($client);
+
+        abort_if($post->client_id !== $client->id, 404);
+
+        $copia = DB::transaction(function () use ($post, $client, $request) {
+            $copia = SocialPost::create([
+                'client_id'  => $client->id,
+                'title'      => $post->title,
+                'body'       => $post->body,
+                'media'      => $post->media,
+                'options'    => $post->options,
+                'status'     => SocialPost::STATUS_DRAFT,
+                'created_by' => $request->user()->id,
+            ]);
+
+            foreach ($post->targets as $target) {
+                SocialPostTarget::create([
+                    'social_post_id'    => $copia->id,
+                    'social_account_id' => $target->social_account_id,
+                    'provider'          => $target->provider,
+                    'status'            => SocialPostTarget::STATUS_PENDING,
+                ]);
+            }
+
+            return $copia;
+        });
+
+        return redirect()->route('social.posts.edit', [$client->id, $copia->id])
+            ->with('success', 'Copia creada como borrador.');
     }
 
     public function storePost(Client $client, Request $request)

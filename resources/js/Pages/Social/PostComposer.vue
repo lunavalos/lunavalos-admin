@@ -1,10 +1,11 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
     MegaphoneIcon, PhotoIcon, XMarkIcon, ExclamationTriangleIcon,
     ChevronDownIcon, ChevronUpIcon, LinkIcon, CheckCircleIcon,
+    ArrowPathIcon, DocumentDuplicateIcon, ArrowTopRightOnSquareIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -175,6 +176,51 @@ const validationErrors = computed(() => {
 const canPublish = computed(() => validationErrors.value.length === 0 && !form.processing);
 
 // ── Submit ─────────────────────────────────────────────────────────────────
+// ── Modo resumen ────────────────────────────────────────────────────────────
+// Un post ya publicado no se puede editar: `updatePost` responde 422. Mostrar
+// el formulario de siempre hacía pensar que nunca salió a las redes, cuando en
+// realidad ya estaba publicado.
+//
+// `failed` sí conserva el formulario: ahí lo útil es corregir y reintentar.
+const esResumen = computed(() => ['published', 'partial', 'publishing'].includes(props.post?.status));
+const publicando = computed(() => props.post?.status === 'publishing');
+
+const targets = computed(() => props.post?.targets || []);
+const targetsFallidos = computed(() => targets.value.filter(t => t.status === 'failed'));
+
+const targetStatusLabels = {
+    pending: 'pendiente', publishing: 'publicando', published: 'publicado', failed: 'falló',
+};
+const targetStatusStyles = {
+    pending:    'bg-gray-50 text-gray-600 border-gray-200',
+    publishing: 'bg-blue-50 text-blue-700 border-blue-200',
+    published:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+    failed:     'bg-rose-50 text-rose-700 border-rose-300',
+};
+
+function fecha(valor) {
+    if (!valor) return null;
+    return new Date(valor).toLocaleString('es-MX', {
+        day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+}
+
+function reintentar() {
+    router.post(route('social.posts.publishNow', [props.client.id, props.post.id]));
+}
+function duplicar() {
+    router.post(route('social.posts.duplicate', [props.client.id, props.post.id]));
+}
+
+// Mientras se publica, el estado cambia en segundo plano: refrescamos solo
+// esta pantalla para no obligar a recargar a mano.
+let sondeo = null;
+onMounted(() => {
+    if (!publicando.value) return;
+    sondeo = setInterval(() => router.reload({ only: ['post'] }), 5000);
+});
+onBeforeUnmount(() => sondeo && clearInterval(sondeo));
+
 function submit(action) {
     form.action = action;
     if (action === 'schedule' && !form.scheduled_at) {
@@ -198,18 +244,100 @@ function connectUrl(provider) {
 </script>
 
 <template>
-    <Head :title="post ? 'Editar post' : 'Nuevo post'" />
+    <Head :title="esResumen ? 'Publicación' : (post ? 'Editar post' : 'Nuevo post')" />
     <AuthenticatedLayout>
         <div class="p-6 max-w-4xl mx-auto space-y-6">
             <div>
                 <Link :href="route('social.clients.show', client.id)" class="text-xs text-primary hover:underline">← Volver</Link>
                 <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2 mt-1">
                     <MegaphoneIcon class="w-6 h-6 text-primary" />
-                    {{ post ? 'Editar post' : 'Nuevo post' }} — {{ client.business_name }}
+                    {{ esResumen ? 'Publicación' : (post ? 'Editar post' : 'Nuevo post') }} — {{ client.business_name }}
                 </h1>
             </div>
 
-            <form @submit.prevent="submit('save_draft')" class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-6 space-y-5">
+            <!-- ══ Modo resumen: el post ya salió (o está saliendo) ══ -->
+            <div v-if="esResumen" class="space-y-6">
+                <div :class="['rounded-xl border p-4 flex items-start gap-3',
+                              publicando ? 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800'
+                                         : 'bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800']">
+                    <ArrowPathIcon v-if="publicando" class="w-6 h-6 text-blue-600 animate-spin flex-shrink-0" />
+                    <CheckCircleIcon v-else class="w-6 h-6 text-emerald-600 flex-shrink-0" />
+                    <div>
+                        <p :class="['font-semibold', publicando ? 'text-blue-800 dark:text-blue-200' : 'text-emerald-800 dark:text-emerald-200']">
+                            <template v-if="publicando">Publicación en proceso…</template>
+                            <template v-else-if="post.status === 'partial'">Publicado con errores en algunas redes</template>
+                            <template v-else>Publicado</template>
+                        </p>
+                        <p class="text-sm mt-0.5" :class="publicando ? 'text-blue-700 dark:text-blue-300' : 'text-emerald-700 dark:text-emerald-300'">
+                            <template v-if="publicando">Esta pantalla se actualiza sola.</template>
+                            <template v-else-if="fecha(post.published_at)">{{ fecha(post.published_at) }}</template>
+                            <template v-else>Ya está en las redes seleccionadas.</template>
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Estado por red, con el enlace a la publicación real -->
+                <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 divide-y divide-gray-100 dark:divide-zinc-800">
+                    <div v-for="t in targets" :key="t.id" class="p-4 flex items-start gap-3">
+                        <span :class="['w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0', providerColors[t.provider]]"></span>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium text-gray-800 dark:text-gray-100">
+                                {{ providerLabels[t.provider] || t.provider }}
+                                <span v-if="t.account" class="text-gray-500 font-normal">· {{ t.account.name }}</span>
+                            </p>
+                            <p v-if="t.error_message" class="mt-1 text-xs text-rose-700 dark:text-rose-400 break-words">
+                                {{ t.error_message }}
+                            </p>
+                            <p v-else-if="t.published_at" class="mt-0.5 text-xs text-gray-500">{{ fecha(t.published_at) }}</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                            <span :class="['text-[11px] px-2 py-0.5 rounded-full border font-medium', targetStatusStyles[t.status]]">
+                                {{ targetStatusLabels[t.status] || t.status }}
+                            </span>
+                            <a v-if="t.platform_url" :href="t.platform_url" target="_blank" rel="noopener"
+                               class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                                Ver publicación <ArrowTopRightOnSquareIcon class="w-3.5 h-3.5" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido tal como se publicó -->
+                <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-6 space-y-4">
+                    <div v-if="post.title">
+                        <p class="text-xs uppercase tracking-wide text-gray-400 mb-1">Título</p>
+                        <p class="text-gray-800 dark:text-gray-100 font-medium">{{ post.title }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs uppercase tracking-wide text-gray-400 mb-1">Contenido</p>
+                        <p class="text-gray-800 dark:text-gray-100 whitespace-pre-wrap">{{ post.body || '—' }}</p>
+                    </div>
+                    <div v-if="post.media && post.media.length">
+                        <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">Media</p>
+                        <ul class="flex flex-wrap gap-2">
+                            <li v-for="(m, i) in post.media" :key="i"
+                                class="text-xs px-2 py-1 rounded-md bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-zinc-300">
+                                {{ m.name || m.path }}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap justify-end gap-2">
+                    <button v-if="targetsFallidos.length" type="button" @click="reintentar"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium">
+                        <ArrowPathIcon class="w-4 h-4" />
+                        Reintentar {{ targetsFallidos.length }} que fallaron
+                    </button>
+                    <button type="button" @click="duplicar"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md border border-gray-300 dark:border-zinc-600 text-sm text-gray-700 dark:text-zinc-200 hover:bg-gray-50 dark:hover:bg-zinc-800">
+                        <DocumentDuplicateIcon class="w-4 h-4" />
+                        Duplicar como borrador
+                    </button>
+                </div>
+            </div>
+
+            <form v-else @submit.prevent="submit('save_draft')" class="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-800 p-6 space-y-5">
 
                 <!-- ── Account selector grouped by provider ─────────────── -->
                 <div>
