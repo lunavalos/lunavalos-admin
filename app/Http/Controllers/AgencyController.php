@@ -5,9 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\Agency;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class AgencyController extends Controller
+class AgencyController extends Controller implements HasMiddleware
 {
+    /** Catálogo de origen/agencia del cliente: parte del módulo de clientes. */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Clientes', only: ['index']),
+            new Middleware('can:Editar Clientes', only: ['store', 'update', 'destroy']),
+        ];
+    }
+
     public function index()
     {
         $agencies = Agency::orderBy('name')->get();

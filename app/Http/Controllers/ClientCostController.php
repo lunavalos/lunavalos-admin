@@ -5,9 +5,19 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use App\Models\ClientCost;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ClientCostController extends Controller
+class ClientCostController extends Controller implements HasMiddleware
 {
+    /** Costos internos del cliente: mismo nivel de acceso que editar su ficha. */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Editar Clientes'),
+        ];
+    }
+
     public function store(Request $request, Client $client)
     {
         $validated = $request->validate([

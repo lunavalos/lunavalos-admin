@@ -113,18 +113,21 @@ class DatabaseSeeder extends Seeder
             'Eliminar Tickets',
         ];
 
+        // Roles de producción (Diseño / Web). Trabajan sobre tickets y sobre el
+        // tablero de recurrentes, pero NO deben ver información comercial:
+        // ni el catálogo de servicios (lleva costos y precios de renovación),
+        // ni el módulo de clientes (lleva precios, costos internos y
+        // credenciales). Ese es el motivo de que aquí no aparezcan
+        // 'Ver Servicios' ni 'Ver Clientes'.
+        $productionPermissions = array_merge([
+            'Ver Dashboard',
+            'Ver Recurrentes',
+        ], $ticketPermissions);
+
         $rolePermissions = [
             $clientRole => array_merge($ticketPermissions, ['Ver Recurrentes']),
-            'Web Developer' => array_merge([
-                'Ver Dashboard',
-                'Ver Servicios',
-                'Ver Clientes',
-            ], $ticketPermissions),
-            'Designer' => array_merge([
-                'Ver Dashboard',
-                'Ver Servicios',
-                'Ver Clientes',
-            ], $ticketPermissions),
+            'Web Developer' => $productionPermissions,
+            'Designer' => $productionPermissions,
             'RRHH' => [
                 'Ver Dashboard',
                 'Ver Roles',

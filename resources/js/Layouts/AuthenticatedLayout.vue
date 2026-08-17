@@ -471,7 +471,7 @@ onMounted(() => {
                             </Link>
                         </li>
                         <!-- Quotes Link -->
-                        <li v-if="$page.props.auth.user.can.view_quotes !== false">
+                        <li v-if="$page.props.auth.user.can.view_quotes">
                             <Link 
                                 :href="route('quotes.index')"
                                 :class="[

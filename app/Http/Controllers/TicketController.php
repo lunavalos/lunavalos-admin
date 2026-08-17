@@ -21,10 +21,43 @@ use Carbon\Carbon;
 
 class TicketController extends Controller
 {
+    /**
+     * Columnas del cliente que se pueden mandar a los tableros de tickets.
+     *
+     * El modelo `Client` completo arrastra precios (`initial_price`,
+     * `renewal_amount`), datos fiscales y credenciales; los tickets los ven
+     * roles de producción (Diseño / Web) que no tienen acceso comercial, así
+     * que aquí solo viaja lo que la vista realmente pinta.
+     */
+    private const CLIENT_LIST_COLUMNS = ['id', 'business_name'];
+
+    /** Igual que arriba, pero para la ficha lateral del ticket. */
+    private const CLIENT_DETAIL_COLUMNS = [
+        'id',
+        'business_name',
+        'contact_name',
+        'email',
+        'briefing_context',
+        'briefing_target_audience',
+        'briefing_competitors',
+        'briefing_references',
+        'briefing_contact_methods',
+        'briefing_current_emails',
+    ];
+
+    /** Servicios del cliente sin importes: solo lo que alimenta al selector. */
+    private const CLIENT_SERVICE_COLUMNS = ['id', 'client_id', 'service_name', 'billing_type', 'status'];
+
     public function index()
     {
         $user = Auth::user();
-        $query = Ticket::with(['creator.client', 'assigned', 'messages.user', 'client', 'clientService'])
+        $query = Ticket::with([
+                'creator.client:' . implode(',', self::CLIENT_LIST_COLUMNS),
+                'assigned',
+                'messages.user',
+                'client:' . implode(',', self::CLIENT_LIST_COLUMNS),
+                'clientService:' . implode(',', self::CLIENT_SERVICE_COLUMNS),
+            ])
             ->support()
             ->where('is_archived', false); // Kanban de soporte: solo tickets sueltos, no entregables recurrentes.
 
@@ -66,9 +99,14 @@ class TicketController extends Controller
             ->get();
 
         // Fetch clients with their active services for the dropdown
-        $clients = Client::with(['services' => function ($q) {
-            $q->where('status', 'active')->orderBy('service_name');
-        }])->orderBy('business_name')->get();
+        $clients = Client::select(self::CLIENT_LIST_COLUMNS)
+            ->with(['services' => function ($q) {
+                $q->select(self::CLIENT_SERVICE_COLUMNS)
+                  ->where('status', 'active')
+                  ->orderBy('service_name');
+            }])
+            ->orderBy('business_name')
+            ->get();
 
         return Inertia::render('Tickets/Index', [
             'tickets'         => $tickets,
@@ -368,14 +406,17 @@ class TicketController extends Controller
             if (!$this->clientCanViewTicket($user, $ticket)) abort(403);
         }
 
+        $clientDetail = 'client:' . implode(',', self::CLIENT_DETAIL_COLUMNS);
+
         $ticket->load([
+            $clientDetail,
+            'creator.' . $clientDetail,
             'creator.client.assets',
             'assigned',
             'messages.user',
             'attachments',
-            'client.services',
             'client.assets.creator',
-            'clientService',
+            'clientService:' . implode(',', self::CLIENT_SERVICE_COLUMNS),
             'canvasItems.pins.user',
             'canvasItems.uploader',
             'canvasItems.children.pins.user',
@@ -396,7 +437,7 @@ class TicketController extends Controller
             $clientServices = $ticket->client->services()
                 ->where('status', 'active')
                 ->orderBy('service_name')
-                ->get();
+                ->get(self::CLIENT_SERVICE_COLUMNS);
 
             $billingCycles = BillingCycle::whereHas('contract', fn ($q) =>
                 $q->where('client_id', $ticket->client->id)->where('status', 'signed')
@@ -661,15 +702,18 @@ class TicketController extends Controller
     public function archiveList()
     {
         $user = Auth::user();
+        $clientList    = 'client:' . implode(',', self::CLIENT_LIST_COLUMNS);
+        $clientService = 'clientService:' . implode(',', self::CLIENT_SERVICE_COLUMNS);
+
         if ($user->hasRole('Cliente')) {
             $archivedTickets = Ticket::where('creator_id', $user->id)
                 ->where('is_archived', true)
-                ->with(['assigned', 'messages', 'client', 'clientService'])
+                ->with(['assigned', 'messages', $clientList, $clientService])
                 ->latest()
                 ->get();
         } else {
             $archivedTickets = Ticket::where('is_archived', true)
-                ->with(['creator.client', 'assigned', 'client', 'clientService'])
+                ->with(['creator.' . $clientList, 'assigned', $clientList, $clientService])
                 ->latest()
                 ->get();
         }

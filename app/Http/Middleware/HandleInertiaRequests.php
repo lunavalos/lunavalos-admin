@@ -66,7 +66,7 @@ class HandleInertiaRequests extends Middleware
                             'view_users'    => $user->can('Ver Usuarios'),
                             'view_services' => $user->can('Ver Servicios'),
                             'view_clients'  => $user->can('Ver Clientes'),
-                            'view_quotes'   => $user->can('Ver Cotizaciones') ?? true,
+                            'view_quotes'   => $user->can('Ver Cotizaciones'),
                             'view_reports'  => $user->can('Ver Reportes'),
                         ];
                     } catch (\Throwable $e) {
@@ -76,7 +76,7 @@ class HandleInertiaRequests extends Middleware
                             'view_users'    => $isAdmin,
                             'view_services' => $isAdmin,
                             'view_clients'  => $isAdmin,
-                            'view_quotes'   => true,
+                            'view_quotes'   => $isAdmin,
                             'view_reports'  => $isAdmin,
                         ];
                     }

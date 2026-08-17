@@ -8,9 +8,25 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ContractController extends Controller
+class ContractController extends Controller implements HasMiddleware
 {
+    /**
+     * Solo se protege el área administrativa. `show`, `sign` y `downloadPdf`
+     * son las rutas públicas que firma el cliente con un token y no llevan
+     * sesión, por eso quedan fuera de estos middlewares.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Contratos', only: ['index', 'adminShow']),
+            new Middleware('can:Editar Contratos', only: ['edit', 'update']),
+            new Middleware('can:Crear Contratos', only: ['generate']),
+        ];
+    }
+
     /**
      * Admin: list all contracts with KPIs.
      */

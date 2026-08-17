@@ -57,6 +57,10 @@ const isAdmin = computed(() => {
     return page.props.auth.user.is_admin;
 });
 
+// Los roles de producción (Diseño / Web) no tienen acceso al módulo de
+// clientes, así que no se les ofrece el enlace a la ficha completa.
+const canViewClients = computed(() => !!page.props.auth.user.can?.view_clients);
+
 // Tabs: conversation | documents | canvas
 const activeTab = ref('conversation');
 
@@ -1290,7 +1294,7 @@ const saveEdit = (msg) => {
 
                         <div class="pt-2">
                             <Link
-                                v-if="ticket.client_id || ticket.creator?.client?.id"
+                                v-if="canViewClients && (ticket.client_id || ticket.creator?.client?.id)"
                                 :href="route('clients.show', ticket.client_id || ticket.creator?.client?.id)"
                                 class="w-full bg-[#264ab3] text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center hover:bg-[#193074] shadow-none"
                             >

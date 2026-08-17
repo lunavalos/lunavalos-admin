@@ -7,9 +7,19 @@ use App\Models\Contract;
 use App\Models\ContractService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ContractServiceController extends Controller
+class ContractServiceController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Editar Contratos', only: ['store', 'update', 'destroy']),
+            new Middleware('can:Gestionar Recurrentes', only: ['openCycle']),
+        ];
+    }
+
     public function store(Request $request, Contract $contract)
     {
         $data = $this->validated($request);

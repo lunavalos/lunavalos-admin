@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import {
     ArrowPathIcon, PlusIcon, ChevronLeftIcon, ChevronRightIcon,
@@ -29,6 +29,23 @@ const props = defineProps({
 });
 
 const activeTab = ref('production');
+
+const page = usePage();
+
+/**
+ * Este tablero también lo ven los roles de producción (Diseño / Web), que solo
+ * tienen lectura sobre recurrentes. Las acciones de ciclo, entregables y redes
+ * exigen permisos que ellos no tienen, así que no se les ofrecen los botones
+ * en lugar de dejarlos chocar contra un 403.
+ */
+const tienePermiso = (nombre) => {
+    const user = page.props.auth.user;
+    return !!user?.is_admin || !!user?.permissions?.includes(nombre);
+};
+
+const puedeGestionarRecurrentes = computed(() => tienePermiso('Gestionar Recurrentes'));
+const puedeVerSocial            = computed(() => tienePermiso('Ver Social'));
+const puedeGestionarSocial      = computed(() => tienePermiso('Gestionar Social'));
 
 // --- Month navigation ----------------------------------------------------
 function gotoMonth(month) {
@@ -258,7 +275,7 @@ function syncAnalytics() {
                         <ArrowPathIcon class="h-3 w-3" />
                         Ciclo {{ cycle.label }} · {{ cycle.status }}
                     </span>
-                    <button v-else-if="!$page.props.auth.user.is_client" @click="openCycle"
+                    <button v-else-if="puedeGestionarRecurrentes" @click="openCycle"
                         class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a8a] capitalize">
                         <ArrowPathIcon class="h-4 w-4" />
                         {{ isFutureMonth ? `Planificar ciclo ${monthLabel}` : `Abrir ciclo ${monthLabel}` }}
@@ -349,7 +366,7 @@ function syncAnalytics() {
                         <p class="text-xs text-gray-500 dark:text-zinc-400">
                             Tablero limitado a entregables del ciclo actual.
                         </p>
-                        <button v-if="cycle && !$page.props.auth.user.is_client" @click="showModal = true"
+                        <button v-if="cycle && puedeGestionarRecurrentes" @click="showModal = true"
                             class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a8a]">
                             <PlusIcon class="h-4 w-4" /> Nuevo entregable
                         </button>
@@ -442,7 +459,7 @@ function syncAnalytics() {
                             <h3 class="text-sm font-semibold text-gray-700 dark:text-zinc-200 flex items-center gap-2">
                                 <LinkIcon class="h-4 w-4 text-[#264ab3]" /> Cuentas conectadas
                             </h3>
-                            <Link v-if="!$page.props.auth.user.is_client" :href="route('social.clients.show', client.id)"
+                            <Link v-if="puedeVerSocial" :href="route('social.clients.show', client.id)"
                                 class="text-[11px] text-[#264ab3] hover:underline">
                                 Vista social completa →
                             </Link>
@@ -467,13 +484,13 @@ function syncAnalytics() {
                                         <span v-if="a.status !== 'active'" class="ml-1 text-[10px] text-rose-600">({{ a.status }})</span>
                                     </div>
                                 </div>
-                                <button v-if="!$page.props.auth.user.is_client" @click="disconnectAccount(a)" class="text-gray-400 hover:text-rose-600" title="Desconectar">
+                                <button v-if="puedeGestionarSocial" @click="disconnectAccount(a)" class="text-gray-400 hover:text-rose-600" title="Desconectar">
                                     <TrashIcon class="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         </div>
 
-                        <div v-if="!$page.props.auth.user.is_client" class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-700">
+                        <div v-if="puedeGestionarSocial" class="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-zinc-700">
                             <span class="text-[11px] text-gray-500">Conectar otra red  :)  :</span>
                             <button v-for="p in availableSocialProviders" :key="p"
                                 @click="connectProvider(p)"
@@ -494,7 +511,7 @@ function syncAnalytics() {
                                 <MegaphoneIcon class="h-4 w-4 text-[#264ab3]" />
                                 Calendario · <span class="capitalize">{{ monthLabel || month }}</span>
                             </h3>
-                            <Link v-if="!$page.props.auth.user.is_client" :href="route('social.posts.create', client.id)"
+                            <Link v-if="puedeGestionarSocial" :href="route('social.posts.create', client.id)"
                                 class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a8a]">
                                 <PlusIcon class="w-4 h-4" /> Nuevo post
                             </Link>
@@ -555,7 +572,7 @@ function syncAnalytics() {
                                     <span :class="['text-[10px] px-2 py-0.5 rounded-full font-semibold', statusColors[p.status]]">
                                         {{ p.status }}
                                     </span>
-                                    <span v-if="!$page.props.auth.user.is_client" class="flex items-center gap-1">
+                                    <span v-if="puedeGestionarSocial" class="flex items-center gap-1">
                                         <button v-if="['draft','scheduled','failed','partial'].includes(p.status)"
                                             @click="publishNow(p)" class="p-1 text-emerald-600 hover:text-emerald-700" title="Publicar ya">
                                             <PaperAirplaneIcon class="w-3.5 h-3.5" />
@@ -591,7 +608,7 @@ function syncAnalytics() {
                                 Datos agregados de las publicaciones del mes. Se actualizan cada 6 h y al sincronizar manualmente.
                             </p>
                         </div>
-                        <button v-if="!$page.props.auth.user.is_client" @click="syncAnalytics" :disabled="syncingAnalytics"
+                        <button v-if="puedeGestionarRecurrentes" @click="syncAnalytics" :disabled="syncingAnalytics"
                             class="inline-flex items-center gap-1 rounded-md bg-[#264ab3] px-3 py-1.5 text-xs text-white hover:bg-[#1e3a8a] disabled:opacity-50">
                             <ArrowPathIcon :class="['h-3.5 w-3.5', syncingAnalytics && 'animate-spin']" />
                             Sincronizar ahora

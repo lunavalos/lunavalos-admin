@@ -11,9 +11,21 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class QuoteController extends Controller
+class QuoteController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Cotizaciones', only: ['index', 'show']),
+            new Middleware('can:Crear Cotizaciones', only: ['create', 'store']),
+            new Middleware('can:Editar Cotizaciones', only: ['edit', 'update', 'updateStatus']),
+            new Middleware('can:Eliminar Cotizaciones', only: ['destroy']),
+        ];
+    }
+
     public function index()
     {
         $quotes = Quote::with([
