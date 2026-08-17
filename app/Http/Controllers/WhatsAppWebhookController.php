@@ -2,28 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Events\TicketMessageSent;
-use App\Models\Client;
-use App\Models\Ticket;
-use App\Models\TicketMessage;
-use App\Models\User;
-use App\Services\WhatsApp\WhatsAppService;
+use App\Jobs\MarkWhatsAppMessageRead;
+use App\Models\Conversation;
+use App\Models\ConversationMessage;
+use App\Models\WhatsAppAccount;
+use App\Models\WhatsAppNumber;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class WhatsAppWebhookController extends Controller
 {
     /**
-     * Handshake de suscripción. Meta lo hace por GET al guardar el Callback URL
-     * y cada vez que reactiva la suscripción.
+     * Handshake de suscripción. Meta manda hub.mode / hub.verify_token /
+     * hub.challenge y espera el challenge de vuelta TAL CUAL, en texto plano:
+     * envuelto en JSON, rechaza la suscripción.
      *
-     * Dos detalles que rompen la verificación si se pasan por alto:
-     *   1. PHP convierte los puntos de la query en guiones bajos, así que los
-     *      parámetros llegan como `hub_challenge`, no `hub.challenge`.
-     *   2. El challenge se devuelve TAL CUAL, como texto plano. Si se responde
-     *      JSON, Meta rechaza la suscripción.
+     * PHP convierte los puntos de la query en guiones bajos, así que los
+     * parámetros llegan como hub_challenge, no hub.challenge.
      */
     public function verify(Request $request)
     {
@@ -48,17 +43,41 @@ class WhatsAppWebhookController extends Controller
     /**
      * Eventos entrantes de Meta, autenticados por VerifyMetaSignature.
      *
+     * Un solo endpoint para TODOS los clientes: se enruta por entry[].id (la
+     * WABA) y por value.metadata.phone_number_id (el número). El cliente se
+     * deduce del número, que es determinista, en vez de adivinarse comparando
+     * sufijos de teléfono como antes.
+     *
      * Siempre respondemos 200 rápido — si Meta recibe error, reintenta y
-     * termina degradando la suscripción.
+     * termina degradando la suscripción. Por eso aquí no se llama a Graph:
+     * lo que necesita red se despacha a la cola.
      */
-    public function receive(Request $request, WhatsAppService $whatsapp)
+    public function receive(Request $request)
     {
         foreach ($request->input('entry', []) as $entry) {
-            foreach ($entry['changes'] ?? [] as $change) {
-                $value = $change['value'] ?? [];
+            $account = WhatsAppAccount::where('waba_id', $entry['id'] ?? '')->first();
 
-                foreach ($value['messages'] ?? [] as $message) {
-                    $this->handleIncomingMessage($message, $value['contacts'] ?? [], $whatsapp);
+            if (!$account) {
+                // WABA que no administramos (o que ya se desconectó). No es un
+                // error nuestro, pero conviene verlo si empieza a repetirse.
+                Log::info('whatsapp: evento de una WABA desconocida', ['waba_id' => $entry['id'] ?? null]);
+                continue;
+            }
+
+            foreach ($entry['changes'] ?? [] as $change) {
+                $value  = $change['value'] ?? [];
+                $numero = $this->resolverNumero($value);
+
+                if (!$numero) {
+                    continue;
+                }
+
+                foreach ($value['messages'] ?? [] as $mensaje) {
+                    $this->procesarEntrante($mensaje, $value['contacts'] ?? [], $numero);
+                }
+
+                foreach ($value['statuses'] ?? [] as $status) {
+                    $this->procesarEstado($status);
                 }
             }
         }
@@ -66,111 +85,119 @@ class WhatsAppWebhookController extends Controller
         return response()->json(['status' => 'ok']);
     }
 
-    private function handleIncomingMessage(array $message, array $contacts, WhatsAppService $whatsapp): void
+    private function resolverNumero(array $value): ?WhatsAppNumber
     {
-        $waMessageId = $message['id'] ?? null;
-        $waId        = $message['from'] ?? null;
+        $phoneNumberId = $value['metadata']['phone_number_id'] ?? null;
+
+        if (!$phoneNumberId) {
+            return null;
+        }
+
+        return WhatsAppNumber::with('account')
+            ->where('phone_number_id', $phoneNumberId)
+            ->first();
+    }
+
+    private function procesarEntrante(array $mensaje, array $contactos, WhatsAppNumber $numero): void
+    {
+        $waMessageId = $mensaje['id']   ?? null;
+        $waId        = $mensaje['from'] ?? null;
 
         if (!$waMessageId || !$waId) {
             return;
         }
 
-        // El webhook puede reintentar el mismo evento — evitamos duplicar el mensaje.
-        if (TicketMessage::where('wa_message_id', $waMessageId)->exists()) {
+        // Meta reintenta el mismo evento — evitamos duplicar el mensaje.
+        if (ConversationMessage::where('wa_message_id', $waMessageId)->exists()) {
             return;
         }
 
-        $text = $message['text']['body']
-            ?? $message['button']['text'] ?? null
-            ?? $message['interactive']['button_reply']['title'] ?? null
-            ?? $message['interactive']['list_reply']['title'] ?? null;
+        $nombre = collect($contactos)->firstWhere('wa_id', $waId)['profile']['name'] ?? null;
 
-        if ($text === null) {
-            $text = '[Mensaje de WhatsApp sin texto — tipo: ' . ($message['type'] ?? 'desconocido') . ']';
-        }
-
-        $contactName = collect($contacts)->firstWhere('wa_id', $waId)['profile']['name'] ?? null;
-        $client      = $this->findClientByPhone($waId);
-
-        $ticket = Ticket::query()->openWhatsappConversation($waId)->latest('id')->first();
-        $isNewTicket = !$ticket;
-
-        if (!$ticket) {
-            $ticket = Ticket::create([
-                'title'             => 'WhatsApp · ' . ($client?->business_name ?: $contactName ?: $waId),
-                'content'           => $text,
-                'priority'          => 'Media',
-                'status'            => 'Nuevos',
-                'source_type'       => Ticket::SOURCE_SUPPORT,
-                'channel'           => Ticket::CHANNEL_WHATSAPP,
-                'whatsapp_wa_id'    => $waId,
-                'creator_id'        => $this->systemUser()->id,
-                'client_id'         => $client?->id,
-                'visible_to_client' => (bool) $client,
-            ]);
-        }
-
-        $newMsg = $ticket->messages()->create([
-            'user_id'       => null,
-            'message'       => $text,
-            'channel'       => Ticket::CHANNEL_WHATSAPP,
-            'direction'     => TicketMessage::DIRECTION_IN,
-            'wa_message_id' => $waMessageId,
-        ]);
-        broadcast(new TicketMessageSent($newMsg))->toOthers();
-
-        $whatsapp->markAsRead($waMessageId);
-
-        // Acuse de recibo solo al abrir el ticket — para no saturar la conversación
-        // en cada mensaje de seguimiento del cliente.
-        if ($isNewTicket) {
-            $ack = "¡Hola! 👋 Recibimos tu mensaje y abrimos el ticket #{$ticket->id} para darle seguimiento. "
-                . 'En breve alguien de nuestro equipo te atenderá por este mismo chat.';
-
-            $ackWaId = $whatsapp->sendText($waId, $ack);
-
-            $ackMsg = $ticket->messages()->create([
-                'user_id'       => null,
-                'message'       => $ack,
-                'channel'       => Ticket::CHANNEL_WHATSAPP,
-                'direction'     => TicketMessage::DIRECTION_OUT,
-                'wa_message_id' => $ackWaId,
-            ]);
-            broadcast(new TicketMessageSent($ackMsg))->toOthers();
-        }
-    }
-
-    /**
-     * Empareja el wa_id entrante con un Client existente comparando solo dígitos
-     * y los últimos 10 (longitud de un número local en MX), ya que el formato
-     * guardado en clients.phone no siempre incluye lada/código de país.
-     */
-    private function findClientByPhone(string $waId): ?Client
-    {
-        $waDigits = preg_replace('/\D+/', '', $waId);
-        if (strlen($waDigits) < 8) {
-            return null;
-        }
-        $suffix = substr($waDigits, -10);
-
-        return Client::query()
-            ->whereNotNull('phone')
-            ->get(['id', 'phone', 'business_name'])
-            ->first(fn (Client $client) => str_ends_with(preg_replace('/\D+/', '', (string) $client->phone), $suffix));
-    }
-
-    /**
-     * Usuario "robot" usado como creator_id de los tickets que abre el webhook
-     * (creator_id es obligatorio en la tabla tickets).
-     */
-    private function systemUser(): User
-    {
-        return User::query()->firstOrCreate(
-            ['email' => 'whatsapp-bot@lunavalos.local'],
+        $conversacion = Conversation::firstOrCreate(
             [
-                'name'     => 'WhatsApp Bot',
-                'password' => Hash::make(Str::random(40)),
-            ]
+                'whatsapp_number_id' => $numero->id,
+                'contact_wa_id'      => $waId,
+            ],
+            [
+                'client_id'    => $numero->client_id,
+                'contact_name' => $nombre,
+            ],
         );
+
+        $conversacion->messages()->create([
+            'user_id'         => null,
+            'author_type'     => ConversationMessage::AUTHOR_CONTACT,
+            'direction'       => ConversationMessage::DIRECTION_IN,
+            'wa_message_id'   => $waMessageId,
+            'type'            => $mensaje['type'] ?? 'text',
+            'body'            => $this->extraerTexto($mensaje),
+            // Un entrante ya está entregado por definición: el estado de
+            // entrega solo describe lo que nosotros mandamos.
+            'delivery_status' => ConversationMessage::DELIVERY_DELIVERED,
+        ]);
+
+        $conversacion->registrarEntrante($nombre);
+
+        MarkWhatsAppMessageRead::dispatch(
+            $waMessageId,
+            $numero->phone_number_id,
+            $numero->tokenParaEnviar(),
+        );
+    }
+
+    /**
+     * Los eventos de `statuses` son los que cierran el agujero de los envíos
+     * fallidos invisibles: sin ellos, un mensaje rechazado por Meta quedaba
+     * guardado como si hubiera llegado.
+     */
+    private function procesarEstado(array $status): void
+    {
+        $waMessageId = $status['id']     ?? null;
+        $estado      = $status['status'] ?? null;
+
+        if (!$waMessageId || !$estado) {
+            return;
+        }
+
+        $mensaje = ConversationMessage::where('wa_message_id', $waMessageId)->first();
+
+        if (!$mensaje) {
+            return;
+        }
+
+        $permitidos = [
+            ConversationMessage::DELIVERY_SENT,
+            ConversationMessage::DELIVERY_DELIVERED,
+            ConversationMessage::DELIVERY_READ,
+            ConversationMessage::DELIVERY_FAILED,
+        ];
+
+        if (!in_array($estado, $permitidos, true)) {
+            return;
+        }
+
+        $mensaje->update([
+            'delivery_status' => $estado,
+            'delivery_error'  => $status['errors'][0]['title'] ?? null,
+        ]);
+    }
+
+    /**
+     * WhatsApp manda el texto en un sitio distinto según el tipo de mensaje.
+     * Lo que no es texto se registra con una marca legible para que la
+     * conversación no muestre un hueco.
+     */
+    private function extraerTexto(array $mensaje): string
+    {
+        $texto = $mensaje['text']['body']
+            ?? $mensaje['button']['text']
+            ?? $mensaje['interactive']['button_reply']['title']
+            ?? $mensaje['interactive']['list_reply']['title']
+            ?? $mensaje['image']['caption']
+            ?? $mensaje['document']['caption']
+            ?? null;
+
+        return $texto ?? '[Mensaje sin texto — tipo: ' . ($mensaje['type'] ?? 'desconocido') . ']';
     }
 }

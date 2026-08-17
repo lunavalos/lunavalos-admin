@@ -26,6 +26,7 @@ class Ticket extends Model
         'creator_id',
         'assigned_id',
         'client_id',
+        'conversation_id',
         'client_service_id',
         'billing_cycle_id',
         'deliverable_credit_id',

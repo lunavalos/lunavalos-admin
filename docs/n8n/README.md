@@ -1,4 +1,19 @@
-# WhatsApp vía n8n
+# WhatsApp vía n8n — ⚠️ OBSOLETO
+
+> **No importes estos workflows.** Describen una arquitectura que se abandonó y
+> que nunca llegó a desplegarse: los dos webhooks jamás existieron en la
+> instancia de n8n.
+>
+> Desde el 2026-08-16 la entrada va de Meta directo a Laravel
+> (`VerifyMetaSignature`) y la salida de Laravel directo a `graph.facebook.com`.
+> n8n ya no participa en el camino transaccional; su rol futuro es el agente de
+> IA y las automatizaciones por cliente.
+>
+> **Arquitectura vigente: `docs/whatsapp-multi-waba.md`.**
+>
+> Se conserva este archivo solo como registro histórico.
+
+---
 
 Este sistema no habla con `graph.facebook.com`. El token de Meta vive solo en n8n.
 
