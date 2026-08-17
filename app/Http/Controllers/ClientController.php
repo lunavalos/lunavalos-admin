@@ -434,7 +434,6 @@ class ClientController extends Controller implements HasMiddleware
             'services',
             'contracts' => fn ($q) => $q->orderByDesc('created_at'),
             'contracts.payments:id,contract_id,amount,status',
-            'contracts.quote:id,client_id,billing_type',
         ]);
         return \Inertia\Inertia::render('Clients/Show', [
             'client' => $client
