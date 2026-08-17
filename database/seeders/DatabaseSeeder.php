@@ -119,9 +119,15 @@ class DatabaseSeeder extends Seeder
         // ni el módulo de clientes (lleva precios, costos internos y
         // credenciales). Ese es el motivo de que aquí no aparezcan
         // 'Ver Servicios' ni 'Ver Clientes'.
+        //
+        // 'Gestionar Recurrentes' sí lo tienen: es lo que les permite abrir el
+        // ciclo del mes y crear entregables desde el tablero, que es su trabajo.
+        // Ese permiso no expone importes — el contrato solo manda `monthly_amount`
+        // a administradores.
         $productionPermissions = array_merge([
             'Ver Dashboard',
             'Ver Recurrentes',
+            'Gestionar Recurrentes',
         ], $ticketPermissions);
 
         $rolePermissions = [

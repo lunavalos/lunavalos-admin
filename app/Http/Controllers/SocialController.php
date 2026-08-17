@@ -11,9 +11,31 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class SocialController extends Controller
+class SocialController extends Controller implements HasMiddleware
 {
+    /**
+     * El módulo de redes queda cerrado por permiso. Antes cualquier usuario
+     * autenticado llegaba escribiendo la URL: el enlace del sidebar sí estaba
+     * gateado con `Ver Social`, pero la ruta no validaba nada.
+     *
+     * `autorizarCliente()` sigue siendo necesario además de esto: el permiso
+     * decide si entras al módulo, el scoping decide de qué cliente.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Social', only: ['index', 'show']),
+            new Middleware('can:Gestionar Social', only: [
+                'createPost', 'storePost', 'editPost', 'updatePost',
+                'destroyPost', 'duplicatePost',
+            ]),
+            new Middleware('can:Publicar Social', only: ['publishNow']),
+        ];
+    }
+
     /**
      * Un usuario amarrado a un cliente (`users.client_id`) solo ve ese cliente.
      * Aplica a los usuarios del portal y a la cuenta que se entrega a los

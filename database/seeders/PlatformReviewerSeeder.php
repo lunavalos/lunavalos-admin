@@ -94,6 +94,12 @@ class PlatformReviewerSeeder extends Seeder
      * `Ver Tickets` es informativo: el módulo de Tickets no está protegido por
      * ningún permiso —el enlace del sidebar es visible para todos—, así que lo
      * que de verdad protege esos datos es el rol Cliente que se asigna abajo.
+     *
+     * `Gestionar Social` y `Publicar Social` sí son necesarios: el revisor tiene
+     * que conectar una página y publicar para demostrar el permiso que Meta está
+     * evaluando. Antes le bastaba con estar autenticado porque las rutas de
+     * social no validaban permisos; ahora que sí lo hacen, hay que declararlos.
+     * El alcance sigue acotado a su cliente demo vía `users.client_id`.
      */
     private function reviewerRole(): Role
     {
@@ -102,7 +108,13 @@ class PlatformReviewerSeeder extends Seeder
             'guard_name' => 'web',
         ]);
 
-        $permisos = collect(['Ver Dashboard', 'Ver Social', 'Ver Tickets'])
+        $permisos = collect([
+            'Ver Dashboard',
+            'Ver Social',
+            'Gestionar Social',
+            'Publicar Social',
+            'Ver Tickets',
+        ])
             ->map(fn (string $nombre) => Permission::firstOrCreate([
                 'name'       => $nombre,
                 'guard_name' => 'web',

@@ -37,6 +37,16 @@ class ProductionRolesAccessTest extends TestCase
         return $user;
     }
 
+    private function clienteDemo(): \App\Models\Client
+    {
+        return \App\Models\Client::create([
+            'business_name' => 'Cliente Demo',
+            'contact_name'  => 'Contacto',
+            'email'         => 'demo@example.com',
+            'initial_price' => 12345.67,
+        ]);
+    }
+
     public static function rolesDeProduccion(): array
     {
         return [
@@ -71,12 +81,39 @@ class ProductionRolesAccessTest extends TestCase
     }
 
     #[DataProvider('rolesDeProduccion')]
+    public function test_no_alcanzan_el_modulo_de_redes(string $rol): void
+    {
+        $user    = $this->usuarioConRol($rol);
+        $cliente = $this->clienteDemo();
+
+        $this->actingAs($user)->get(route('social.index'))->assertForbidden();
+        $this->actingAs($user)->get(route('social.clients.show', $cliente))->assertForbidden();
+        $this->actingAs($user)->get(route('social.posts.create', $cliente))->assertForbidden();
+        $this->actingAs($user)
+            ->get(route('social.oauth.redirect', ['provider' => 'facebook', 'client' => $cliente->id]))
+            ->assertForbidden();
+    }
+
+    #[DataProvider('rolesDeProduccion')]
     public function test_si_alcanzan_tickets_y_recurrentes(string $rol): void
     {
         $user = $this->usuarioConRol($rol);
 
         $this->actingAs($user)->get(route('tickets.index'))->assertOk();
         $this->actingAs($user)->get(route('recurring.index'))->assertOk();
+    }
+
+    /**
+     * Ven el tablero y además pueden operarlo: abrir el ciclo del mes y crear
+     * entregables es su trabajo, y ninguna de esas acciones expone importes.
+     */
+    #[DataProvider('rolesDeProduccion')]
+    public function test_pueden_gestionar_recurrentes(string $rol): void
+    {
+        $user = $this->usuarioConRol($rol);
+
+        $this->assertTrue($user->can('Ver Recurrentes'));
+        $this->assertTrue($user->can('Gestionar Recurrentes'));
     }
 
     #[DataProvider('rolesDeProduccion')]
@@ -102,12 +139,7 @@ class ProductionRolesAccessTest extends TestCase
     {
         $user = $this->usuarioConRol('Designer');
 
-        $cliente = \App\Models\Client::create([
-            'business_name' => 'Cliente Demo',
-            'contact_name'  => 'Contacto',
-            'email'         => 'demo@example.com',
-            'initial_price' => 12345.67,
-        ]);
+        $cliente = $this->clienteDemo();
 
         \App\Models\ClientService::create([
             'client_id'      => $cliente->id,

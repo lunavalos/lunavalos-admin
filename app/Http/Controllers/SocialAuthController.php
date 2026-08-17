@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\User as SocialiteUser;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
 /**
  * OAuth flow para conectar/desconectar cuentas sociales por cliente.
@@ -35,8 +37,22 @@ use Laravel\Socialite\Two\User as SocialiteUser;
  *   - Para Facebook se intercambia el token corto por uno largo (60 días); los
  *     page_access_token derivados de un long-lived user token no expiran.
  */
-class SocialAuthController extends Controller
+class SocialAuthController extends Controller implements HasMiddleware
 {
+    /**
+     * Conectar y desconectar cuentas es gestión del módulo de redes, no lectura.
+     *
+     * `callback` va con el mismo permiso que `redirect`: es la vuelta del mismo
+     * flujo y la inicia el mismo usuario, así que quien pudo arrancarlo puede
+     * cerrarlo.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Gestionar Social'),
+        ];
+    }
+
     /** Provider lógico -> driver real de Socialite. */
     private const DRIVERS = [
         'facebook'  => 'facebook',
