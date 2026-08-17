@@ -508,8 +508,24 @@ Pendiente menor:
   como camino heredado. No se toca todavía para no romper el flujo que hoy usa
   el equipo.
 
-**Fase 3 — Embedded Signup**
-- Página de conexión, canje de code, `subscribed_apps`, reconexión y revocación.
+**Fase 3 — Embedded Signup — ✅ hecha el 2026-08-17**
+- `WhatsAppOnboardingService`: canje del code, lectura de la WABA y sus números,
+  `POST /{waba_id}/subscribed_apps` y revocación.
+- `WhatsAppConnectController` + `WhatsApp/Connect.vue` con el Facebook JS SDK.
+  El App Secret nunca sale del servidor: el navegador solo entrega el `code`.
+- Idempotente por `waba_id` y `phone_number_id`: reconectar no duplica números
+  ni desliga las conversaciones que ya cuelgan de ellos.
+- Token del cliente cifrado en reposo (hay un test que lo verifica leyendo la
+  columna en crudo).
+- Desconexión: desuscribe la app, borra el token y apaga los números. Si Meta
+  falla, se deja de usar el token igual.
+- 8 tests en `WhatsAppOnboardingTest`.
+
+Pendiente de configuración (no de código):
+- Crear el flujo de Embedded Signup en el panel de Meta y poner su
+  `configuration_id` en `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID`. La pantalla avisa
+  si falta.
+- Añadir `WHATSAPP_APP_ID` en producción.
 
 **Fase 4 — Salida directa a Graph — ✅ hecha el 2026-08-16**
 - `WhatsAppService` contra `graph.facebook.com`, con número y token opcionales

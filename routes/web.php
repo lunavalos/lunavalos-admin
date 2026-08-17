@@ -184,6 +184,11 @@ Route::middleware('auth')->group(function () {
     Route::post('social/clients/{client}/conexiones/elegir',           [\App\Http\Controllers\SocialAuthController::class, 'storeSelection'])->name('social.oauth.select.store');
     Route::delete('social/accounts/{account}',                         [\App\Http\Controllers\SocialAuthController::class, 'disconnect'])->name('social.accounts.disconnect');
 
+    // Onboarding de la WABA de un cliente vía Embedded Signup.
+    Route::get('clients/{client}/whatsapp/conectar',  [\App\Http\Controllers\WhatsAppConnectController::class, 'show'])->name('whatsapp.connect.show');
+    Route::post('clients/{client}/whatsapp/conectar', [\App\Http\Controllers\WhatsAppConnectController::class, 'store'])->name('whatsapp.connect.store');
+    Route::delete('clients/{client}/whatsapp/{account}', [\App\Http\Controllers\WhatsAppConnectController::class, 'destroy'])->name('whatsapp.connect.destroy');
+
     // Conversaciones de WhatsApp. Módulo aparte de Tickets a propósito: una
     // conversación no se cierra, un ticket sí. El ticket se crea desde aquí
     // cuando de la conversación sale trabajo que hay que rastrear.

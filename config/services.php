@@ -63,6 +63,10 @@ return [
         'phone_number_id'     => env('WHATSAPP_PHONE_NUMBER_ID'),
         'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
         'timeout'             => env('WHATSAPP_TIMEOUT', 10),
+
+        // Embedded Signup: el `configuration_id` del flujo que se crea en el
+        // panel de Meta. Sin él el SDK no puede lanzar el diálogo.
+        'embedded_signup_config_id' => env('WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID'),
     ],
 
     /*

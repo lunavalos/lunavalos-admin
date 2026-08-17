@@ -120,6 +120,20 @@ class Client extends Model
         return $this->hasMany(SocialAccount::class);
     }
 
+    /**
+     * Números de WhatsApp que atienden a este cliente. Cuelgan del número y no
+     * de la WABA porque una WABA propia puede alojar números de varios clientes.
+     */
+    public function whatsappNumbers()
+    {
+        return $this->hasMany(WhatsAppNumber::class);
+    }
+
+    public function conversations()
+    {
+        return $this->hasMany(Conversation::class);
+    }
+
     public function socialPosts()
     {
         return $this->hasMany(SocialPost::class);

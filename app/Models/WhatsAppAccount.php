@@ -41,7 +41,9 @@ class WhatsAppAccount extends Model
 
     public function numbers(): HasMany
     {
-        return $this->hasMany(WhatsAppNumber::class);
+        // Clave foránea explícita: del CamelCase del modelo Laravel derivaría
+        // "whats_app_account_id".
+        return $this->hasMany(WhatsAppNumber::class, 'whatsapp_account_id');
     }
 
     public function connectedBy()
