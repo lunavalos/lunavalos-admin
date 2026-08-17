@@ -58,7 +58,7 @@ Vale la pena dejarlo escrito, porque el repo documenta una arquitectura que
 | App Publish Status | ❌ **Unpublished** |
 | Access Verification (Tech Provider) | ✅ **Verified** (aprobado el 2026-08-16) |
 | App Review | ❌ **Not submitted** (verificado en el panel el 2026-08-17) |
-| Configuración de Embedded Signup | ✅ Creada el 2026-08-17 → `935973882857232` |
+| Configuración de Embedded Signup | ✅ Creada el 2026-08-17 → `1006528675722697` (token sin caducidad) |
 | Campo `message_template_status_update` | ✅ Suscrito |
 | `whatsapp_business_messaging` | ⚠️ Standard Access ("Ready for testing", 46 llamadas) |
 | `whatsapp_business_management` | ⚠️ Standard Access ("Ready for testing", 60 llamadas) |
@@ -543,14 +543,29 @@ Configuración — ✅ hecha el 2026-08-17:
 - La configuración de Embedded Signup **no existía**: en *Facebook Login for
   Business → Configurations* solo estaba `Publishing - Pages and IG`. Por eso
   no se encontraba el `config_id`; no era que estuviera escondido.
-- Creada desde la plantilla *WhatsApp Embedded Signup Configuration With 60
-  Expiration Token* → `configuration_id` **935973882857232**. Concede
+- La que se usa es **`1006528675722697`** (`WhatsApp Embedded Signup`), creada
+  a mano con **expiración de token "Never"**. Concede
   `whatsapp_business_messaging` + `whatsapp_business_management` sobre el
-  activo *WhatsApp accounts*, con las tareas `manage`, `manage_templates` y
-  `manage_phone_assets`.
-- **El token del cliente caduca a los 60 días.** El canje ahora guarda
-  `expires_in` en `token_expires_at`; falta el aviso antes de que muera
-  (ver §11, revocación silenciosa).
+  activo *WhatsApp accounts*, con las 7 tareas (`MANAGE` las arrastra todas:
+  `DEVELOP`, `MANAGE_TEMPLATES`, `MANAGE_PHONE_ASSETS`, `VIEW_TEMPLATES`,
+  `VIEW_PHONE_ASSETS`, `MESSAGING`). Producto: *WhatsApp Cloud API* (+
+  *Marketing Messages API*, que Meta marca sola como dependiente).
+
+> **La caducidad del token se fija al crear la configuración y no se puede
+> cambiar.** El asistente lo dice en el paso *Access token*: "This can't be
+> changed later", y en modo edición los radios salen deshabilitados. Lo mismo
+> con *Login variation* y *Products*.
+>
+> Primero se creó `935973882857232` desde la plantilla *…With 60 Expiration
+> Token*, que Meta marca como "(Recommended)". Se descartó porque no hay
+> documentado un refresh del token de Embedded Signup que no obligue al
+> cliente a rehacer el flujo: serían 15 clientes reonboardeándose cada dos
+> meses. La doc de Business Integration System User tokens dice además que el
+> default es *never expire* justamente para "offline server-to-server
+> communication", que es nuestro caso. Esa configuración quedó sin usar.
+>
+> El código soporta las dos: el canje guarda `expires_in` en
+> `token_expires_at`, y con "Never" queda `null`.
 
 Pendiente de configuración:
 - Añadir `WHATSAPP_APP_ID` y `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` en producción.
@@ -617,8 +632,8 @@ WHATSAPP_PHONE_NUMBER_ID=1230737580126123
 WHATSAPP_BUSINESS_ACCOUNT_ID=2436841820155807
 WHATSAPP_TIMEOUT=10
 
-# Fase 3 — creada en el panel el 2026-08-17
-WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID=935973882857232
+# Fase 3 — creada en el panel el 2026-08-17, token sin caducidad
+WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID=1006528675722697
 ```
 
 > ⚠️ En producción la variable de versión está como `WHATSAPP_API_VERSION`, y
