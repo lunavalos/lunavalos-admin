@@ -32,18 +32,22 @@ class WhatsAppTemplateService
      */
     public function sincronizar(WhatsAppAccount $cuenta): int
     {
+        $limite = 200;
+
         $respuesta = $this->graph($cuenta)->get("/{$cuenta->waba_id}/message_templates", [
             'fields' => 'id,name,language,category,status,components,rejected_reason',
-            'limit'  => 200,
+            'limit'  => $limite,
         ]);
 
         if (!$respuesta->successful()) {
             $this->reventar('no se pudieron leer las plantillas', $respuesta->json('error', []));
         }
 
-        $vistas = 0;
+        $remotas = $respuesta->json('data', []);
+        $vistas  = 0;
+        $vivas   = [];
 
-        foreach ($respuesta->json('data', []) as $remota) {
+        foreach ($remotas as $remota) {
             if (empty($remota['name']) || empty($remota['language'])) {
                 continue;
             }
@@ -68,7 +72,21 @@ class WhatsAppTemplateService
                 ],
             );
 
+            $vivas[] = $remota['name'] . '|' . $remota['language'];
             $vistas++;
+        }
+
+        // Meta es la fuente de verdad: una plantilla borrada allá tiene que
+        // desaparecer de aquí, o el equipo la sigue viendo y la ofrece al enviar.
+        //
+        // Solo se poda si la respuesta cupo entera. Si vino llena puede haber
+        // más páginas, y lo que falta no es "borrado en Meta" sino "no lo
+        // pedimos" — podar ahí borraría plantillas válidas.
+        if (count($remotas) < $limite) {
+            $cuenta->templates()
+                ->get(['id', 'name', 'language'])
+                ->reject(fn ($p) => in_array($p->name . '|' . $p->language, $vivas, true))
+                ->each(fn ($p) => $p->delete());
         }
 
         return $vistas;
@@ -80,7 +98,7 @@ class WhatsAppTemplateService
      * Meta la revisa por su cuenta y puede tardar; el estado final llega por el
      * webhook message_template_status_update.
      *
-     * @param array{name: string, language: string, category: string, header?: ?string, body: string, footer?: ?string} $datos
+     * @param array{name: string, language: string, category: string, header?: ?string, body: string, footer?: ?string, ejemplos?: list<string>} $datos
      */
     public function crear(WhatsAppAccount $cuenta, array $datos): WhatsAppTemplate
     {
@@ -154,7 +172,19 @@ class WhatsAppTemplateService
             ];
         }
 
-        $componentes[] = ['type' => 'BODY', 'text' => $datos['body']];
+        $cuerpo = ['type' => 'BODY', 'text' => $datos['body']];
+
+        // Meta exige un valor de ejemplo por cada {{n}}: el revisor humano los
+        // usa para entender qué va en cada hueco. Sin ellos la plantilla se
+        // crea igual y el rechazo llega horas después, en revisión — el peor
+        // modo de fallo posible, porque parece que funcionó.
+        $ejemplos = array_values($datos['ejemplos'] ?? []);
+
+        if ($ejemplos !== []) {
+            $cuerpo['example'] = ['body_text' => [$ejemplos]];
+        }
+
+        $componentes[] = $cuerpo;
 
         if (!empty($datos['footer'])) {
             $componentes[] = ['type' => 'FOOTER', 'text' => $datos['footer']];

@@ -113,9 +113,34 @@ class WhatsAppTemplateController extends Controller implements HasMiddleware
             'header'   => 'nullable|string|max:60',
             'body'     => 'required|string|max:1024',
             'footer'   => 'nullable|string|max:60',
+            'ejemplos'   => 'array',
+            'ejemplos.*' => 'required|string|max:200',
         ], [
             'name.regex' => 'El nombre solo admite minúsculas, números y guiones bajos.',
         ]);
+
+        // Meta exige un ejemplo por cada {{n}} del cuerpo. Sin ellos crea la
+        // plantilla igual y la rechaza horas después, en revisión: se valida
+        // aquí para que el fallo llegue de inmediato y no parezca que funcionó.
+        $variables = WhatsAppTemplate::contarVariables($datos['body']);
+        $ejemplos  = array_values($datos['ejemplos'] ?? []);
+
+        if (count($ejemplos) !== $variables) {
+            return back()->withErrors([
+                'body' => "El cuerpo tiene {$variables} variable(s) y hace falta un ejemplo para cada una.",
+            ]);
+        }
+
+        $datos['ejemplos'] = $ejemplos;
+
+        // El encabezado admite variables en la API de Meta, pero con su propio
+        // bloque de ejemplos. Se deja fuera a propósito para no multiplicar los
+        // modos de fallo por un caso que no necesitamos.
+        if (WhatsAppTemplate::contarVariables($datos['header'] ?? '') > 0) {
+            return back()->withErrors([
+                'header' => 'El encabezado no admite variables. Ponlas solo en el cuerpo.',
+            ]);
+        }
 
         try {
             $servicio->crear($account, $datos);

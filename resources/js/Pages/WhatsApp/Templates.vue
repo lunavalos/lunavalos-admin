@@ -7,7 +7,7 @@ import {
     TrashIcon,
     ExclamationTriangleIcon,
 } from '@heroicons/vue/24/outline';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
     cuentas: { type: Array, default: () => [] },
@@ -29,6 +29,7 @@ const form = useForm({
     header: '',
     body: '',
     footer: '',
+    ejemplos: [],
 });
 
 const cuenta = computed(() => props.cuentas.find((c) => c.id === props.cuentaId) ?? null);
@@ -40,6 +41,27 @@ const variables = computed(() => {
     const encontradas = [...form.body.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => Number(m[1]));
     return encontradas.length ? Math.max(...encontradas) : 0;
 });
+
+// Meta pide un ejemplo por cada {{n}}. Si el usuario quita una variable del
+// cuerpo, su ejemplo tiene que desaparecer con ella o el envío no cuadra.
+watch(variables, (n) => {
+    form.ejemplos = Array.from({ length: n }, (_, i) => form.ejemplos[i] ?? '');
+});
+
+// Sustituye los huecos por los ejemplos. Es la mejor forma de explicar qué es
+// {{1}}: en vez de describirlo, se ve el mensaje final.
+const sustituir = (texto) =>
+    (texto || '').replace(
+        /\{\{\s*(\d+)\s*\}\}/g,
+        (hueco, n) => form.ejemplos[Number(n) - 1] || hueco,
+    );
+
+const vistaPreviaCuerpo = computed(() => sustituir(form.body));
+
+const ejemplosCompletos = computed(
+    () => form.ejemplos.length === variables.value
+        && form.ejemplos.every((e) => e && e.trim())
+);
 
 const cambiarCuenta = (id) => {
     router.get(route('whatsapp.templates.index'), { cuenta: id }, { preserveState: false });
@@ -202,12 +224,67 @@ const estilosEstado = {
                                 :placeholder="ejemploCuerpo"
                                 class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
                             ></textarea>
+                            <div class="mt-1 rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 text-xs text-blue-900 dark:text-blue-200">
+                                <p class="font-semibold">¿Qué son las llaves dobles?</p>
+                                <p class="mt-1">
+                                    Son <strong>huecos</strong>. El texto de la plantilla es fijo —Meta lo
+                                    aprueba una vez y no cambia—, pero los huecos se rellenan en el momento
+                                    de enviar, con el dato de cada contacto.
+                                </p>
+                                <p class="mt-1.5">
+                                    Escribe <code v-pre>{{1}}</code> donde vaya el primer dato variable,
+                                    <code v-pre>{{2}}</code> el segundo, y así. Numéralos en orden y sin saltarte
+                                    ninguno.
+                                </p>
+                                <p class="mt-1.5">
+                                    Ejemplo: <code>{{ ejemploCuerpo }}</code><br />
+                                    Al enviar eliges el nombre y el pedido; el resto del texto siempre es igual.
+                                </p>
+                            </div>
                             <span class="text-xs text-gray-500">
-                                Usa <code v-pre>{{1}}</code>, <code v-pre>{{2}}</code>… para los datos que cambian.
-                                Detectadas: <strong>{{ variables }}</strong>
+                                Huecos detectados: <strong>{{ variables }}</strong>
                             </span>
                             <span v-if="form.errors.body" class="block text-xs text-red-600">{{ form.errors.body }}</span>
                         </label>
+
+                        <!-- Meta exige un ejemplo por variable: el revisor humano
+                             los lee para entender qué va en cada hueco. Sin ellos
+                             la plantilla se crea y se rechaza horas después. -->
+                        <div v-if="variables" class="rounded-md bg-gray-50 dark:bg-zinc-800/50 p-3 space-y-2">
+                            <p class="text-sm font-medium text-gray-700 dark:text-zinc-300">
+                                Ejemplos para la revisión de Meta
+                            </p>
+                            <p class="text-xs text-gray-500">
+                                Un valor de muestra por variable. Meta los usa para entender la
+                                plantilla; no se envían a nadie.
+                            </p>
+                            <label v-for="n in variables" :key="n" class="block">
+                                <span class="text-xs text-gray-600 dark:text-zinc-400">
+                                    Ejemplo para <code v-pre>{{</code>{{ n }}<code v-pre>}}</code>
+                                </span>
+                                <input
+                                    v-model="form.ejemplos[n - 1]"
+                                    :placeholder="n === 1 ? 'Ana' : 'A-42'"
+                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                />
+                            </label>
+                        </div>
+
+                        <!-- Ver el mensaje ya sustituido explica los huecos mejor
+                             que cualquier texto de ayuda. -->
+                        <div v-if="form.body">
+                            <span class="text-sm font-medium text-gray-700 dark:text-zinc-300">
+                                Así lo verá el contacto
+                            </span>
+                            <div class="mt-1 max-w-md rounded-2xl rounded-bl-sm bg-[#dcf8c6] dark:bg-emerald-900/40 px-3 py-2 text-sm text-gray-900 dark:text-zinc-100">
+                                <p v-if="form.header" class="font-semibold">{{ form.header }}</p>
+                                <p class="whitespace-pre-wrap break-words">{{ vistaPreviaCuerpo }}</p>
+                                <p v-if="form.footer" class="mt-1 text-xs opacity-60">{{ form.footer }}</p>
+                            </div>
+                            <p v-if="variables && !ejemplosCompletos" class="mt-1 text-xs text-amber-600">
+                                Los huecos sin ejemplo se quedan como <code v-pre>{{n}}</code>.
+                            </p>
+                        </div>
 
                         <label class="block">
                             <span class="text-sm font-medium text-gray-700 dark:text-zinc-300">
@@ -222,7 +299,7 @@ const estilosEstado = {
 
                         <button
                             type="submit"
-                            :disabled="form.processing || !form.name || !form.body"
+                            :disabled="form.processing || !form.name || !form.body || !ejemplosCompletos"
                             class="rounded-md bg-[#264ab3] px-4 py-2 text-sm text-white disabled:opacity-50"
                         >
                             {{ form.processing ? 'Enviando…' : 'Enviar a revisión' }}

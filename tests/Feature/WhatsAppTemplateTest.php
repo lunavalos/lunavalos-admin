@@ -107,6 +107,7 @@ class WhatsAppTemplateTest extends TestCase
                 'category' => 'UTILITY',
                 'body'     => 'Hola {{1}}, tu cita es el {{2}}.',
                 'footer'   => 'LunAvalos',
+                'ejemplos' => ['Ana', '12 de marzo'],
             ])
             ->assertRedirect();
 
@@ -124,8 +125,70 @@ class WhatsAppTemplateTest extends TestCase
             return str_contains($request->url(), '/2436841820155807/message_templates')
                 && $cuerpo['name'] === 'aviso_cita'
                 // El pie va como componente FOOTER, no como campo suelto.
-                && collect($cuerpo['components'])->contains(fn ($c) => $c['type'] === 'FOOTER');
+                && collect($cuerpo['components'])->contains(fn ($c) => $c['type'] === 'FOOTER')
+                // Y el cuerpo tiene que llevar los ejemplos: sin ellos Meta crea
+                // la plantilla y la rechaza horas después, en revisión.
+                && collect($cuerpo['components'])->firstWhere('type', 'BODY')['example']['body_text']
+                   === [['Ana', '12 de marzo']];
         });
+    }
+
+    public function test_sin_ejemplos_no_se_llama_a_meta(): void
+    {
+        Http::fake();
+
+        // Meta acepta la plantilla sin ejemplos y la rechaza horas después, en
+        // revisión. Se corta aquí para que el fallo llegue de inmediato.
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.templates.store', $this->cuenta()), [
+                'name'     => 'aviso_cita',
+                'language' => 'es_MX',
+                'category' => 'UTILITY',
+                'body'     => 'Hola {{1}}, tu cita es el {{2}}.',
+                'ejemplos' => ['Ana'],   // falta el segundo
+            ])
+            ->assertSessionHasErrors('body');
+
+        Http::assertNothingSent();
+    }
+
+    public function test_una_plantilla_sin_variables_no_manda_bloque_de_ejemplos(): void
+    {
+        $cuenta = $this->cuenta();
+
+        Http::fake(['*/message_templates' => Http::response(['id' => '1', 'status' => 'PENDING'])]);
+
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.templates.store', $cuenta), [
+                'name'     => 'aviso_simple',
+                'language' => 'es_MX',
+                'category' => 'UTILITY',
+                'body'     => 'Tu pedido ya está listo.',
+            ])
+            ->assertRedirect();
+
+        // Meta rechaza un `example` vacío: si no hay variables, la clave no va.
+        Http::assertSent(fn ($r) => !array_key_exists(
+            'example',
+            collect($r->data()['components'])->firstWhere('type', 'BODY'),
+        ));
+    }
+
+    public function test_el_encabezado_no_admite_variables(): void
+    {
+        Http::fake();
+
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.templates.store', $this->cuenta()), [
+                'name'     => 'aviso_cita',
+                'language' => 'es_MX',
+                'category' => 'UTILITY',
+                'header'   => 'Hola {{1}}',
+                'body'     => 'Tu cita ya está confirmada.',
+            ])
+            ->assertSessionHasErrors('header');
+
+        Http::assertNothingSent();
     }
 
     public function test_un_nombre_con_mayusculas_se_rechaza_sin_llamar_a_meta(): void
@@ -189,6 +252,32 @@ class WhatsAppTemplateTest extends TestCase
 
         $this->assertSame(WhatsAppTemplate::STATUS_APPROVED, $plantilla->status);
         $this->assertSame(1, $plantilla->body_variables);
+    }
+
+    public function test_sincronizar_borra_lo_que_ya_no_existe_en_meta(): void
+    {
+        $cuenta = $this->cuenta();
+        $this->plantilla($cuenta, ['name' => 'ya_borrada_en_meta']);
+
+        Http::fake([
+            '*/message_templates*' => Http::response(['data' => [[
+                'id'         => '555',
+                'name'       => 'sigue_viva',
+                'language'   => 'es_MX',
+                'category'   => 'UTILITY',
+                'status'     => 'APPROVED',
+                'components' => [['type' => 'BODY', 'text' => 'Hola.']],
+            ]]]),
+        ]);
+
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.templates.sync', $cuenta))
+            ->assertRedirect();
+
+        // Meta es la fuente de verdad: si la borraron allá, aquí no puede
+        // seguir apareciendo ni ofrecerse al responder.
+        $this->assertNull(WhatsAppTemplate::where('name', 'ya_borrada_en_meta')->first());
+        $this->assertNotNull(WhatsAppTemplate::where('name', 'sigue_viva')->first());
     }
 
     public function test_sin_el_permiso_no_se_entra_al_modulo(): void

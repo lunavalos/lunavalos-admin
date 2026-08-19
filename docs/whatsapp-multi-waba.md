@@ -488,9 +488,19 @@ que tiene reloj, y no depende de una línea de código.
 - 10 tests en `WhatsAppWebhookSecurityTest`: handshake OK/KO/sin config, firma
   ausente/inválida/válida-de-otro-cuerpo/sin app secret, alta de ticket e
   idempotencia.
-- **Falta desplegar y poner `WHATSAPP_APP_SECRET` y `WHATSAPP_VERIFY_TOKEN` en
-  el `.env` de producción**, y volver a guardar el Callback URL en Meta para que
-  dispare el handshake.
+- ✅ **Verificado en producción el 2026-08-19.** Un mensaje real desde un
+  celular recorrió la cadena completa:
+
+  ```
+  POST /whatsapp/webhook   200   "facebookexternalua"
+  GET  /conversaciones/4   200
+  POST /broadcasting/auth  200
+  ```
+
+  Eso prueba de una sola pasada que Meta entrega, que la firma valida contra el
+  App Secret, que el enrutado por `entry[].id` + `phone_number_id` encuentra la
+  cuenta y el número, y que el canal privado de broadcasting autoriza. Hasta
+  aquí todo estaba probado solo con HTTP falseado.
 
 **Fase 2 — Módulo de Conversaciones + esquema multi-tenant**
 
@@ -627,6 +637,42 @@ Ya venía de la Fase 2, y se mantiene: `value['statuses']` alimentando
 `delivery_status`, el bloqueo del texto libre fuera de la ventana, y el fallo
 de entrega visible en la burbuja.
 
+**Había DOS apps de Meta — resuelto el 2026-08-19**
+
+La causa raíz de que el webhook nunca funcionara no era configuración
+incompleta: eran **dos apps apuntando al mismo endpoint** de Laravel, que solo
+tiene un `WHATSAPP_APP_SECRET`.
+
+| | LunAvalos Social (`1531774538464754`) | LunAvalos Manager (`1602781670818128`) |
+|---|---|---|
+| Callback URL | mismo endpoint | mismo endpoint |
+| `messages` | Subscribed v26.0 | Subscribed v25.0 |
+| Token de producción | — | ✅ era de ésta |
+| Publicada / Tech Provider / App Review | ✅ | ❌ |
+
+Además el `.env` de producción tenía una pareja imposible:
+`WHATSAPP_BUSINESS_ACCOUNT_ID` apuntaba a la **WABA de prueba**
+(`987252317374914`) mientras `WHATSAPP_PHONE_NUMBER_ID` apuntaba al **número
+real**. Por eso `adoptarWabaPropia` registraba el `+1 555` de Meta.
+
+Consolidado en **LunAvalos Social**:
+
+- Se quitó el Callback URL y la suscripción a `messages` de `LunAvalos Manager`
+  (reversible: el verify token es el mismo que `WHATSAPP_VERIFY_TOKEN`).
+- Token nuevo del system user `whatsapp-api` emitido **para LunAvalos Social**,
+  sin caducidad, con los dos permisos.
+- `WHATSAPP_BUSINESS_ACCOUNT_ID=2436841820155807` (WABA `LunAvalos`, número
+  `+52 1 844 341 0326` / `1230737580126123`, calidad GREEN).
+- `WHATSAPP_APP_SECRET` ya era el correcto: coincide con `FACEBOOK_CLIENT_SECRET`
+  de la app 1531774538464754.
+
+> La app `LunAvalos Manager` **no se borró**: conserva el número registrado y el
+> método de pago, y sirve de vuelta atrás. Borrarla es irreversible y no urge.
+
+> Higiene pendiente: `EVIEWER_EMAIL` en producción está mal escrito (falta la R);
+> hoy funciona solo porque el seeder tiene ese mismo correo por omisión.
+> `WHATSAPP_API_VERSION` sigue en Preview y no la lee nadie.
+
 **La WABA propia no pasa por Embedded Signup — resuelto el 2026-08-19**
 
 Al intentar conectar la WABA de LunAvalos por Embedded Signup, el desplegable
@@ -690,6 +736,13 @@ WHATSAPP_VERIFY_TOKEN=
 WHATSAPP_GRAPH_VERSION=v26.0
 
 # Salida (ya en producción)
+# ⚠️ Verificado el 2026-08-19: producción NO tiene estos valores, sino los del
+# número de PRUEBA que Meta regala:
+#     WHATSAPP_BUSINESS_ACCOUNT_ID=987252317374914   ("Test WhatsApp Business Account")
+#     WHATSAPP_PHONE_NUMBER_ID=1201903109667621      (+1 555 628-6220)
+# El número de prueba solo entrega a un máximo de 5 destinatarios dados de alta
+# a mano en el panel, y no sirve para operar. Decidir cuál se usa antes de
+# grabar los videos de App Review.
 WHATSAPP_TOKEN=
 WHATSAPP_PHONE_NUMBER_ID=1230737580126123
 WHATSAPP_BUSINESS_ACCOUNT_ID=2436841820155807
