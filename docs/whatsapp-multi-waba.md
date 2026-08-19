@@ -6,6 +6,8 @@
 > **Revisado el 2026-08-17**: Fases 3 y 5 hechas. La configuración de Embedded
 > Signup se creó en el panel y App Review resultó estar **sin enviar**, no en
 > revisión.
+> **Revisado el 2026-08-19**: app publicada, el toggle del JS SDK activado, y la
+> cuenta de revisión actualizada para que pueda evaluar WhatsApp.
 > Sustituye al modelo descrito en `docs/n8n/README.md`, que quedó obsoleto.
 
 ## 1. Qué cambia y por qué
@@ -55,7 +57,7 @@ Vale la pena dejarlo escrito, porque el repo documenta una arquitectura que
 | Business verification (`LunAvalos Manager`, `2424498274460318`) | ✅ Verified |
 | Production setup (webhooks, número, pago, envío) | ✅ 4/4 |
 | Campo `messages` suscrito | ✅ (`calls` también) |
-| App Publish Status | ❌ **Unpublished** |
+| App Publish Status | ✅ **Published** (el 2026-08-19) |
 | Access Verification (Tech Provider) | ✅ **Verified** (aprobado el 2026-08-16) |
 | App Review | ❌ **Not submitted** (verificado en el panel el 2026-08-17) |
 | Configuración de Embedded Signup | ✅ Creada el 2026-08-17 → `1006528675722697` (token sin caducidad) |
@@ -624,6 +626,25 @@ puede grabar. Es prerrequisito de App Review, no un extra.
 Ya venía de la Fase 2, y se mantiene: `value['statuses']` alimentando
 `delivery_status`, el bloqueo del texto libre fuera de la ventana, y el fallo
 de entrega visible en la burbuja.
+
+**Cuenta de revisión — actualizada el 2026-08-19**
+
+`PlatformReviewerSeeder` se había quedado en el modelo anterior: daba solo
+permisos de Social y Tickets, y su dato de demo era un ticket con
+`whatsapp_wa_id`. Un revisor de Meta entraba y **no podía evaluar ninguno de los
+dos permisos de WhatsApp**.
+
+- Se le añaden `Ver Conversaciones`, `Responder Conversaciones`,
+  `Gestionar WhatsApp` y `Gestionar Plantillas WhatsApp`. Los cuatro siguen
+  acotados al cliente demo por `users.client_id`.
+- Fixtures nuevos: WABA y número demo, una conversación con la **ventana
+  abierta** (cerrada mostraría el caso excepcional, no el normal) y una
+  plantilla aprobada para que la pantalla de plantillas no se vea vacía.
+- La cuenta demo lleva un `access_token` de relleno **a propósito**:
+  `tokenParaEnviar()` cae al token de producción cuando la columna está vacía,
+  así que dejarlo nulo haría que un intento de respuesta del revisor saliera
+  con nuestras credenciales reales. Hay un test que lo verifica.
+- 5 tests en `PlatformReviewerSeederTest`.
 
 **Fase 6 — Agente de IA y automatizaciones (n8n)**
 - Contrato de eventos Laravel → n8n, sin tokens de Meta de por medio.

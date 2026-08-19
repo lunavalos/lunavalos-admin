@@ -3,9 +3,14 @@
 namespace Database\Seeders;
 
 use App\Models\Client;
+use App\Models\Conversation;
+use App\Models\ConversationMessage;
 use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Models\User;
+use App\Models\WhatsAppAccount;
+use App\Models\WhatsAppNumber;
+use App\Models\WhatsAppTemplate;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
@@ -73,6 +78,7 @@ class PlatformReviewerSeeder extends Seeder
         ]);
 
         $this->demoWhatsappTicket($client, $user);
+        $this->demoWhatsappConversation($client, $user);
 
         // Sin client_id la cuenta vería a todos los clientes reales. Es la
         // única invariante que protege los datos: se verifica, no se supone.
@@ -114,6 +120,16 @@ class PlatformReviewerSeeder extends Seeder
             'Gestionar Social',
             'Publicar Social',
             'Ver Tickets',
+            // WhatsApp. Sin estos, el revisor entra y no puede evaluar ninguno
+            // de los dos permisos que Meta está revisando:
+            //   Ver/Responder Conversaciones  -> whatsapp_business_messaging
+            //   Gestionar Plantillas WhatsApp -> whatsapp_business_management
+            // 'Gestionar WhatsApp' le deja ver la pantalla de conexión. Los
+            // cuatro siguen acotados al cliente demo por `users.client_id`.
+            'Ver Conversaciones',
+            'Responder Conversaciones',
+            'Gestionar WhatsApp',
+            'Gestionar Plantillas WhatsApp',
         ])
             ->map(fn (string $nombre) => Permission::firstOrCreate([
                 'name'       => $nombre,
@@ -176,5 +192,112 @@ class PlatformReviewerSeeder extends Seeder
                 ]
             );
         }
+    }
+    /**
+     * El módulo de Conversaciones con datos ficticios.
+     *
+     * El ticket de arriba es el modelo anterior y se conserva por el histórico.
+     * Lo que el revisor necesita ver para evaluar los permisos de WhatsApp es
+     * esto: la bandeja con un hilo real y la pantalla de plantillas con algo
+     * dentro. Sin fixtures, ambas se ven vacías y no hay nada que evaluar.
+     *
+     * La WABA demo lleva un token de relleno —no null— a propósito:
+     * `WhatsAppAccount::tokenParaEnviar()` cae al token de producción cuando la
+     * columna está vacía, así que dejarla nula haría que un intento de respuesta
+     * del revisor saliera con NUESTRAS credenciales reales. Con el relleno, el
+     * envío falla contra Graph y no toca nada de producción.
+     */
+    private function demoWhatsappConversation(Client $client, User $revisor): void
+    {
+        $cuenta = WhatsAppAccount::updateOrCreate(
+            ['waba_id' => 'DEMO-WABA-0001'],
+            [
+                'name'         => 'Demo Coffee Roasters',
+                'access_token' => 'demo-token-sin-uso',
+                'status'       => WhatsAppAccount::STATUS_ACTIVE,
+            ],
+        );
+
+        $numero = WhatsAppNumber::updateOrCreate(
+            ['phone_number_id' => 'DEMO-PHONE-0001'],
+            [
+                'whatsapp_account_id'  => $cuenta->id,
+                'client_id'            => $client->id,
+                'display_phone_number' => '+52 155 0000 0000',
+                'verified_name'        => 'Demo Coffee Roasters',
+                'quality_rating'       => 'GREEN',
+                'is_active'            => true,
+            ],
+        );
+
+        $conversacion = Conversation::updateOrCreate(
+            [
+                'whatsapp_number_id' => $numero->id,
+                'contact_wa_id'      => '5215500000001',
+            ],
+            [
+                'client_id'    => $client->id,
+                'contact_name' => 'Ana Demo',
+                'status'       => Conversation::STATUS_OPEN,
+                // Ventana abierta: pasadas 24 h la bandeja bloquea el texto
+                // libre, y el revisor vería el caso excepcional en vez del normal.
+                'last_inbound_at' => now()->subMinutes(30),
+                'last_message_at' => now()->subMinutes(5),
+                'unread_count'    => 0,
+            ],
+        );
+
+        $mensajes = [
+            [
+                'wamid.DEMO_CONV_IN_1',
+                'Hi! Do you deliver on Saturdays?',
+                ConversationMessage::DIRECTION_IN,
+                ConversationMessage::AUTHOR_CONTACT,
+                ConversationMessage::DELIVERY_DELIVERED,
+                null,
+            ],
+            [
+                'wamid.DEMO_CONV_OUT_1',
+                'Hello! Yes, we deliver Saturdays from 9am to 2pm.',
+                ConversationMessage::DIRECTION_OUT,
+                ConversationMessage::AUTHOR_STAFF,
+                ConversationMessage::DELIVERY_READ,
+                $revisor->id,
+            ],
+        ];
+
+        foreach ($mensajes as [$waId, $texto, $direccion, $autor, $entrega, $userId]) {
+            ConversationMessage::firstOrCreate(
+                ['wa_message_id' => $waId],
+                [
+                    'conversation_id' => $conversacion->id,
+                    'user_id'         => $userId,
+                    'author_type'     => $autor,
+                    'direction'       => $direccion,
+                    'body'            => $texto,
+                    'delivery_status' => $entrega,
+                ]
+            );
+        }
+
+        // Sin al menos una plantilla, la pantalla con la que se evalúa
+        // whatsapp_business_management se ve vacía.
+        WhatsAppTemplate::updateOrCreate(
+            [
+                'whatsapp_account_id' => $cuenta->id,
+                'name'                => 'delivery_confirmation',
+                'language'            => 'en_US',
+            ],
+            [
+                'meta_id'    => 'DEMO-TEMPLATE-0001',
+                'category'   => 'UTILITY',
+                'status'     => WhatsAppTemplate::STATUS_APPROVED,
+                'components' => [[
+                    'type' => 'BODY',
+                    'text' => 'Hi {{1}}, your order {{2}} is out for delivery.',
+                ]],
+                'body_variables' => 2,
+            ],
+        );
     }
 }
