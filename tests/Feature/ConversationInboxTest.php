@@ -11,6 +11,7 @@ use App\Models\WhatsAppAccount;
 use App\Models\WhatsAppNumber;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /**
@@ -59,7 +60,23 @@ class ConversationInboxTest extends TestCase
 
     private function staff(): User
     {
-        return User::factory()->create(['client_id' => null]);
+        return $this->conPermisos(User::factory()->create(['client_id' => null]));
+    }
+
+    /**
+     * El módulo va cerrado por `Ver Conversaciones` y `Responder
+     * Conversaciones`. Los usuarios de las pruebas de scoping también los
+     * llevan, para que el 403 que se comprueba venga del cliente equivocado y
+     * no del permiso: si no, esas pruebas pasarían sin demostrar nada.
+     */
+    private function conPermisos(User $usuario): User
+    {
+        $usuario->givePermissionTo(
+            Permission::findOrCreate('Ver Conversaciones', 'web'),
+            Permission::findOrCreate('Responder Conversaciones', 'web'),
+        );
+
+        return $usuario;
     }
 
     // -----------------------------------------------------------------
@@ -71,6 +88,54 @@ class ConversationInboxTest extends TestCase
         $this->get(route('conversations.index'))->assertRedirect(route('login'));
     }
 
+    /**
+     * El agujero que cerró el gate: un usuario interno tiene `client_id` null,
+     * así que el scoping no lo detenía y la bandeja le traía las
+     * conversaciones de TODOS los clientes con solo escribir la URL. Esconder
+     * el enlace del sidebar no era protección.
+     */
+    public function test_un_usuario_sin_permiso_no_entra_a_la_bandeja(): void
+    {
+        $ajeno = $this->cliente('Cliente A');
+        $this->conversacion($this->numero($ajeno), $ajeno);
+
+        $sinPermiso = User::factory()->create(['client_id' => null]);
+
+        $this->actingAs($sinPermiso)
+            ->get(route('conversations.index'))
+            ->assertForbidden();
+    }
+
+    public function test_un_usuario_sin_permiso_no_abre_una_conversacion(): void
+    {
+        $conversacion = $this->conversacion($this->numero());
+
+        $this->actingAs(User::factory()->create(['client_id' => null]))
+            ->get(route('conversations.show', $conversacion))
+            ->assertForbidden();
+    }
+
+    /**
+     * Leer y escribir van por permisos distintos: quien solo puede mirar la
+     * bandeja no le manda mensajes al contacto en nombre del cliente.
+     */
+    public function test_ver_no_alcanza_para_responder(): void
+    {
+        Http::fake();
+
+        $conversacion = $this->conversacion($this->numero());
+
+        $soloLectura = User::factory()->create(['client_id' => null]);
+        $soloLectura->givePermissionTo(Permission::findOrCreate('Ver Conversaciones', 'web'));
+
+        $this->actingAs($soloLectura)
+            ->post(route('conversations.reply', $conversacion), ['body' => 'Hola'])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('conversation_messages', 0);
+        Http::assertNothingSent();
+    }
+
     public function test_un_usuario_de_portal_no_ve_la_conversacion_de_otro_cliente(): void
     {
         $unCliente  = $this->cliente('Cliente A');
@@ -78,7 +143,7 @@ class ConversationInboxTest extends TestCase
 
         $conversacionAjena = $this->conversacion($this->numero($otroCliente), $otroCliente);
 
-        $usuario = User::factory()->create(['client_id' => $unCliente->id]);
+        $usuario = $this->conPermisos(User::factory()->create(['client_id' => $unCliente->id]));
 
         $this->actingAs($usuario)
             ->get(route('conversations.show', $conversacionAjena))
@@ -93,7 +158,7 @@ class ConversationInboxTest extends TestCase
         $propia = $this->conversacion($this->numero($suyo), $suyo);
         $this->conversacion($this->numero($ajeno), $ajeno);
 
-        $usuario = User::factory()->create(['client_id' => $suyo->id]);
+        $usuario = $this->conPermisos(User::factory()->create(['client_id' => $suyo->id]));
 
         $this->actingAs($usuario)
             ->get(route('conversations.index'))

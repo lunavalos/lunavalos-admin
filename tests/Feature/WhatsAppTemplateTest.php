@@ -69,10 +69,17 @@ class WhatsAppTemplateTest extends TestCase
      * El módulo va cerrado por `Gestionar Plantillas WhatsApp`. Los usuarios de
      * las pruebas de scoping también lo llevan, para que el 403 que se
      * comprueba venga del cliente equivocado y no del permiso.
+     *
+     * Se suma `Responder Conversaciones` porque el bloque de envío de abajo
+     * entra por `ConversationController::replyTemplate()`, que va cerrado por
+     * ese otro permiso: mandar una plantilla es responderle al contacto.
      */
     private function conPermiso(User $usuario): User
     {
-        $usuario->givePermissionTo(Permission::findOrCreate('Gestionar Plantillas WhatsApp', 'web'));
+        $usuario->givePermissionTo(
+            Permission::findOrCreate('Gestionar Plantillas WhatsApp', 'web'),
+            Permission::findOrCreate('Responder Conversaciones', 'web'),
+        );
 
         return $usuario;
     }

@@ -9,11 +9,41 @@ use App\Models\Ticket;
 use App\Models\WhatsAppTemplate;
 use App\Services\WhatsApp\WhatsAppService;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
-class ConversationController extends Controller
+class ConversationController extends Controller implements HasMiddleware
 {
+    /**
+     * Aquí viven los mensajes de los clientes finales de terceros, así que el
+     * módulo va cerrado por permiso además del scoping.
+     *
+     * Hacían falta los dos: `autorizar()` compara contra `users.client_id`, y
+     * un usuario interno lo tiene null, así que pasaba de largo y veía TODAS
+     * las conversaciones de todos los clientes escribiendo la URL. El enlace
+     * del sidebar sí consultaba `Ver Conversaciones`, pero la ruta no validaba
+     * nada.
+     *
+     * Mismo problema que ya se corrigió en SocialController,
+     * WhatsAppConnectController y WhatsAppTemplateController.
+     *
+     * El corte entre los dos permisos es leer contra escribir: `Ver` abre la
+     * bandeja, `Responder` cubre todo lo que sale hacia el contacto o cambia
+     * la conversación.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('can:Ver Conversaciones', only: ['index', 'show']),
+            new Middleware('can:Responder Conversaciones', only: [
+                'reply', 'replyTemplate', 'assign', 'updateStatus',
+                'toggleAi', 'createTicket',
+            ]),
+        ];
+    }
+
     /**
      * Un usuario amarrado a un cliente (`users.client_id`) solo ve las
      * conversaciones de ese cliente. Mismo criterio que SocialController.
