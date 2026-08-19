@@ -254,6 +254,24 @@ class WhatsAppTemplateTest extends TestCase
         $this->assertSame(1, $plantilla->body_variables);
     }
 
+    public function test_borrar_manda_el_nombre_en_la_query_no_en_el_cuerpo(): void
+    {
+        $cuenta    = $this->cuenta();
+        $plantilla = $this->plantilla($cuenta, ['status' => WhatsAppTemplate::STATUS_REJECTED]);
+
+        Http::fake(['*' => Http::response(['success' => true])]);
+
+        $this->actingAs($this->staff())
+            ->delete(route('whatsapp.templates.destroy', $plantilla))
+            ->assertRedirect();
+
+        // Laravel manda los datos de un DELETE en el cuerpo y Meta ahí no los
+        // lee: sin el nombre en la query, el borrado falla siempre en silencio.
+        Http::assertSent(fn ($r) => str_contains($r->url(), 'message_templates?name=pedido_listo'));
+
+        $this->assertSame(0, WhatsAppTemplate::count());
+    }
+
     public function test_sincronizar_borra_lo_que_ya_no_existe_en_meta(): void
     {
         $cuenta = $this->cuenta();

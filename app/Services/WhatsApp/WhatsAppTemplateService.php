@@ -140,9 +140,12 @@ class WhatsAppTemplateService
     {
         $cuenta = $plantilla->account;
 
-        $respuesta = $this->graph($cuenta)->delete("/{$cuenta->waba_id}/message_templates", [
-            'name' => $plantilla->name,
-        ]);
+        // El nombre va en la query, no en el cuerpo. Laravel manda los datos de
+        // un DELETE como body, y Meta ahí no los lee: la petición salía sin
+        // nombre y el borrado fallaba siempre.
+        $query = http_build_query(['name' => $plantilla->name]);
+
+        $respuesta = $this->graph($cuenta)->delete("/{$cuenta->waba_id}/message_templates?{$query}");
 
         if (!$respuesta->successful()) {
             $this->reventar('no se pudo borrar la plantilla', $respuesta->json('error', []));
