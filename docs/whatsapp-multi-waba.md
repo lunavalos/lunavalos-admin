@@ -627,6 +627,34 @@ Ya venía de la Fase 2, y se mantiene: `value['statuses']` alimentando
 `delivery_status`, el bloqueo del texto libre fuera de la ventana, y el fallo
 de entrega visible en la burbuja.
 
+**La WABA propia no pasa por Embedded Signup — resuelto el 2026-08-19**
+
+Al intentar conectar la WABA de LunAvalos por Embedded Signup, el desplegable
+*WhatsApp Business account* solo ofrece `Create a WhatsApp Business account`:
+la WABA existente **no aparece**. El motivo es de diseño, no un fallo — ese
+flujo existe para que un negocio ajeno nos comparta su cuenta, y cuando el
+portfolio dueño de la app es el mismo (`LunAvalos Manager`) no hay nada que
+conceder.
+
+Consecuencia: sin otro camino, nuestro propio número no tiene fila en
+`whatsapp_accounts`, el webhook descarta sus mensajes por venir de una "WABA
+desconocida" y la pantalla de plantillas se ve vacía.
+
+- `WhatsAppOnboardingService::adoptarWabaPropia()` y el comando
+  `php artisan whatsapp:adoptar-waba-propia` (con `--dry-run`): leen
+  `WHATSAPP_BUSINESS_ACCOUNT_ID` y `WHATSAPP_TOKEN`, sincronizan los números y
+  hacen `POST /{waba_id}/subscribed_apps`. Idempotente.
+- **El token no se guarda en la fila**: `tokenParaEnviar()` cae al del system
+  user en configuración. Guardarlo duplicaría el secreto sin ganar nada.
+- `client_id` queda en **null**, que es lo que significa "número propio" (§4).
+- 6 tests en `WhatsAppOwnWabaTest`, incluido el que cierra el círculo: tras
+  registrarla, un evento entrante deja de descartarse y abre conversación.
+
+> Ojo con los otros portfolios que aparecen en ese desplegable
+> (`Lavanda Pastelería`, `Salsas La Querendona`, `Suplementos Elegue Mx`…).
+> Elegir uno crearía una WABA **dentro del negocio de ese cliente**. No se hace
+> sin su consentimiento.
+
 **Cuenta de revisión — actualizada el 2026-08-19**
 
 `PlatformReviewerSeeder` se había quedado en el modelo anterior: daba solo

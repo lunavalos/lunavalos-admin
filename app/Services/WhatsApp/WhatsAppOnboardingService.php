@@ -61,6 +61,56 @@ class WhatsAppOnboardingService
     }
 
     /**
+     * Registra la WABA propia de LunAvalos, la que ya vive en configuración.
+     *
+     * Embedded Signup no sirve para esto: ese flujo existe para que un negocio
+     * ajeno nos comparta su cuenta, y cuando el portfolio dueño de la app es el
+     * mismo, Meta no ofrece la WABA en la lista —no hay nada que conceder—.
+     * Sin este camino, nuestro propio número no tiene dónde vivir y ni el
+     * webhook puede enrutarlo ni la pantalla de plantillas tiene contra qué
+     * trabajar.
+     *
+     * El token NO se guarda en la fila: `tokenParaEnviar()` cae al del system
+     * user que está en configuración, que es exactamente lo que queremos aquí.
+     * Guardarlo duplicaría el secreto sin ganar nada.
+     *
+     * `client_id` queda en null, que es lo que significa "número propio"
+     * (ver §4 del plan): no se inventa un Client para representarnos.
+     *
+     * Idempotente: correrlo de nuevo refresca los números y vuelve a suscribir.
+     *
+     * @throws RuntimeException si falta configuración o Meta rechaza algún paso.
+     */
+    public function adoptarWabaPropia(): WhatsAppAccount
+    {
+        $wabaId = (string) config('services.whatsapp.business_account_id');
+        $token  = (string) config('services.whatsapp.token');
+
+        if ($wabaId === '' || $token === '') {
+            throw new RuntimeException(
+                'Faltan WHATSAPP_BUSINESS_ACCOUNT_ID y/o WHATSAPP_TOKEN en la configuración.'
+            );
+        }
+
+        $info = $this->infoDeWaba($wabaId, $token);
+
+        $cuenta = WhatsAppAccount::updateOrCreate(
+            ['waba_id' => $wabaId],
+            [
+                'name'          => $info['name'] ?? 'LunAvalos',
+                'status'        => WhatsAppAccount::STATUS_ACTIVE,
+                'last_error'    => null,
+                'last_error_at' => null,
+            ],
+        );
+
+        $this->sincronizarNumeros($cuenta, null, $token);
+        $this->suscribirApp($wabaId, $token);
+
+        return $cuenta;
+    }
+
+    /**
      * Canjea el code de corta vida por el token del negocio.
      *
      * La configuración de Embedded Signup que usamos emite tokens con 60 días
@@ -126,7 +176,7 @@ class WhatsAppOnboardingService
      * Los números que trae la WABA. Se hace upsert por phone_number_id para que
      * reconectar no duplique ni pierda las conversaciones ya asociadas.
      */
-    private function sincronizarNumeros(WhatsAppAccount $cuenta, Client $client, string $token): void
+    private function sincronizarNumeros(WhatsAppAccount $cuenta, ?Client $client, string $token): void
     {
         $respuesta = $this->graph()->withToken($token)->get("/{$cuenta->waba_id}/phone_numbers", [
             'fields' => 'id,display_phone_number,verified_name,quality_rating',
@@ -145,7 +195,7 @@ class WhatsAppOnboardingService
                 ['phone_number_id' => $numero['id']],
                 [
                     'whatsapp_account_id'  => $cuenta->id,
-                    'client_id'            => $client->id,
+                    'client_id'            => $client?->id,
                     'display_phone_number' => $numero['display_phone_number'] ?? $numero['id'],
                     'verified_name'        => $numero['verified_name']  ?? null,
                     'quality_rating'       => $numero['quality_rating'] ?? null,
