@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\ConversationMessageSent;
+use App\Events\ConversationUpdated;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\Ticket;
@@ -210,6 +211,9 @@ class ConversationController extends Controller implements HasMiddleware
         $conversation->registrarSaliente();
 
         broadcast(new ConversationMessageSent($mensaje))->toOthers();
+        // Sin `toOthers()`: la bandeja del resto del equipo tiene que reordenarse
+        // y ver el contador en cero, aunque la respuesta la haya escrito otro.
+        broadcast(new ConversationUpdated($conversation->fresh()));
 
         return back();
     }
@@ -278,6 +282,9 @@ class ConversationController extends Controller implements HasMiddleware
         $conversation->registrarSaliente();
 
         broadcast(new ConversationMessageSent($mensaje))->toOthers();
+        // Sin `toOthers()`: la bandeja del resto del equipo tiene que reordenarse
+        // y ver el contador en cero, aunque la respuesta la haya escrito otro.
+        broadcast(new ConversationUpdated($conversation->fresh()));
 
         return back();
     }

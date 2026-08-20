@@ -27,3 +27,17 @@ Broadcast::channel('conversation.{conversationId}', function ($user, $conversati
         || $user->client_id === $conversacion->client_id;
 });
 
+
+/**
+ * Canales de la bandeja. Actualizan la LISTA, no un hilo concreto: sin ellos,
+ * un mensaje que llega a una conversación que no tienes abierta no se ve hasta
+ * recargar la pantalla.
+ *
+ * Son dos porque los dos públicos son distintos. El staff interno
+ * (`client_id` null) ve todas las conversaciones, así que un canal por cliente
+ * le obligaría a abrir tantas suscripciones como clientes haya: escucha
+ * `conversations.internal` y le llega todo. Un usuario de portal escucha solo
+ * el de su cliente, y aquí es donde se impide que oiga los de otro.
+ */
+Broadcast::channel('conversations.internal', \App\Broadcasting\InternalInboxChannel::class);
+Broadcast::channel('conversations.client.{clientId}', \App\Broadcasting\ClientInboxChannel::class);

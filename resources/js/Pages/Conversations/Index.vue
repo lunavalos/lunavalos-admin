@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ChatBubbleLeftRightIcon,
     ExclamationTriangleIcon,
@@ -16,8 +16,15 @@ const props = defineProps({
     filtros: { type: Object, default: () => ({ status: 'open' }) },
 });
 
+const page = usePage();
+
 const hilo = ref(null);
 const mensajes = ref([]);
+
+// La lista se mantiene en local para poder mutarla desde el canal de bandeja.
+// Usar la prop directamente obligaría a recargar para ver cualquier cambio.
+const lista = ref([...props.conversations]);
+watch(() => props.conversations, (v) => { lista.value = [...v]; });
 
 const replyForm = useForm({ body: '' });
 const ticketForm = useForm({ title: '' });
@@ -89,8 +96,61 @@ const desuscribir = () => {
     }
 };
 
-onMounted(suscribir);
-onUnmounted(desuscribir);
+// --- Canal de bandeja ---
+//
+// El canal de arriba es por conversación: solo actualiza el hilo abierto. Éste
+// mantiene viva la LISTA, que es lo que se mira el resto del tiempo.
+
+const canalDeBandeja = () => {
+    const propio = page.props.auth?.user?.client_id ?? null;
+    return propio ? `conversations.client.${propio}` : 'conversations.internal';
+};
+
+let bandeja = null;
+
+const suscribirBandeja = () => {
+    if (!window.Echo) return;
+    bandeja = window.Echo.private(canalDeBandeja())
+        .listen('.conversation.updated', aplicarEnLista);
+};
+
+const desuscribirBandeja = () => {
+    if (bandeja && window.Echo) {
+        window.Echo.leave(canalDeBandeja());
+        bandeja = null;
+    }
+};
+
+const aplicarEnLista = (c) => {
+    // La conversación que estás mirando no puede marcarse como no leída: el
+    // servidor ya incrementó el contador, pero aquí la estás leyendo.
+    if (conversationAbiertaId.value === c.id) {
+        c = { ...c, unread_count: 0 };
+    }
+
+    const filtro = props.filtros?.status ?? 'open';
+    const encaja = filtro === 'all' || c.status === filtro;
+    const i = lista.value.findIndex((x) => x.id === c.id);
+
+    // Si dejó de encajar en el filtro —archivada mientras miras "Abiertas"—
+    // desaparece, en vez de quedarse mintiendo hasta la próxima recarga.
+    if (!encaja) {
+        if (i !== -1) lista.value.splice(i, 1);
+        return;
+    }
+
+    if (i === -1) lista.value.unshift(c);
+    else lista.value[i] = c;
+
+    lista.value.sort(
+        (a, b) => new Date(b.last_message_at ?? 0) - new Date(a.last_message_at ?? 0)
+    );
+};
+
+const conversationAbiertaId = computed(() => props.conversation?.id ?? null);
+
+onMounted(() => { suscribir(); suscribirBandeja(); });
+onUnmounted(() => { desuscribir(); desuscribirBandeja(); });
 watch(() => props.conversation?.id, () => { desuscribir(); suscribir(); });
 
 const horaCorta = (iso) =>
@@ -190,12 +250,12 @@ const enviarPlantilla = () => {
                         </div>
 
                         <div class="flex-1 overflow-y-auto">
-                            <p v-if="!conversations.length" class="p-6 text-sm text-gray-500 text-center">
+                            <p v-if="!lista.length" class="p-6 text-sm text-gray-500 text-center">
                                 No hay conversaciones.
                             </p>
 
                             <Link
-                                v-for="c in conversations"
+                                v-for="c in lista"
                                 :key="c.id"
                                 :href="route('conversations.show', c.id)"
                                 preserve-scroll

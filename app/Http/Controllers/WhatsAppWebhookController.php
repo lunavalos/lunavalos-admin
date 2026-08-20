@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Events\ConversationMessageSent;
+use App\Events\ConversationUpdated;
 use App\Jobs\MarkWhatsAppMessageRead;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
@@ -159,6 +160,11 @@ class WhatsAppWebhookController extends Controller
         // mensaje no lo originó ningún navegador, así que no hay a quién
         // excluir — con toOthers() no lo recibiría nadie.
         broadcast(new ConversationMessageSent($guardado));
+
+        // Y el de la bandeja: el anterior solo lo oye quien tiene ESTA
+        // conversación abierta. Sin éste, quien está mirando la lista no ve
+        // moverse nada.
+        broadcast(new ConversationUpdated($conversacion));
 
         MarkWhatsAppMessageRead::dispatch(
             $waMessageId,
