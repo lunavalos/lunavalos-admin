@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\MarkWhatsAppMessageRead;
+use App\Events\ConversationMessageSent;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\WhatsAppAccount;
@@ -10,6 +11,7 @@ use App\Models\WhatsAppNumber;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Event;
 use Tests\TestCase;
 
 /**
@@ -303,6 +305,24 @@ class WhatsAppWebhookSecurityTest extends TestCase
         }
 
         $this->assertSame(1, ConversationMessage::where('wa_message_id', 'wamid.TEST123')->count());
+    }
+
+    public function test_un_entrante_se_emite_para_que_la_bandeja_se_actualice_sola(): void
+    {
+        Event::fake([ConversationMessageSent::class]);
+        $this->configurarEntrada();
+        $this->configurarSalida();
+        $this->registrarNumero();
+
+        $this->enviar($this->payload())->assertOk();
+
+        // El tiempo real solo cubría lo que sale de la app: al llegar una
+        // respuesta del contacto había que recargar la pantalla, que es lo
+        // contrario de para lo que existe una bandeja.
+        Event::assertDispatched(
+            ConversationMessageSent::class,
+            fn ($e) => $e->message->direction === ConversationMessage::DIRECTION_IN,
+        );
     }
 
     public function test_marcar_como_leido_se_despacha_a_la_cola(): void

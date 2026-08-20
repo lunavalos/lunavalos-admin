@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ConversationMessageSent;
 use App\Jobs\MarkWhatsAppMessageRead;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
@@ -135,7 +136,7 @@ class WhatsAppWebhookController extends Controller
             ],
         );
 
-        $conversacion->messages()->create([
+        $guardado = $conversacion->messages()->create([
             'user_id'         => null,
             'author_type'     => ConversationMessage::AUTHOR_CONTACT,
             'direction'       => ConversationMessage::DIRECTION_IN,
@@ -148,6 +149,16 @@ class WhatsAppWebhookController extends Controller
         ]);
 
         $conversacion->registrarEntrante($nombre);
+
+        // Sin esto el tiempo real solo servía para lo que sale de la app: el
+        // agente tenía que recargar para ver que le habían contestado, que es
+        // justo lo contrario de para lo que existe una bandeja.
+        //
+        // El evento es ShouldBroadcast, así que sale por la cola y no alarga
+        // el 200 que Meta exige. `toOthers()` no se usa aquí a propósito: el
+        // mensaje no lo originó ningún navegador, así que no hay a quién
+        // excluir — con toOthers() no lo recibiría nadie.
+        broadcast(new ConversationMessageSent($guardado));
 
         MarkWhatsAppMessageRead::dispatch(
             $waMessageId,
