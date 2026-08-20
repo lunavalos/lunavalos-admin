@@ -221,6 +221,11 @@ class SocialAuthController extends Controller implements HasMiddleware
     {
         $clientId = $account->client_id;
         $this->autorizarCliente($request, $clientId);
+        // Los targets de posts ya publicados sobreviven a esto: la FK es
+        // `nullOnDelete` desde
+        // 2026_08_20_210000_preserve_social_post_targets_on_account_disconnect.
+        // Con el `cascadeOnDelete` original, desconectar una red borraba el
+        // historial de publicaciones de esa cuenta.
         $account->delete();
 
         return redirect()->route('social.clients.show', $clientId)

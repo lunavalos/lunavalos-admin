@@ -3,17 +3,39 @@
 namespace App\Services\SocialPublishing\Drivers;
 
 use App\Models\SocialPostTarget;
+use Illuminate\Http\Client\RequestException;
 
 /**
  * Instagram Graph API — requiere cuenta IG Business vinculada a una página de Facebook.
- * Flujo: 1) crear media container, 2) esperar si es video, 3) publicar container.
+ * Flujo: 1) crear media container, 2) esperar a que Meta lo procese, 3) publicarlo.
  * Las imágenes/videos DEBEN estar accesibles públicamente por HTTPS.
  */
 class InstagramPublisher extends AbstractPublisher
 {
-    /** Tope de espera al procesado del video, por debajo del timeout del job (300s). */
-    private const ESPERA_MAXIMA_SEGUNDOS = 240;
-    private const INTERVALO_SONDEO_SEGUNDOS = 5;
+    /**
+     * Tope de espera al procesado. Tiene que caber, junto con los reintentos
+     * de publicación y la creación del contenedor, dentro del timeout del job
+     * (300s): si el job se corta a media publicación el target se queda en
+     * `publishing` para siempre.
+     */
+    private const ESPERA_MAXIMA_VIDEO = 200;
+
+    /**
+     * Una imagen se procesa en segundos, pero no en cero: Meta tiene que
+     * descargarla de nuestro storage antes de darla por lista.
+     */
+    private const ESPERA_MAXIMA_IMAGEN = 60;
+
+    private const INTERVALO_SONDEO_VIDEO  = 5;
+    private const INTERVALO_SONDEO_IMAGEN = 2;
+
+    /**
+     * "Media ID is not available" (code 9007). Meta lo devuelve cuando el
+     * contenedor todavía no está listo; reintentar tiene sentido.
+     */
+    private const SUBCODIGO_CONTENEDOR_NO_LISTO = 2207027;
+
+    private const INTENTOS_DE_PUBLICACION = 3;
 
     protected function doPublish(SocialPostTarget $target): array
     {
@@ -60,21 +82,19 @@ class InstagramPublisher extends AbstractPublisher
             throw new \RuntimeException('No se pudo crear el media container de Instagram.');
         }
 
-        // 2) Los contenedores de video se procesan en segundo plano: Meta
-        //    descarga el archivo y lo transcodifica. Publicar antes de que
-        //    termine falla. Las imágenes quedan listas de inmediato.
-        if ($esVideo) {
-            $this->esperarProcesado($creationId, $token, $version);
-        }
+        // 2) El contenedor se procesa en segundo plano: Meta descarga el
+        //    archivo de nuestro storage (y transcodifica, si es video).
+        //    Publicar antes de que termine devuelve 400 code 9007 subcode
+        //    2207027 "Media ID is not available".
+        //
+        //    También hay que sondear las imágenes. Se daban por listas al
+        //    instante y en producción una foto falló justo así: el contenedor
+        //    se creó, Meta pidió el PNG un segundo después y para entonces ya
+        //    habíamos llamado a media_publish.
+        $this->esperarProcesado($creationId, $token, $version, $esVideo);
 
         // 3) Publicar contenedor.
-        $publishResp = $this->http()->asForm()->post(
-            "https://graph.facebook.com/{$version}/{$igId}/media_publish",
-            [
-                'creation_id'  => $creationId,
-                'access_token' => $token,
-            ]
-        )->throw()->json();
+        $publishResp = $this->publicarContenedor($creationId, $igId, $token, $version, $esVideo);
 
         $mediaId = $publishResp['id'] ?? null;
 
@@ -109,15 +129,19 @@ class InstagramPublisher extends AbstractPublisher
     }
 
     /**
-     * Sondea el contenedor hasta que Meta termine de procesar el video.
+     * Sondea el contenedor hasta que Meta lo dé por `FINISHED`.
+     *
+     * La primera consulta va sin esperar: en el caso normal —una imagen ya
+     * descargada— el contenedor está listo y publicamos sin penalización.
      */
-    private function esperarProcesado(string $creationId, string $token, string $version): void
+    private function esperarProcesado(string $creationId, string $token, string $version, bool $esVideo): void
     {
-        $limite = time() + self::ESPERA_MAXIMA_SEGUNDOS;
+        $espera    = $esVideo ? self::ESPERA_MAXIMA_VIDEO : self::ESPERA_MAXIMA_IMAGEN;
+        $intervalo = $esVideo ? self::INTERVALO_SONDEO_VIDEO : self::INTERVALO_SONDEO_IMAGEN;
+        $limite    = time() + $espera;
+        $medio     = $esVideo ? 'el video' : 'la imagen';
 
-        while (time() < $limite) {
-            $this->dormir(self::INTERVALO_SONDEO_SEGUNDOS);
-
+        while (true) {
             $estado = $this->http()->get("https://graph.facebook.com/{$version}/{$creationId}", [
                 'fields'       => 'status_code,status',
                 'access_token' => $token,
@@ -131,15 +155,89 @@ class InstagramPublisher extends AbstractPublisher
 
             if (in_array($codigo, ['ERROR', 'EXPIRED'], true)) {
                 throw new \RuntimeException(
-                    'Instagram no pudo procesar el video: ' . ($estado['status'] ?? $codigo)
+                    "Instagram no pudo procesar {$medio}: " . ($estado['status'] ?? $codigo)
                 );
             }
+
+            if (time() >= $limite) {
+                break;
+            }
+
+            $this->dormir($intervalo);
         }
 
         throw new \RuntimeException(
-            'Instagram seguía procesando el video después de '
-            . self::ESPERA_MAXIMA_SEGUNDOS . ' segundos. Prueba con un archivo más ligero.'
+            "Instagram seguía procesando {$medio} después de {$espera} segundos. "
+            . 'Prueba con un archivo más ligero.'
         );
+    }
+
+    /**
+     * Publica el contenedor, reintentando mientras Meta diga que todavía no
+     * está disponible.
+     *
+     * `status_code` puede decir FINISHED y aun así media_publish responder
+     * 9007/2207027: la disponibilidad no se propaga de inmediato. Sin este
+     * reintento el post se marcaba como fallido aunque no hubiera nada mal en
+     * el contenido.
+     */
+    private function publicarContenedor(
+        string $creationId,
+        string $igId,
+        string $token,
+        string $version,
+        bool $esVideo,
+    ): array {
+        $intervalo = $esVideo ? self::INTERVALO_SONDEO_VIDEO : self::INTERVALO_SONDEO_IMAGEN;
+
+        for ($intento = 1; ; $intento++) {
+            try {
+                return $this->http()->asForm()->post(
+                    "https://graph.facebook.com/{$version}/{$igId}/media_publish",
+                    [
+                        'creation_id'  => $creationId,
+                        'access_token' => $token,
+                    ]
+                )->throw()->json();
+            } catch (RequestException $e) {
+                $reintentable = $this->subcodigoDeMeta($e) === self::SUBCODIGO_CONTENEDOR_NO_LISTO;
+
+                if (!$reintentable || $intento >= self::INTENTOS_DE_PUBLICACION) {
+                    throw new \RuntimeException($this->mensajeDeMeta($e), 0, $e);
+                }
+
+                $this->dormir($intervalo * $intento);
+            }
+        }
+    }
+
+    private function subcodigoDeMeta(RequestException $e): ?int
+    {
+        $subcodigo = $e->response?->json('error.error_subcode');
+
+        return is_numeric($subcodigo) ? (int) $subcodigo : null;
+    }
+
+    /**
+     * El mensaje de Meta, no el volcado del cuerpo HTTP.
+     *
+     * `RequestException` mete el JSON crudo y truncado en el mensaje, que es lo
+     * que acababa en la columna `error_message` y en la interfaz: ilegible para
+     * quien publica.
+     */
+    private function mensajeDeMeta(RequestException $e): string
+    {
+        $error   = $e->response?->json('error') ?? [];
+        $mensaje = $error['error_user_msg'] ?? $error['message'] ?? null;
+
+        if (!$mensaje) {
+            return 'Instagram rechazó la publicación (HTTP ' . ($e->response?->status() ?? '?') . ').';
+        }
+
+        $codigos = array_filter([$error['code'] ?? null, $error['error_subcode'] ?? null]);
+
+        return 'Instagram rechazó la publicación: ' . $mensaje
+            . ($codigos ? ' (código ' . implode('/', $codigos) . ')' : '');
     }
 
     /** Aislado para poder anularlo en pruebas. */

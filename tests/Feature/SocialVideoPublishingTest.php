@@ -130,6 +130,7 @@ class SocialVideoPublishingTest extends TestCase
     {
         Http::fake([
             '*/456/media'         => Http::response(['id' => 'cont_2'], 200),
+            '*/cont_2*'           => Http::response(['status_code' => 'FINISHED'], 200),
             '*/456/media_publish' => Http::response(['id' => 'ig_2'], 200),
             '*/ig_2*'             => Http::response(['permalink' => 'https://www.instagram.com/p/XYZ789/'], 200),
         ]);
@@ -137,14 +138,74 @@ class SocialVideoPublishingTest extends TestCase
         (new InstagramPublisher())->publish($this->target('instagram', 'social/foto.jpg', 'image/jpeg'));
 
         Http::assertSent(fn ($r) => str_contains($r->url(), '/456/media') && isset($r['image_url']));
-        // Sin sondeo: las imágenes quedan listas al instante.
-        Http::assertNotSent(fn ($r) => $r->method() === 'GET' && str_contains($r->url(), 'cont_2'));
+        // Las imágenes también se sondean. Antes se publicaban directo y en
+        // producción una foto falló con 9007/2207027 "Media ID is not
+        // available": Meta todavía no había terminado de descargar el PNG.
+        Http::assertSent(fn ($r) => $r->method() === 'GET' && str_contains($r->url(), 'cont_2'));
+    }
+
+    public function test_instagram_reintenta_si_el_contenedor_aun_no_esta_disponible(): void
+    {
+        // `status_code` ya dice FINISHED y media_publish sigue respondiendo
+        // 9007/2207027 en el primer intento: la disponibilidad del contenedor
+        // no se propaga de inmediato del lado de Meta.
+        Http::fake([
+            '*/456/media'         => Http::response(['id' => 'cont_4'], 200),
+            '*/cont_4*'           => Http::response(['status_code' => 'FINISHED'], 200),
+            '*/456/media_publish' => Http::sequence()
+                ->push(['error' => [
+                    'message'       => 'Media ID is not available',
+                    'type'          => 'OAuthException',
+                    'code'          => 9007,
+                    'error_subcode' => 2207027,
+                    'is_transient'  => true,
+                ]], 400)
+                ->push(['id' => 'ig_4'], 200),
+            '*/ig_4*'             => Http::response(['permalink' => 'https://www.instagram.com/p/ABC/'], 200),
+        ]);
+
+        $publisher = new class extends InstagramPublisher {
+            protected function dormir(int $segundos): void {}
+        };
+
+        $target = $publisher->publish($this->target('instagram', 'social/foto.png', 'image/png'));
+
+        $this->assertSame(SocialPostTarget::STATUS_PUBLISHED, $target->status);
+        $this->assertSame('ig_4', $target->platform_post_id);
+    }
+
+    public function test_instagram_reporta_el_mensaje_de_meta_y_no_el_json_crudo(): void
+    {
+        Http::fake([
+            '*/456/media'         => Http::response(['id' => 'cont_5'], 200),
+            '*/cont_5*'           => Http::response(['status_code' => 'FINISHED'], 200),
+            '*/456/media_publish' => Http::response(['error' => [
+                'message'       => 'Media ID is not available',
+                'type'          => 'OAuthException',
+                'code'          => 9007,
+                'error_subcode' => 2207027,
+            ]], 400),
+        ]);
+
+        $publisher = new class extends InstagramPublisher {
+            protected function dormir(int $segundos): void {}
+        };
+
+        $target = $publisher->publish($this->target('instagram', 'social/foto.png', 'image/png'));
+
+        $this->assertSame(SocialPostTarget::STATUS_FAILED, $target->status);
+        // Lo que se ve en la interfaz: el motivo de Meta con sus códigos, no el
+        // volcado del cuerpo HTTP truncado a media palabra.
+        $this->assertStringContainsString('Media ID is not available', $target->error_message);
+        $this->assertStringContainsString('9007/2207027', $target->error_message);
+        $this->assertStringNotContainsString('HTTP request returned status code', $target->error_message);
     }
 
     public function test_instagram_publica_aunque_no_se_pueda_obtener_el_permalink(): void
     {
         Http::fake([
             '*/456/media'         => Http::response(['id' => 'cont_3'], 200),
+            '*/cont_3*'           => Http::response(['status_code' => 'FINISHED'], 200),
             '*/456/media_publish' => Http::response(['id' => 'ig_3'], 200),
             '*/ig_3*'             => Http::response(['error' => ['message' => 'nope']], 400),
         ]);

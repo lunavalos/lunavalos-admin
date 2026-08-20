@@ -16,6 +16,13 @@ class FetchPostInsights
             return null;
         }
 
+        // La cuenta pudo desconectarse después de publicar: el target se
+        // conserva como historial, pero sin token no hay a quién preguntarle
+        // las métricas.
+        if (!$target->account) {
+            return null;
+        }
+
         try {
             $data = $this->registry->for($target->account)->fetchInsights($target);
         } catch (\Throwable $e) {
