@@ -99,12 +99,34 @@ const calendarCells = computed(() => {
     return cells;
 });
 
+/**
+ * Fecha con la que un post se coloca en el calendario.
+ *
+ * Un post publicado "ahora" no tiene `scheduled_at`, y `published_at` sólo se
+ * escribe cuando TODAS las redes terminan bien: mientras está en `publishing`,
+ * o si queda en `partial`/`failed` porque una red falló, el post no tenía
+ * ninguna fecha y el calendario lo descartaba en silencio — salía en la vista
+ * de lista y en ningún día del mes. `created_at` es el último recurso y es la
+ * misma expresión con la que el backend filtra el mes.
+ */
+function fechaDePost(p) {
+    return p.scheduled_at || p.published_at || p.created_at || null;
+}
+
 const postsByDay = computed(() => {
     const map = {};
     for (const p of props.posts) {
-        const dt = p.scheduled_at || p.published_at;
+        const dt = fechaDePost(p);
         if (!dt) continue;
-        const day = new Date(dt).getDate();
+        const d = new Date(dt);
+        if (Number.isNaN(d.getTime())) continue;
+
+        // El backend recorta el mes en la zona del servidor y el navegador
+        // puede estar en otra: un post del día 1 o del último día podría caer
+        // fuera de la rejilla. Se ancla al borde en lugar de desaparecer.
+        const dentroDelMes = d.getFullYear() === year && d.getMonth() + 1 === monthNum;
+        const day = dentroDelMes ? d.getDate() : (d < firstDay ? 1 : daysInMonth);
+
         (map[day] = map[day] || []).push(p);
     }
     return map;
@@ -303,7 +325,7 @@ const view = ref('calendar'); // calendar | list
                             </tr>
                             <tr v-for="p in posts" :key="p.id" class="hover:bg-gray-50 dark:hover:bg-zinc-800/40">
                                 <td class="px-3 py-2 text-gray-600 dark:text-zinc-300 whitespace-nowrap">
-                                    {{ p.scheduled_at ? new Date(p.scheduled_at).toLocaleString('es') : '—' }}
+                                    {{ fechaDePost(p) ? new Date(fechaDePost(p)).toLocaleString('es') : '—' }}
                                 </td>
                                 <td class="px-3 py-2 max-w-xs">
                                     <p class="font-medium text-gray-800 dark:text-gray-100 truncate">{{ p.title || 'Sin título' }}</p>

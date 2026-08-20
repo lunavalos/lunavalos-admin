@@ -8,6 +8,9 @@
 > revisión.
 > **Revisado el 2026-08-19**: app publicada, el toggle del JS SDK activado, y la
 > cuenta de revisión actualizada para que pueda evaluar WhatsApp.
+> **Revisado el 2026-08-20**: producción quedó apuntando al número real y se
+> grabaron los tres videos de App Review (§9, Fase 0). Queda pendiente la
+> pestaña *Reviewer instructions* y renombrar `WHATSAPP_API_VERSION` (§10).
 > Sustituye al modelo descrito en `docs/n8n/README.md`, que quedó obsoleto.
 
 ## 1. Qué cambia y por qué
@@ -450,10 +453,10 @@ que tiene reloj, y no depende de una línea de código.
 
 **Fase 0 — Trámites**
 - ✅ Access Verification / Tech Provider — **aprobado el 2026-08-16**.
-- ❌ **Publicar la app.** Es el bloqueo activo: mientras esté `Unpublished`,
-  Meta solo entrega los webhooks de prueba del dashboard, no tráfico real.
-  No requiere video ni App Review — es un switch.
-- ❌ App Review con **Advanced Access** en los dos permisos de WhatsApp.
+- ✅ **Publicar la app** — hecho el 2026-08-19. Mientras estuvo `Unpublished`,
+  Meta solo entregaba los webhooks de prueba del dashboard, no tráfico real.
+  No requería video ni App Review — era un switch.
+- 🟡 App Review con **Advanced Access** en los dos permisos de WhatsApp.
   Al 2026-08-17 la solicitud está en **Not submitted**: los 9 permisos
   (`whatsapp_business_messaging`, `whatsapp_business_management`,
   `instagram_content_publish`, `instagram_basic`, `pages_manage_posts`,
@@ -469,6 +472,24 @@ que tiene reloj, y no depende de una línea de código.
 
   Lo que exige no es el Embedded Signup, sino esas dos demostraciones. El
   segundo video es el que obligó a adelantar la Fase 5.
+
+  **Al 2026-08-20** los tres videos están grabados en `AJUSTES/`, hechos contra
+  el número **real** (`+52 1 844 341 0326`), no el de prueba:
+
+  | Video | Permisos que sustenta |
+  |---|---|
+  | `screen-cast-whatsapp.mp4` | `whatsapp_business_messaging` |
+  | `screen-cast-plantillas.mp4` | `whatsapp_business_management` |
+  | `screen-cast-social.mp4` | los 6 de Facebook/Instagram |
+
+  Las *API test calls* de los 9 permisos ya salen en verde en el panel. Los
+  textos en inglés de **Allowed usage** (una descripción por permiso más la
+  *Business Description*) están redactados en
+  [`AJUSTES/app-review-answers.md`](../AJUSTES/app-review-answers.md).
+
+  Falta únicamente la pestaña **Reviewer instructions**: URL, credenciales de la
+  cuenta de `PlatformReviewerSeeder` y los pasos para llegar a Conversaciones,
+  Plantillas y Publicación en redes.
 
 > **Atajo para el primer cliente (Macadam).** Standard Access ya permite operar
 > WABAs que el propio negocio posee. Dando de alta el número del cliente bajo
@@ -736,13 +757,15 @@ WHATSAPP_VERIFY_TOKEN=
 WHATSAPP_GRAPH_VERSION=v26.0
 
 # Salida (ya en producción)
-# ⚠️ Verificado el 2026-08-19: producción NO tiene estos valores, sino los del
-# número de PRUEBA que Meta regala:
-#     WHATSAPP_BUSINESS_ACCOUNT_ID=987252317374914   ("Test WhatsApp Business Account")
-#     WHATSAPP_PHONE_NUMBER_ID=1201903109667621      (+1 555 628-6220)
-# El número de prueba solo entrega a un máximo de 5 destinatarios dados de alta
-# a mano en el panel, y no sirve para operar. Decidir cuál se usa antes de
-# grabar los videos de App Review.
+# ✅ Corregido el 2026-08-20: producción usa el número REAL
+#     +52 1 844 341 0326 / 1230737580126123 (calidad GREEN)
+# y con él se hicieron las pruebas y se grabaron los videos de App Review.
+#
+# Histórico — el 2026-08-19 producción tenía los valores del número de PRUEBA
+# que Meta regala (WHATSAPP_BUSINESS_ACCOUNT_ID=987252317374914,
+# WHATSAPP_PHONE_NUMBER_ID=1201903109667621, +1 555 628-6220). Ese número solo
+# entrega a 5 destinatarios dados de alta a mano y no sirve para operar; se
+# deja anotado porque explica por qué `adoptarWabaPropia` registraba el +1 555.
 WHATSAPP_TOKEN=
 WHATSAPP_PHONE_NUMBER_ID=1230737580126123
 WHATSAPP_BUSINESS_ACCOUNT_ID=2436841820155807

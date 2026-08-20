@@ -84,11 +84,18 @@ class SocialController extends Controller implements HasMiddleware
         $start = Carbon::parse($month . '-01')->startOfMonth();
         $end   = $start->copy()->endOfMonth();
 
+        // La fecha con la que un post "vive" en el calendario: la programada si
+        // la hay, la de publicación si se publicó, y si no la de creación.
+        // Tiene que ser LA MISMA expresión que usa el frontend para colocarlo
+        // en una celda; cuando no coincidían, un post publicado al momento
+        // entraba en el mes pero no se pintaba en ningún día.
+        $fecha = DB::raw('COALESCE(scheduled_at, published_at, created_at)');
+
         $accounts = $client->socialAccounts()->orderBy('provider')->get();
         $posts    = $client->socialPosts()
             ->with(['targets.account:id,provider,name'])
-            ->whereBetween(DB::raw('COALESCE(scheduled_at, created_at)'), [$start, $end])
-            ->orderBy('scheduled_at')
+            ->whereBetween($fecha, [$start, $end])
+            ->orderBy($fecha)
             ->get();
 
         return Inertia::render('Social/ClientShow', [
