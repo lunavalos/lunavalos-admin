@@ -29,8 +29,16 @@ class DatabaseSeeder extends Seeder
             'Designer',
         ]));
 
+        // Qué roles nacieron en esta corrida. Es lo que distingue "instalar"
+        // de "reconfigurar": la matriz de abajo solo se aplica a los nuevos.
+        $recienCreados = [];
+
         foreach ($roles as $roleName) {
-            Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+            $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+
+            if ($role->wasRecentlyCreated) {
+                $recienCreados[] = $roleName;
+            }
         }
 
         $permissions = [
@@ -107,9 +115,12 @@ class DatabaseSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        // Admin: full access (also reinforced via Gate::before in AppServiceProvider).
+        // Admin: acceso total (reforzado además por Gate::before en
+        // AppServiceProvider). Va con givePermissionTo y no con syncPermissions:
+        // añade los que falten sin quitar nada, así que correr el seeder nunca
+        // le resta permisos a un administrador.
         $adminRoleModel = Role::firstOrCreate(['name' => $adminRole, 'guard_name' => 'web']);
-        $adminRoleModel->syncPermissions($permissions);
+        $adminRoleModel->givePermissionTo($permissions);
 
         // Default permission matrix for non-admin roles. Edit this map (or the
         // role permissions in the UI) instead of hardcoding role checks in code.
@@ -158,8 +169,27 @@ class DatabaseSeeder extends Seeder
             ],
         ];
 
+        // La matriz se aplica SOLO a los roles que acaban de nacer.
+        //
+        // Antes iba con syncPermissions() sobre todos, y syncPermissions
+        // REEMPLAZA: cada corrida devolvía los roles a este mapa y borraba lo
+        // que se hubiera ajustado desde la pantalla de roles — que es
+        // precisamente lo que el comentario de arriba invita a hacer.
+        //
+        // No es hipotético: el 2026-08-21 se comprobó que correr este seeder en
+        // producción le habría quitado 'Ver Social', 'Gestionar Social' y
+        // 'Publicar Social' a Designer y Web Developer, concedidos a mano y sin
+        // reflejo en el mapa.
+        //
+        // Un seeder establece los valores de partida de una instalación nueva;
+        // no es el sitio desde el que imponer política a un sistema vivo.
         foreach ($rolePermissions as $roleName => $perms) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
+
+            if (!in_array($roleName, $recienCreados, true) && !$role->wasRecentlyCreated) {
+                continue;
+            }
+
             $role->syncPermissions($perms);
         }
 
