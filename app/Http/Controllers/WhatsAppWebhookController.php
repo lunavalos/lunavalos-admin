@@ -6,6 +6,7 @@ use App\Events\ConversationMessageSent;
 use App\Events\ConversationUpdated;
 use App\Jobs\MarkWhatsAppMessageRead;
 use App\Jobs\NotifyApiConsumers;
+use App\Jobs\ResponderConIA;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\WhatsAppAccount;
@@ -177,6 +178,13 @@ class WhatsAppWebhookController extends Controller
         // necesitan enterarse de la respuesta del contacto, no solo poder
         // mandar. También en cola, por el mismo 200 rápido.
         NotifyApiConsumers::dispatch($conversacion, $guardado);
+
+        // Y el agente, si el cliente lo tiene activo y nadie tomó la
+        // conversación. Se vuelve a comprobar dentro del job: entre encolar y
+        // ejecutar, alguien del equipo puede haberla tomado.
+        if ($conversacion->debeResponderIa()) {
+            ResponderConIA::dispatch($conversacion);
+        }
     }
 
     /**

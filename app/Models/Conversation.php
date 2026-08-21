@@ -100,4 +100,24 @@ class Conversation extends Model
             'unread_count'    => 0,
         ])->save();
     }
+
+    /**
+     * ¿Le toca contestar al agente de IA?
+     *
+     * Dos condiciones, y la segunda es la que importa: **si alguien del equipo
+     * tomó la conversación, la IA se calla**. Sin eso el bot contesta encima de
+     * la persona que ya está atendiendo, que es la peor cara que puede dar un
+     * negocio — dos voces distintas respondiendo lo mismo al mismo contacto.
+     *
+     * Asignarse una conversación pasa así a ser el modo de apagar el agente
+     * sobre la marcha, sin buscar un interruptor.
+     *
+     * La ventana de 24 h no se comprueba aquí: el agente solo reacciona a un
+     * entrante, así que por definición está abierta. `ConversationSender` la
+     * valida igual, como con cualquier otro envío.
+     */
+    public function debeResponderIa(): bool
+    {
+        return $this->ai_enabled && $this->assigned_id === null;
+    }
 }

@@ -71,6 +71,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Anthropic — agente de IA de las conversaciones
+    |--------------------------------------------------------------------------
+    | Modelo de cobro: una sola cuenta de LunAvalos, con tope por cliente en
+    | `ai_agents.monthly_token_limit`. Un cliente que traiga su propia llave la
+    | guarda cifrada en `ai_agents.api_key`, que gana sobre ésta.
+    |
+    | El SDK también lee ANTHROPIC_API_KEY del entorno por su cuenta, pero aquí
+    | se pasa siempre explícita: así el agente de un cliente con llave propia no
+    | acaba usando la nuestra por un descuido de configuración.
+    */
+    'anthropic' => [
+        'api_key' => env('ANTHROPIC_API_KEY'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Social Publishing — OAuth providers (Socialite)
     |--------------------------------------------------------------------------
     | Cada provider requiere registrar redirect_uri en su panel de desarrollador.

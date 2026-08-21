@@ -53,7 +53,7 @@ Revisada contra el `.env` de producción el 2026-08-21. **B1–B5 cerradas.**
 | B3 | Corregir `EVIEWER_EMAIL` → `REVIEWER_EMAIL` | ✅ Hecho |
 | B4 | Rotar `WHATSAPP_APP_SECRET` | ✅ Hecho — se rotaron varios tokens |
 | B5 | Ignorar `AJUSTES/` | ✅ Hecho el 2026-08-21. Antes solo estaba `/AJUSTES/*.mp4`, así que la captura con el App Secret legible **no** estaba protegida |
-| **B6** | **`BROADCAST_CONNECTION=reverb` en producción** | ❌ **Falta, y tumba el tiempo real** |
+| **B6** | **`BROADCAST_CONNECTION=reverb` en producción** | ✅ Puesta el 2026-08-21. **Falta comprobarla en un navegador** (ver abajo) |
 
 ### B6 — el tiempo real no llega a producción
 
@@ -943,7 +943,7 @@ sirve para todos los sistemas. Por eso se adelantó.
 > Falta correr `php artisan migrate` (crea `api_consumers` y
 > `personal_access_tokens`) y registrar las integraciones reales.
 
-**Fase 7 — Agente de IA por cliente**
+**Fase 7 — Agente de IA por cliente — ✅ backend hecho el 2026-08-21**
 
 Decisión tomada el 2026-08-21, después de comparar contra hacerlo en n8n:
 **el agente corre en Laravel contra la API de Claude**, y n8n se queda para los
@@ -967,14 +967,48 @@ menos con prompt caching del contexto del cliente, que no cambia entre
 mensajes). Se deja la columna `api_key` nullable por si algún día un cliente
 grande trae la suya.
 
-Pendiente de implementar:
-- Tabla `ai_agents`: prompt, modelo, tope mensual, `api_key` nullable.
-- `ai_usage` para contar tokens por cliente y cortar al llegar al tope.
-- Job `ResponderConIA`, despachado desde el webhook cuando `ai_enabled` y
-  —decidido— **nadie tiene tomada la conversación** (`assigned_id` null), para
-  que la IA se calle en cuanto un humano entra. Envía por `ConversationSender`
-  con `author_type: ai`, que la UI ya sabe pintar.
-- Transparencia sobre la automatización en el primer mensaje del bot.
+**Backend — ✅ hecho el 2026-08-21:**
+- `AiAgent` (uno por cliente, `client_id` nullable único) y `AiUsage`
+  (consumo agregado por agente y mes).
+- `ClaudeGateway` + `AnthropicGateway`: **todo el uso del SDK en un archivo**.
+  El SDK trae su propio cliente HTTP, así que `Http::fake()` no lo alcanza —
+  sin esta frontera los tests del agente saldrían a red de verdad.
+- `ConversationAgent`: arma el prompt, el historial y envía por
+  `ConversationSender` con `author_type: ai`, que la UI ya sabe pintar.
+- `ResponderConIA` en cola, con **un solo intento**: un reintento llegaría
+  tarde y arriesgaría mandarle dos respuestas al contacto.
+- `php artisan ai:agente` para encender un agente y ver su consumo.
+- 19 tests en `ConversationAgentTest`. Suite completa: **216**.
+
+Decisiones que conviene no reabrir:
+
+- **La IA se calla si alguien tomó la conversación** (`assigned_id` no nulo).
+  Se comprueba dos veces —al despachar y dentro del job— porque entre una y
+  otra pasan segundos reales, y en esos segundos alguien del equipo puede
+  abrirla. Asignarse una conversación pasa a ser el modo de apagar el agente
+  sobre la marcha.
+- **El prompt sale de la ficha del cliente** (`briefing_context`,
+  `briefing_target_audience`, `briefing_contact_methods`), que ya estaba
+  capturada. `system_prompt` propio la sobreescribe.
+- **El prompt va en bloque cacheado y no lleva nada variable dentro.** Ni
+  fecha ni nombre del contacto: un byte distinto invalida la caché y el ahorro
+  desaparece sin avisar.
+- **Los tokens leídos de caché no cuentan para el tope.** Cuestan ~10%, y
+  hacerlos contar castigaría justo lo que abarata el agente.
+- **El consumo se registra aunque el modelo decline o no devuelva texto.**
+  Anthropic lo cobra igual; un tope que no cuenta lo gastado no es un tope.
+- **Un fallo de la API no relanza el job.** El resultado correcto es "sin
+  respuesta automática", no una conversación rota y un job en fallidos.
+- **`effort: 'low'`.** Contestar un WhatsApp no es razonamiento profundo, y
+  además produce respuestas más cortas — que es lo que se quiere en el canal.
+
+Pendiente:
+- **Pantalla de agentes.** Hoy solo hay comando. Hace falta para que el equipo
+  ajuste el prompt sin pedir consola — que era, precisamente, el único
+  argumento real a favor de n8n.
+- `ANTHROPIC_API_KEY` en producción.
+- Que el aviso de automatización aparezca también en la ficha del cliente, no
+  solo en el primer mensaje.
 - n8n: conectores de ads y automatizaciones no conversacionales, llamando a la
   API de la Fase 6.
 

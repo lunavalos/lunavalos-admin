@@ -15,7 +15,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // La frontera con la API de Claude. Los tests la sustituyen por un
+        // doble: el SDK trae su propio cliente HTTP, así que `Http::fake()` no
+        // lo alcanza y sin esta atadura las pruebas del agente saldrían a red.
+        $this->app->bind(
+            \App\Services\AI\ClaudeGateway::class,
+            \App\Services\AI\AnthropicGateway::class,
+        );
     }
 
     /**
