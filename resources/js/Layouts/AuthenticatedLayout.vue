@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -10,7 +10,7 @@ import {
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
     SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon, DocumentChartBarIcon, ServerIcon, ArrowPathIcon, MegaphoneIcon,
-    ChatBubbleLeftRightIcon, SparklesIcon
+    ChatBubbleLeftRightIcon, SparklesIcon, EyeIcon, ArrowUturnLeftIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -45,6 +45,23 @@ const markOneAsRead = (notif) => {
             }
         }
     });
+};
+
+// --- Modo "Ver como rol" (depuración de permisos) -------------------------
+// El backend (App\Support\RolePreview) sustituye en memoria los roles del
+// usuario, así que el menú y las pantallas se pintan exactamente como los ve
+// el rol elegido. El estado llega en la prop compartida `role_preview` y se
+// calcula con los roles REALES: por eso el botón de salir nunca desaparece.
+const rolePreview = computed(() => page.props?.role_preview ?? {
+    can_preview: false, active: false, role: null, real_roles: [], available: [],
+});
+
+const previewRole = (role) => {
+    router.post(route('role-preview.store'), { role }, { preserveScroll: false });
+};
+
+const exitRolePreview = () => {
+    router.delete(route('role-preview.destroy'), { preserveScroll: false });
 };
 
 const isSidebarExpanded = ref(true);
@@ -136,6 +153,68 @@ onMounted(() => {
             <!-- Notifications & DarkMode & User Dropdown -->
             <div class="flex items-center space-x-3">
                 
+                <!-- Ver como rol (solo para quien puede depurar permisos) -->
+                <div v-if="rolePreview.can_preview" class="relative">
+                    <Dropdown align="right" width="64">
+                        <template #trigger>
+                            <button
+                                type="button"
+                                :title="rolePreview.active ? `Viendo como ${rolePreview.role}` : 'Ver el sistema como otro rol'"
+                                :class="[
+                                    'relative p-2 rounded-full transition-colors focus:outline-none',
+                                    rolePreview.active
+                                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                                        : 'bg-gray-50 dark:bg-zinc-800 text-gray-400 hover:text-[#264ab3] dark:hover:text-blue-400'
+                                ]"
+                            >
+                                <EyeIcon class="h-6 w-6" />
+                            </button>
+                        </template>
+
+                        <template #content>
+                            <div class="dark:bg-zinc-900">
+                                <div class="px-4 py-2 border-b border-gray-100 dark:border-zinc-800">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Ver como rol</p>
+                                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        Recorre el sistema con los permisos de otro rol. No cambia nada en la base de datos.
+                                    </p>
+                                </div>
+
+                                <button
+                                    v-if="rolePreview.active"
+                                    type="button"
+                                    @click="exitRolePreview"
+                                    class="w-full flex items-center gap-2 px-4 py-2 text-start text-sm font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition"
+                                >
+                                    <ArrowUturnLeftIcon class="h-4 w-4" />
+                                    Volver a mi rol ({{ rolePreview.real_roles.join(', ') }})
+                                </button>
+
+                                <div class="max-h-72 overflow-y-auto">
+                                    <button
+                                        v-for="role in rolePreview.available"
+                                        :key="role"
+                                        type="button"
+                                        @click="previewRole(role)"
+                                        :class="[
+                                            'w-full flex items-center justify-between px-4 py-2 text-start text-sm transition',
+                                            role === rolePreview.role
+                                                ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold'
+                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800'
+                                        ]"
+                                    >
+                                        <span>{{ role }}</span>
+                                        <span v-if="role === rolePreview.role" class="text-[10px] uppercase tracking-wide">Activo</span>
+                                    </button>
+                                    <p v-if="!rolePreview.available.length" class="px-4 py-3 text-sm text-gray-500">
+                                        No hay otros roles para previsualizar.
+                                    </p>
+                                </div>
+                            </div>
+                        </template>
+                    </Dropdown>
+                </div>
+
                 <!-- Dark Mode Toggle -->
                 <button 
                     @click="toggleDarkMode" 
@@ -233,6 +312,31 @@ onMounted(() => {
                 </div>
             </div>
         </header>
+
+        <!-- Aviso permanente del modo "Ver como rol". Va fuera del menú a
+             propósito: el rol previsualizado puede no tener acceso a nada,
+             y aun así hay que poder salir. -->
+        <div
+            v-if="rolePreview.active"
+            class="shrink-0 bg-amber-500 text-amber-950 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-sm z-30"
+        >
+            <p class="flex items-center gap-2 font-medium">
+                <EyeIcon class="h-4 w-4 shrink-0" />
+                <span>
+                    Modo depuración: estás viendo el sistema como
+                    <strong>{{ rolePreview.role }}</strong>.
+                    Tus permisos de {{ rolePreview.real_roles.join(', ') }} están suspendidos.
+                </span>
+            </p>
+            <button
+                type="button"
+                @click="exitRolePreview"
+                class="inline-flex items-center gap-1.5 rounded-md bg-amber-950/90 px-3 py-1 text-xs font-semibold text-amber-50 hover:bg-amber-950 transition"
+            >
+                <ArrowUturnLeftIcon class="h-3.5 w-3.5" />
+                Volver a mi rol
+            </button>
+        </div>
 
         <!-- Main Body Area -->
         <div class="flex flex-1 overflow-hidden">

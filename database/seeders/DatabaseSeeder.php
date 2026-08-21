@@ -93,6 +93,10 @@ class DatabaseSeeder extends Seeder
             'Gestionar WhatsApp',
             'Gestionar Plantillas WhatsApp',
             'Gestionar Agentes IA',
+            // Habilita el switch "Ver como rol" (App\Support\RolePreview) para
+            // roles que no son el administrador. El admin real no lo necesita:
+            // pasa por el Gate::before de AppServiceProvider.
+            'Depurar Roles',
             'Ver Plantillas de Firma',
             'Crear Plantillas de Firma',
             'Editar Plantillas de Firma',

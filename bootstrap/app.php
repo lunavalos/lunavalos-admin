@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            // Antes que Inertia: el modo "Ver como rol" debe estar aplicado
+            // cuando se calculan las props de auth (permisos, is_admin).
+            \App\Http\Middleware\ApplyRolePreview::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             \App\Http\Middleware\EnforceTwoFactorActivation::class,

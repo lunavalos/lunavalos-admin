@@ -76,6 +76,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/two-factor/recovery-codes', [\App\Http\Controllers\TwoFactorController::class, 'recoveryCodes'])->name('two-factor.recovery-codes');
 
 
+    // Modo "Ver como rol": el admin recorre el sistema con los permisos de otro
+    // rol para depurar. Sin comprobación de rol en la ruta de salida, para que
+    // se pueda abandonar el modo desde un rol sin permisos. Ver App\Support\RolePreview.
+    Route::post('role-preview', [\App\Http\Controllers\RolePreviewController::class, 'store'])->name('role-preview.store');
+    Route::delete('role-preview', [\App\Http\Controllers\RolePreviewController::class, 'destroy'])->name('role-preview.destroy');
+
     Route::resource('roles', \App\Http\Controllers\RoleController::class);
     Route::resource('users', \App\Http\Controllers\UserController::class);
     // Service addons (subrecurso visible en /services/addons-* y dentro del catálogo)

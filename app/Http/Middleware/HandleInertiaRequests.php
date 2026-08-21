@@ -96,6 +96,10 @@ class HandleInertiaRequests extends Middleware
                 })() : null,
                 'notifications' => $notifications,
             ],
+            // Estado del modo "Ver como rol" (App\Support\RolePreview). Se
+            // calcula con los roles REALES del usuario, no con los del preview:
+            // si no, un admin viendo como "Cliente" perdería el control para salir.
+            'role_preview' => fn () => \App\Support\RolePreview::state($user),
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'message' => $request->session()->get('message'),
