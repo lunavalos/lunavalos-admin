@@ -135,6 +135,35 @@ Tiene que haber exactamente tantos como `body_variables`.
 El mensaje se guarda con el texto **ya sustituido**: en el hilo tiene que
 leerse lo que recibió el contacto, no `lead_recibido`.
 
+### Antes de mandar la primera plantilla: consentimiento
+
+**Requisito de integración, no recomendación.** `POST /mensajes/plantilla` es el
+único camino para escribirle a alguien que nunca contestó, y Meta solo lo
+permite cuando esa persona dio su consentimiento explícito para ser contactada
+por WhatsApp **por ese negocio**. No basta con que haya dejado su teléfono.
+
+Quien integre una landing o un formulario tiene que:
+
+1. Poner una casilla **no premarcada** —una premarcada no es consentimiento— con
+   un texto del tipo "Acepto recibir mensajes por WhatsApp de \<negocio\>".
+2. Guardar **cuándo** se aceptó y **desde qué formulario o URL**. Si Meta alguna
+   vez pide evidencia del opt-in, es lo que se enseña.
+3. **No llamar a este endpoint cuando la casilla no esté marcada.** El lead se
+   atiende por otro canal.
+
+Esto no lo puede validar la API: el consentimiento se recoge en el formulario,
+que vive del lado del integrador. Es responsabilidad de quien manda.
+
+Lo que sí está declarado ante Meta en la App Review de esta app es que
+*"solo mandamos mensajes a personas que contactaron primero al negocio, o que le
+dieron opt-in explícito de WhatsApp al dejar sus datos"*. Una integración que lo
+incumpla convierte esa declaración en falsa para todas las WABAs que administra
+esta plataforma, no solo para la suya, y degrada el quality rating del número
+que usó.
+
+Responder dentro de la ventana de 24 h (`POST /mensajes`) no necesita nada de
+esto: ahí el contacto ya escribió.
+
 ### `GET /plantillas`
 
 Las que se pueden enviar, con su contrato:
@@ -235,6 +264,9 @@ Siempre con la misma forma:
 > otro cliente: "no es tuyo" y "no existe" no deben distinguirse desde fuera.
 
 ## Ejemplo: un lead de landing
+
+> Se asume que Ana marcó la casilla de consentimiento de WhatsApp en el
+> formulario y que la landing guardó la fecha. Sin eso, el paso 2 no se hace.
 
 ```bash
 # 1. Qué plantillas hay

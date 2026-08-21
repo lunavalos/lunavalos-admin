@@ -10,7 +10,7 @@ import {
     ChevronLeftIcon, ChevronRightIcon, ArrowRightOnRectangleIcon,
     IdentificationIcon, Bars3Icon, InboxIcon, BellIcon, EnvelopeIcon, PencilSquareIcon,
     SwatchIcon, BanknotesIcon, LightBulbIcon, SunIcon, MoonIcon, DocumentChartBarIcon, ServerIcon, ArrowPathIcon, MegaphoneIcon,
-    ChatBubbleLeftRightIcon, SparklesIcon, EyeIcon, ArrowUturnLeftIcon
+    ChatBubbleLeftRightIcon, SparklesIcon, EyeIcon, ArrowUturnLeftIcon, KeyIcon
 } from '@heroicons/vue/24/outline';
 import Toast from '@/Components/Toast.vue';
 
@@ -494,6 +494,27 @@ onMounted(() => {
                                 <DocumentTextIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
                                 <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
                                     Plantillas WA
+                                </span>
+                            </Link>
+                        </li>
+
+                        <!-- Integraciones: los tokens con los que otros
+                             sistemas usan nuestro WhatsApp. -->
+                        <li v-if="$page.props.auth.user.is_admin || ($page.props.auth.user.permissions && $page.props.auth.user.permissions.includes('Gestionar Integraciones'))">
+                            <Link
+                                :href="route('integraciones.index')"
+                                :class="[
+                                    route().current('integraciones.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Integraciones' : ''"
+                            >
+                                <KeyIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Integraciones
                                 </span>
                             </Link>
                         </li>

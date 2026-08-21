@@ -125,6 +125,11 @@ class HandleInertiaRequests extends Middleware
                 // Va por flash y no por prop de la página para que no viaje en
                 // cada visita: solo aparece cuando se pide verlo.
                 'preview' => $request->session()->get('preview'),
+                // Token y secreto recién emitidos de una integración. Flash y
+                // nada más que flash: Sanctum solo guarda el hash del token, así
+                // que este es el único momento en que existe en claro. Como prop
+                // de página viajaría en cada visita a la pantalla.
+                'credenciales' => $request->session()->get('credenciales'),
             ],
             // Configuración de divisas para el composable useMoney() del frontend.
             'currencies' => [

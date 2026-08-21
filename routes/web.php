@@ -216,6 +216,17 @@ Route::middleware('auth')->group(function () {
 
     // Agentes de IA. Permiso propio: cambiar el prompt es decidir qué le dice
     // el negocio a sus clientes en automático, más grave que responder a mano.
+    // Integraciones de la API de plataforma. Existe pantalla además del
+    // comando `api:consumidor` porque revocar un token no puede depender de
+    // que alguien tenga acceso SSH.
+    Route::get('integraciones',                        [\App\Http\Controllers\ApiConsumerController::class, 'index'])->name('integraciones.index');
+    Route::post('integraciones',                       [\App\Http\Controllers\ApiConsumerController::class, 'store'])->name('integraciones.store');
+    Route::put('integraciones/{integracion}',          [\App\Http\Controllers\ApiConsumerController::class, 'update'])->name('integraciones.update');
+    Route::post('integraciones/{integracion}/token',   [\App\Http\Controllers\ApiConsumerController::class, 'rotateToken'])->name('integraciones.token');
+    Route::post('integraciones/{integracion}/secreto', [\App\Http\Controllers\ApiConsumerController::class, 'rotateSecret'])->name('integraciones.secreto');
+    Route::post('integraciones/{integracion}/estado',  [\App\Http\Controllers\ApiConsumerController::class, 'toggle'])->name('integraciones.toggle');
+    Route::delete('integraciones/{integracion}',       [\App\Http\Controllers\ApiConsumerController::class, 'destroy'])->name('integraciones.destroy');
+
     Route::get('agentes-ia',                   [\App\Http\Controllers\AiAgentController::class, 'index'])->name('ai.agents.index');
     Route::post('agentes-ia',                  [\App\Http\Controllers\AiAgentController::class, 'store'])->name('ai.agents.store');
     Route::put('agentes-ia/{agent}',           [\App\Http\Controllers\AiAgentController::class, 'update'])->name('ai.agents.update');
