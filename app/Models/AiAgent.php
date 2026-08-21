@@ -95,15 +95,41 @@ class AiAgent extends Model
     }
 
     /**
+     * ¿Hay con qué autenticarse contra la API?
+     *
+     * Dos caminos. El normal es una llave —la del cliente si trajo la suya, si
+     * no la de LunAvalos—. El otro es la **federación de identidades**, donde
+     * no hay llave que guardar: la plataforma (GCP, AWS, Azure, GitHub Actions)
+     * escribe un JWT de minutos y el SDK lo canjea solo.
+     *
+     * Sin este segundo caso, un despliegue con federación tendría el agente
+     * mudo y sin explicación: `llaveApi()` sería null y nadie llamaría nunca a
+     * la API, aunque las credenciales estuvieran perfectamente configuradas.
+     *
+     * Los nombres salen de `DefaultCredentials::tryWorkloadIdentityFromEnv()`
+     * del SDK: exige regla, organización, y un token —por archivo o literal—.
+     */
+    public function hayCredenciales(): bool
+    {
+        if (filled($this->llaveApi())) {
+            return true;
+        }
+
+        return filled(env('ANTHROPIC_FEDERATION_RULE_ID'))
+            && filled(env('ANTHROPIC_ORGANIZATION_ID'))
+            && (filled(env('ANTHROPIC_IDENTITY_TOKEN_FILE')) || filled(env('ANTHROPIC_IDENTITY_TOKEN')));
+    }
+
+    /**
      * ¿Puede contestar ahora mismo?
      *
-     * Sin llave no se intenta siquiera: fallaría en la API y dejaría la
+     * Sin credenciales no se intenta siquiera: fallaría en la API y dejaría la
      * conversación sin respuesta igual, pero después de una llamada de red.
      */
     public function puedeResponder(): bool
     {
         return $this->enabled
-            && filled($this->llaveApi())
+            && $this->hayCredenciales()
             && !$this->superoElTope();
     }
 

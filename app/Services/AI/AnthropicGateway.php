@@ -20,10 +20,14 @@ class AnthropicGateway implements ClaudeGateway
 
     public function responder(AiAgent $agente, string $promptDelSistema, array $mensajes): ClaudeRespuesta
     {
-        // La llave se pasa explícita y no se deja al SDK leerla del entorno:
-        // así el agente de un cliente con llave propia no acaba usando la
-        // nuestra por un descuido de configuración.
-        $cliente = new Client(apiKey: $agente->llaveApi());
+        // La llave del cliente se pasa explícita para que su agente no acabe
+        // usando la nuestra por un descuido de configuración.
+        //
+        // Cuando no hay ninguna se pasa null a propósito, no cadena vacía: con
+        // null el SDK resuelve credenciales por su cuenta (`Client.php:140`) y
+        // eso incluye la federación de identidades, donde no existe llave que
+        // guardar. Pasar '' rompería ese camino sin dar ningún error.
+        $cliente = new Client(apiKey: $agente->llaveApi() ?: null);
 
         $respuesta = $cliente->messages->create(
             model: $agente->model,
