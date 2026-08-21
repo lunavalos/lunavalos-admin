@@ -176,6 +176,24 @@ class WhatsAppOnboardingService
      * Los números que trae la WABA. Se hace upsert por phone_number_id para que
      * reconectar no duplique ni pierda las conversaciones ya asociadas.
      */
+    /**
+     * Trae los números de la WABA y los deja sincronizados.
+     *
+     * **El dueño del número solo se fija cuando lo sabemos.** Con `$client`
+     * llegamos desde Embedded Signup: la WABA es de ese cliente y todos sus
+     * números son suyos, así que mandamos.
+     *
+     * Con `$client` null llegamos desde `adoptarWabaPropia()`, y ahí null no
+     * significa "de nadie" sino "no lo decide este proceso": nuestra WABA puede
+     * alojar números de varios clientes (§4), asignados a mano. Escribir null
+     * encima desasignaría el número de Macadam cada vez que alguien vuelve a
+     * correr el comando —en silencio, y el síntoma aparecería después como
+     * conversaciones que el cliente dejó de ver y un agente de IA que responde
+     * con el prompt equivocado—.
+     *
+     * Por eso `client_id` va en los valores de CREACIÓN, no en los de
+     * actualización, cuando no hay cliente que imponer.
+     */
     private function sincronizarNumeros(WhatsAppAccount $cuenta, ?Client $client, string $token): void
     {
         $respuesta = $this->graph()->withToken($token)->get("/{$cuenta->waba_id}/phone_numbers", [
@@ -191,17 +209,33 @@ class WhatsAppOnboardingService
                 continue;
             }
 
-            WhatsAppNumber::updateOrCreate(
-                ['phone_number_id' => $numero['id']],
-                [
-                    'whatsapp_account_id'  => $cuenta->id,
-                    'client_id'            => $client?->id,
-                    'display_phone_number' => $numero['display_phone_number'] ?? $numero['id'],
-                    'verified_name'        => $numero['verified_name']  ?? null,
-                    'quality_rating'       => $numero['quality_rating'] ?? null,
-                    'is_active'            => true,
-                ],
-            );
+            $siempre = [
+                'whatsapp_account_id'  => $cuenta->id,
+                'display_phone_number' => $numero['display_phone_number'] ?? $numero['id'],
+                'verified_name'        => $numero['verified_name']  ?? null,
+                'quality_rating'       => $numero['quality_rating'] ?? null,
+                'is_active'            => true,
+            ];
+
+            if ($client !== null) {
+                // Embedded Signup: la WABA es del cliente, mandamos siempre.
+                WhatsAppNumber::updateOrCreate(
+                    ['phone_number_id' => $numero['id']],
+                    $siempre + ['client_id' => $client->id],
+                );
+
+                continue;
+            }
+
+            // WABA propia: se respeta la asignación que ya tuviera el número.
+            $fila = WhatsAppNumber::firstOrNew(['phone_number_id' => $numero['id']]);
+            $fila->fill($siempre);
+
+            if (!$fila->exists) {
+                $fila->client_id = null;
+            }
+
+            $fila->save();
         }
     }
 

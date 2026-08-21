@@ -750,3 +750,174 @@ generados no coinciden con los registrados y todos los OAuth fallan con
       (`/privacy`, `/terminos`, `/aviso-de-privacidad`, `/eliminar-datos`).
 - [ ] Las seis rutas siguen respondiendo como se espera: `/`, `/servicios`,
       `/privacy`, `/terminos`, `/aviso-de-privacidad`, `/eliminar-datos` en 200.
+
+---
+
+# PARTE F — Añadido el 2026-08-21: IA y API de plataforma
+
+> Este documento se escribió el 2026-08-14. Después se construyeron dos cosas
+> que cambian **qué pasa con los datos de los clientes finales**, y ninguna
+> está declarada en las políticas. Grepeado el 2026-08-21: la única mención a
+> "inteligencia artificial" en todo el doc es el nombre de una tarjeta de
+> `/servicios`, que no habla de tratamiento de datos.
+>
+> Es el mismo desajuste "lo declarado no coincide con lo real" que §11 del plan
+> de WhatsApp señala como causa común de rechazo, y que esta semana ya obligó a
+> corregir la descripción de `pages_manage_posts` y la de
+> `instagram_content_publish`.
+
+## F.1 — El agente de IA es un subencargado
+
+Desde el 2026-08-21 el admin puede responder conversaciones de WhatsApp
+automáticamente. Para hacerlo **envía el historial reciente de la conversación
+—texto de los mensajes del cliente final— a la API de Anthropic (Claude)**.
+
+Eso es una transferencia a un tercero de datos personales que no son nuestros
+sino de los clientes finales del cliente. Tiene que estar declarado.
+
+Se activa por conversación (`conversations.ai_enabled`) y solo cuando el
+cliente lo contrata, pero el aviso debe existir aunque hoy esté apagado: la
+política describe lo que el sistema **puede** hacer.
+
+### `/privacy` §4 (lista de APIs de terceros): agregar
+
+```
+- Anthropic (Claude API) — used only when a client enables the AI assistant for
+  its WhatsApp conversations. When enabled, the recent messages of that
+  conversation are sent to Anthropic to generate a suggested reply, which is
+  then delivered through WhatsApp. Anthropic processes this data as our
+  subprocessor and does not use it to train its models. The assistant is off by
+  default and is enabled per conversation by the business that owns it.
+```
+
+### `/privacy` §2 (datos de clientes finales): agregar al bloque
+
+```
+When the AI assistant is enabled for a conversation, the message text of that
+conversation is transmitted to our AI subprocessor to generate the reply. We do
+not send phone numbers, contact names, or any other identifier — only the
+message text needed to answer.
+```
+
+> Esto último **hay que cumplirlo o no escribirlo**: hoy `historial()` manda
+> únicamente `body`, sin `contact_wa_id` ni `contact_name`. Si algún día se le
+> añade el nombre del contacto al prompt, esta frase deja de ser cierta.
+
+### `/aviso-de-privacidad` §4: el equivalente en español
+
+```
+- Anthropic (Claude API) — se utiliza únicamente cuando un cliente activa el
+  asistente de inteligencia artificial para sus conversaciones de WhatsApp. En
+  ese caso, el texto de los mensajes recientes de esa conversación se transmite
+  a Anthropic para generar una respuesta sugerida, que se entrega por WhatsApp.
+  Anthropic trata estos datos como encargado nuestro y no los utiliza para
+  entrenar sus modelos. El asistente está desactivado por omisión y lo activa
+  el negocio titular de la conversación.
+```
+
+### Transparencia hacia el cliente final — ya implementada
+
+El primer mensaje que manda el agente en cada conversación lleva un aviso de
+que es automático (`AiAgent::avisoDeAutomatizacion()`, no puede quedar vacío).
+Vale la pena mencionarlo en la política: es un argumento a favor en la revisión.
+
+## F.2 — La API de plataforma entrega mensajes a sistemas del cliente
+
+Desde el 2026-08-21 existe `/api/v1`, que permite a otros sistemas del propio
+cliente (klwebapp, sus landings) mandar y recibir WhatsApp a través de esta
+plataforma. Los mensajes entrantes se **entregan por webhook firmado** a las
+URLs que el cliente registre.
+
+No es una transferencia a un tercero ajeno —es el propio cliente recibiendo sus
+datos— pero sí es un flujo de salida que la política no describe.
+
+### `/privacy` §3: agregar un punto
+
+```
+Integrations. A business can connect its own systems (for example its website
+or its internal application) to our platform through our API, so that those
+systems can send and receive WhatsApp messages under its own WhatsApp Business
+Account. When it does, the messages of its conversations are delivered to the
+endpoints that business registers, over signed HTTPS requests. Each integration
+is scoped to a single business and cannot reach another business's data.
+```
+
+### `/aviso-de-privacidad` §3: el equivalente en español.
+
+## F.3 — D.2 sigue abierto y ahora estorba
+
+`/privacy` §3 punto 4 y `/aviso-de-privacidad` §3 punto 4 **prometen** reportes
+de métricas que el código no produce: `fetchInsights()` y `fetchAccountStats()
+` siguen devolviendo arreglo vacío en `AbstractPublisher`.
+
+Es el desajuste al revés —la política ofrece más de lo que el sistema hace— y
+es igual de malo ante un revisor que compara. Aprovechando que se está tocando
+el policy: o se atenúa la frase, o se implementan las métricas y se piden los
+scopes (`read_insights`, `instagram_manage_insights`) en el mismo App Review.
+
+**Atenuar es lo razonable ahora**: pedir dos scopes más retrasaría un envío que
+ya está listo.
+
+---
+
+## F.4 — Atenuar las promesas de métricas (verificado el 2026-08-21)
+
+Las políticas se publicaron el 2026-08-21 y quedaron correctas salvo por esto:
+**prometen métricas que el código no produce.** Verificado driver por driver —
+Facebook, Instagram, LinkedIn, TikTok y YouTube heredan todos el stub vacío de
+`AbstractPublisher.php:93-101`, donde `fetchInsights()` y `fetchAccountStats()`
+devuelven `[]`.
+
+Agravante: leerlas exigiría `read_insights` e `instagram_manage_insights`, que
+**no se piden en este App Review**. Un revisor que cruce la política contra los
+permisos solicitados ve una promesa que los propios permisos no permiten
+cumplir. Es el desajuste de §11 otra vez, al revés.
+
+### Las cinco ediciones
+
+`/en/privacy-policy`:
+
+1. **§2 Access Credentials** — quitar `, and to retrieve the resulting activity
+   metrics` del final de la frase de los tokens.
+2. **§3 punto 5** — `Generate activity reports for our clients` →
+   `Generate publishing reports for our clients`. Sigue siendo cierto: sí se
+   registra qué se publicó, cuándo y con qué estado.
+3. **§5 YouTube** — quitar `, and to retrieve public performance metrics for
+   that content`. La frase siguiente encaja sin tocarla.
+
+`/aviso-de-privacidad`:
+
+4. **§3 Finalidades** — `Generar reportes de métricas y actividad para el
+   análisis de rendimiento.` → `Generar reportes de publicación para nuestros
+   clientes.`
+5. **YouTube** — quitar `y para consultar las métricas públicas de desempeño de
+   dicho contenido`.
+
+> El §2 del aviso en español no se toca: su apartado B solo enumera los tokens,
+> sin prometer métricas. Por eso son 2 ediciones y no 3.
+
+**Cuando se implementen las métricas**, estas frases vuelven — junto con los dos
+scopes, en un App Review aparte.
+
+## F.5 — Lo que sí quedó bien (para no volver a revisarlo)
+
+Verificado el 2026-08-21 contra el código y contra lo declarado en el panel de
+Meta:
+
+- **Anthropic PBC** descrito en `/privacy` §4 con el alcance real, y **coincide
+  con `Data handling` del App Review**, donde ya figura junto a Hostinger.
+- El párrafo dice que se envían "the recent messages of that conversation", y
+  `ConversationAgent::historial()` manda exactamente eso: solo el `body` de los
+  últimos 20 mensajes, sin teléfono ni nombre del contacto.
+- El asistente automático aparece en §3 punto 4, incluyendo que **se identifica
+  como automático** y que un humano puede tomar el control — las dos cosas están
+  implementadas (`AiAgent::avisoDeAutomatizacion()`, `Conversation::debeResponderIa()`).
+- Datos de clientes finales, retención a 90 días, YouTube API Services, Limited
+  Use, revocación por plataforma y transferencias internacionales: todos
+  presentes.
+- El aviso en español se actualizó en paralelo, misma fecha.
+
+**La API de plataforma (F.2) sigue sin describirse, y no bloquea**: esos datos
+vuelven a los sistemas del propio cliente, que ya es su responsable — no es una
+transferencia a un tercero ajeno como sí lo es Anthropic. Vale una línea en §3
+cuando haya tiempo.
