@@ -1002,11 +1002,34 @@ Decisiones que conviene no reabrir:
 - **`effort: 'low'`.** Contestar un WhatsApp no es razonamiento profundo, y
   además produce respuestas más cortas — que es lo que se quiere en el canal.
 
+**Pantalla — ✅ hecha el 2026-08-21.** `/agentes-ia`, con permiso propio
+`Gestionar Agentes IA`.
+
+Es la pieza que cierra la decisión de no usar n8n: el único argumento real a su
+favor era poder afinar el prompt sin desplegar, y sin pantalla ese argumento
+seguía en pie.
+
+- Alta, ajuste y borrado de agentes, acotados por `client_id` como el resto del
+  módulo — el prompt de un cliente describe su negocio.
+- **Consumo del mes con barra**, en ámbar al 80% y no al 100%: enterarse de que
+  un agente se quedó mudo cuando ya pasó no sirve de nada. Los tokens de caché
+  se muestran aparte y no inflan el porcentaje.
+- **«Ver el prompt real»**: enseña el texto ya armado con la ficha del cliente.
+  Sin esto, dejar el prompt vacío es un acto de fe — no había forma de saber
+  qué se le manda al modelo hasta que un contacto recibiera una respuesta rara.
+- Aviso si falta `ANTHROPIC_API_KEY`: sin ella el agente queda mudo **sin dar
+  error**, que es el peor modo de fallo.
+- El agente nace apagado. Encenderlo es una decisión, no un efecto secundario.
+- 17 tests en `AiAgentScreenTest`. Suite completa: **233**.
+
+> Un permiso propio y no el de Conversaciones: cambiar el prompt es decidir qué
+> le dice el negocio a sus clientes en automático, que es más grave que
+> responder un mensaje a mano. Hay un test que comprueba que
+> `Responder Conversaciones` no alcanza.
+
 Pendiente:
-- **Pantalla de agentes.** Hoy solo hay comando. Hace falta para que el equipo
-  ajuste el prompt sin pedir consola — que era, precisamente, el único
-  argumento real a favor de n8n.
-- `ANTHROPIC_API_KEY` en producción.
+- `ANTHROPIC_API_KEY` en producción, y correr el seeder para que exista el
+  permiso `Gestionar Agentes IA`.
 - Que el aviso de automatización aparezca también en la ficha del cliente, no
   solo en el primer mensaje.
 - n8n: conectores de ads y automatizaciones no conversacionales, llamando a la

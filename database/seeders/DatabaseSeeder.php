@@ -92,6 +92,7 @@ class DatabaseSeeder extends Seeder
             'Responder Conversaciones',
             'Gestionar WhatsApp',
             'Gestionar Plantillas WhatsApp',
+            'Gestionar Agentes IA',
             'Ver Plantillas de Firma',
             'Crear Plantillas de Firma',
             'Editar Plantillas de Firma',

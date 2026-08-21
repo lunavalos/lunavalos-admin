@@ -208,6 +208,14 @@ Route::middleware('auth')->group(function () {
     Route::post('conversaciones/{conversation}/ia',        [\App\Http\Controllers\ConversationController::class, 'toggleAi'])->name('conversations.toggleAi');
     Route::post('conversaciones/{conversation}/ticket',    [\App\Http\Controllers\ConversationController::class, 'createTicket'])->name('conversations.createTicket');
 
+    // Agentes de IA. Permiso propio: cambiar el prompt es decidir qué le dice
+    // el negocio a sus clientes en automático, más grave que responder a mano.
+    Route::get('agentes-ia',                   [\App\Http\Controllers\AiAgentController::class, 'index'])->name('ai.agents.index');
+    Route::post('agentes-ia',                  [\App\Http\Controllers\AiAgentController::class, 'store'])->name('ai.agents.store');
+    Route::put('agentes-ia/{agent}',           [\App\Http\Controllers\AiAgentController::class, 'update'])->name('ai.agents.update');
+    Route::delete('agentes-ia/{agent}',        [\App\Http\Controllers\AiAgentController::class, 'destroy'])->name('ai.agents.destroy');
+    Route::post('agentes-ia/{agent}/preview',  [\App\Http\Controllers\AiAgentController::class, 'preview'])->name('ai.agents.preview');
+
     // Tickets
     Route::get('tickets/trash', [\App\Http\Controllers\TicketController::class, 'trash'])->name('tickets.trash');
     Route::post('tickets/{id}/restore', [\App\Http\Controllers\TicketController::class, 'restore'])->name('tickets.restore');

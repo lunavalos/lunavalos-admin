@@ -89,6 +89,14 @@ class Client extends Model
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Su agente de IA, si lo tiene. Uno por cliente.
+     */
+    public function aiAgent()
+    {
+        return $this->hasOne(AiAgent::class);
+    }
+
     /** All platform users linked to this client via users.client_id */
     public function users()
     {

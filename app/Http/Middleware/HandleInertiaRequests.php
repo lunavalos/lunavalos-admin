@@ -101,6 +101,10 @@ class HandleInertiaRequests extends Middleware
                 'message' => $request->session()->get('message'),
                 'error'   => $request->session()->get('error'),
                 'warning' => $request->session()->get('warning'),
+                // El prompt ya armado que devuelve AiAgentController::preview().
+                // Va por flash y no por prop de la página para que no viaje en
+                // cada visita: solo aparece cuando se pide verlo.
+                'preview' => $request->session()->get('preview'),
             ],
             // Configuración de divisas para el composable useMoney() del frontend.
             'currencies' => [
