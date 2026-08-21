@@ -11,7 +11,8 @@
 /.phpunit.cache
 /.vscode
 /.zed
-/AJUSTES/*.mp4
+# Material de App Review: videos, capturas con secretos legibles y borradores.
+/AJUSTES/
 /auth.json
 /node_modules
 /public/build

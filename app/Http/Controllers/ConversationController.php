@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Events\ConversationMessageSent;
 use App\Events\ConversationUpdated;
+use App\Exceptions\WhatsApp\PlantillaNoDisponibleException;
+use App\Exceptions\WhatsApp\VentanaCerradaException;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\Ticket;
 use App\Models\WhatsAppTemplate;
-use App\Services\WhatsApp\WhatsAppService;
+use App\Services\WhatsApp\ConversationSender;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -172,48 +174,22 @@ class ConversationController extends Controller implements HasMiddleware
      * el mensaje se guardaba igual y nadie se enteraba de que el contacto nunca
      * lo recibió; ahora se bloquea antes de intentarlo.
      */
-    public function reply(Request $request, Conversation $conversation, WhatsAppService $whatsapp)
+    public function reply(Request $request, Conversation $conversation, ConversationSender $sender)
     {
         $this->autorizar($conversation);
 
         $request->validate(['body' => 'required|string|max:4096']);
 
-        if (!$conversation->ventanaAbierta()) {
-            return back()->withErrors([
-                'body' => 'La ventana de 24 horas está cerrada. Meta no entrega texto libre; '
-                    . 'hace falta una plantilla aprobada.',
-            ]);
+        try {
+            $sender->enviarTexto(
+                $conversation,
+                $request->body,
+                ConversationMessage::AUTHOR_STAFF,
+                Auth::id(),
+            );
+        } catch (VentanaCerradaException $e) {
+            return back()->withErrors(['body' => $e->getMessage()]);
         }
-
-        $numero = $conversation->number;
-
-        $waMessageId = $whatsapp->sendText(
-            $conversation->contact_wa_id,
-            $request->body,
-            $numero?->phone_number_id,
-            $numero?->tokenParaEnviar(),
-        );
-
-        $mensaje = $conversation->messages()->create([
-            'user_id'         => Auth::id(),
-            'author_type'     => ConversationMessage::AUTHOR_STAFF,
-            'direction'       => ConversationMessage::DIRECTION_OUT,
-            'wa_message_id'   => $waMessageId,
-            'body'            => $request->body,
-            // Sin wamid Meta no lo aceptó. Se guarda como fallido en vez de
-            // fingir que salió: el equipo tiene que poder verlo.
-            'delivery_status' => $waMessageId
-                ? ConversationMessage::DELIVERY_SENT
-                : ConversationMessage::DELIVERY_FAILED,
-            'delivery_error'  => $waMessageId ? null : 'Meta no aceptó el envío. Revisa el log.',
-        ]);
-
-        $conversation->registrarSaliente();
-
-        broadcast(new ConversationMessageSent($mensaje))->toOthers();
-        // Sin `toOthers()`: la bandeja del resto del equipo tiene que reordenarse
-        // y ver el contador en cero, aunque la respuesta la haya escrito otro.
-        broadcast(new ConversationUpdated($conversation->fresh()));
 
         return back();
     }
@@ -225,66 +201,32 @@ class ConversationController extends Controller implements HasMiddleware
      * dentro de ella. El mensaje se guarda con el texto ya sustituido: en el
      * hilo tiene que leerse lo que recibió el contacto, no `pedido_listo`.
      */
-    public function replyTemplate(Request $request, Conversation $conversation, WhatsAppService $whatsapp)
+    public function replyTemplate(Request $request, Conversation $conversation, ConversationSender $sender)
     {
         $this->autorizar($conversation);
 
         $datos = $request->validate([
-            'template_id' => 'required|integer',
-            'parametros'  => 'array',
+            'template_id'  => 'required|integer',
+            'parametros'   => 'array',
             'parametros.*' => 'required|string|max:1024',
         ]);
 
-        $numero = $conversation->number;
+        try {
+            // resolverPlantilla comprueba que sea de la WABA de esta
+            // conversación: un id en el body no puede alcanzar la de otro
+            // cliente.
+            $plantilla = $sender->resolverPlantilla($conversation, $datos['template_id']);
 
-        // La plantilla tiene que ser de la WABA por la que va esta
-        // conversación: un id en el body no puede alcanzar la de otro cliente.
-        $plantilla = WhatsAppTemplate::where('id', $datos['template_id'])
-            ->where('whatsapp_account_id', $numero?->whatsapp_account_id)
-            ->first();
-
-        if (!$plantilla || !$plantilla->estaAprobada()) {
-            return back()->withErrors([
-                'template_id' => 'Esa plantilla no está disponible para esta conversación.',
-            ]);
+            $sender->enviarPlantilla(
+                $conversation,
+                $plantilla,
+                $datos['parametros'] ?? [],
+                ConversationMessage::AUTHOR_STAFF,
+                Auth::id(),
+            );
+        } catch (PlantillaNoDisponibleException $e) {
+            return back()->withErrors(['template_id' => $e->getMessage()]);
         }
-
-        $parametros = array_values($datos['parametros'] ?? []);
-
-        if (count($parametros) !== $plantilla->body_variables) {
-            return back()->withErrors([
-                'template_id' => "La plantilla necesita exactamente {$plantilla->body_variables} valor(es).",
-            ]);
-        }
-
-        $waMessageId = $whatsapp->sendTemplate(
-            $conversation->contact_wa_id,
-            $plantilla->name,
-            $plantilla->language,
-            $parametros,
-            $numero?->phone_number_id,
-            $numero?->tokenParaEnviar(),
-        );
-
-        $mensaje = $conversation->messages()->create([
-            'user_id'         => Auth::id(),
-            'author_type'     => ConversationMessage::AUTHOR_STAFF,
-            'direction'       => ConversationMessage::DIRECTION_OUT,
-            'wa_message_id'   => $waMessageId,
-            'type'            => 'template',
-            'body'            => $plantilla->previsualizar($parametros),
-            'delivery_status' => $waMessageId
-                ? ConversationMessage::DELIVERY_SENT
-                : ConversationMessage::DELIVERY_FAILED,
-            'delivery_error'  => $waMessageId ? null : 'Meta no aceptó la plantilla. Revisa el log.',
-        ]);
-
-        $conversation->registrarSaliente();
-
-        broadcast(new ConversationMessageSent($mensaje))->toOthers();
-        // Sin `toOthers()`: la bandeja del resto del equipo tiene que reordenarse
-        // y ver el contador en cero, aunque la respuesta la haya escrito otro.
-        broadcast(new ConversationUpdated($conversation->fresh()));
 
         return back();
     }

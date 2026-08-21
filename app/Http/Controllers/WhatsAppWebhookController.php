@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Events\ConversationMessageSent;
 use App\Events\ConversationUpdated;
 use App\Jobs\MarkWhatsAppMessageRead;
+use App\Jobs\NotifyApiConsumers;
 use App\Models\Conversation;
 use App\Models\ConversationMessage;
 use App\Models\WhatsAppAccount;
@@ -171,6 +172,11 @@ class WhatsAppWebhookController extends Controller
             $numero->phone_number_id,
             $numero->tokenParaEnviar(),
         );
+
+        // Y hacia afuera: los sistemas integrados (klwebapp, las landings)
+        // necesitan enterarse de la respuesta del contacto, no solo poder
+        // mandar. También en cola, por el mismo 200 rápido.
+        NotifyApiConsumers::dispatch($conversacion, $guardado);
     }
 
     /**
