@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Client;
 use App\Support\RolePreview;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Entrar y salir del modo "Ver como rol". Ver App\Support\RolePreview.
+ * Entrar y salir del modo "Ver como". Ver App\Support\RolePreview.
  */
 class RolePreviewController extends Controller
 {
@@ -20,22 +21,45 @@ class RolePreviewController extends Controller
         abort_unless(RolePreview::canPreview($user), 403);
 
         $data = $request->validate([
-            'role' => ['required', 'string'],
+            'roles'     => ['required', 'array', 'min:1'],
+            'roles.*'   => ['string'],
+            'client_id' => ['nullable', 'integer'],
         ]);
 
-        if (! in_array($data['role'], RolePreview::previewableRoles($user), true)) {
+        $permitidos = RolePreview::previewableRoles($user);
+
+        if (array_diff($data['roles'], $permitidos)) {
             throw ValidationException::withMessages([
-                'role' => 'Ese rol no está disponible para previsualizar.',
+                'roles' => 'Alguno de esos roles no está disponible para previsualizar.',
             ]);
         }
 
-        RolePreview::start($data['role']);
+        $clientId = $data['client_id'] ?? null;
+
+        if ($clientId !== null) {
+            if (! RolePreview::canBindClient($user)) {
+                throw ValidationException::withMessages([
+                    'client_id' => 'No puedes acotar el preview a un cliente.',
+                ]);
+            }
+
+            if (! Client::query()->whereKey($clientId)->exists()) {
+                throw ValidationException::withMessages([
+                    'client_id' => 'Ese cliente no existe.',
+                ]);
+            }
+        }
+
+        RolePreview::start($data['roles'], $clientId);
 
         // Al dashboard y no `back()`: la pantalla actual puede ser justamente
-        // una que el rol elegido no tiene permitida, y saldría un 403 en vez
-        // del sistema visto con los ojos del rol.
-        return redirect()->route('dashboard')
-            ->with('warning', "Estás viendo el sistema como «{$data['role']}». Tus permisos reales están suspendidos hasta que salgas del modo.");
+        // una que los roles elegidos no tienen permitida, y saldría un 403 en
+        // vez del sistema visto con los ojos de ese rol.
+        return redirect()->route('dashboard')->with(
+            'warning',
+            'Estás viendo el sistema como «' . implode(' + ', $data['roles']) . '». '
+            . 'Tus permisos reales están suspendidos hasta que salgas del modo.'
+        );
     }
 
     public function destroy(Request $request)
@@ -44,7 +68,6 @@ class RolePreviewController extends Controller
         // incluso desde un rol previsualizado que no tenga permiso alguno.
         RolePreview::stop();
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Volviste a tu rol real.');
+        return redirect()->route('dashboard')->with('success', 'Volviste a tu rol real.');
     }
 }

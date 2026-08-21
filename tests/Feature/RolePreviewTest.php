@@ -44,7 +44,7 @@ class RolePreviewTest extends TestCase
         $this->actingAs($admin)->get(route('services.index'))->assertOk();
 
         $this->actingAs($admin)
-            ->post(route('role-preview.store'), ['role' => 'Designer'])
+            ->post(route('role-preview.store'), ['roles' => ['Designer']])
             ->assertRedirect(route('dashboard'));
 
         // Designer no tiene 'Ver Servicios': la ruta debe cerrarse de verdad.
@@ -58,7 +58,7 @@ class RolePreviewTest extends TestCase
     {
         $admin = $this->usuarioConRol(config('roles.admin'));
 
-        $this->actingAs($admin)->post(route('role-preview.store'), ['role' => 'Cliente']);
+        $this->actingAs($admin)->post(route('role-preview.store'), ['roles' => ['Cliente']]);
 
         $this->actingAs($admin)
             ->delete(route('role-preview.destroy'))
@@ -72,7 +72,7 @@ class RolePreviewTest extends TestCase
     {
         $admin = $this->usuarioConRol(config('roles.admin'));
 
-        $this->actingAs($admin)->post(route('role-preview.store'), ['role' => 'RRHH']);
+        $this->actingAs($admin)->post(route('role-preview.store'), ['roles' => ['RRHH']]);
 
         $this->assertSame(
             [config('roles.admin')],
@@ -85,7 +85,7 @@ class RolePreviewTest extends TestCase
         $designer = $this->usuarioConRol('Designer');
 
         $this->actingAs($designer)
-            ->post(route('role-preview.store'), ['role' => config('roles.admin')])
+            ->post(route('role-preview.store'), ['roles' => [config('roles.admin')]])
             ->assertForbidden();
     }
 
@@ -96,27 +96,148 @@ class RolePreviewTest extends TestCase
 
         // Puede previsualizar roles normales…
         $this->actingAs($designer)
-            ->post(route('role-preview.store'), ['role' => 'RRHH'])
+            ->post(route('role-preview.store'), ['roles' => ['RRHH']])
             ->assertRedirect(route('dashboard'));
 
         // …pero nunca el de administrador: sería escalación de privilegios.
         $this->actingAs($designer)
-            ->post(route('role-preview.store'), ['role' => config('roles.admin')])
-            ->assertSessionHasErrors('role');
+            ->post(route('role-preview.store'), ['roles' => [config('roles.admin')]])
+            ->assertSessionHasErrors('roles');
+    }
+
+    /**
+     * La cuenta que se entrega a Meta lleva DOS roles a la vez (Revisor de
+     * Plataforma + Cliente). Si el preview solo admitiera uno, un admin
+     * "viendo como Revisor" tendría un permiso que esa cuenta no tiene y
+     * auditaría algo que no existe.
+     */
+    public function test_se_pueden_previsualizar_varios_roles_a_la_vez(): void
+    {
+        // El rol de revisión lo crea PlatformReviewerSeeder, no DatabaseSeeder.
+        \Spatie\Permission\Models\Role::findOrCreate(config('roles.reviewer'), 'web');
+
+        $admin = $this->usuarioConRol(config('roles.admin'));
+
+        $this->actingAs($admin)
+            ->post(route('role-preview.store'), [
+                'roles' => [config('roles.reviewer'), config('roles.client')],
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertInertia(fn ($page) => $page
+                ->where('role_preview.roles', [config('roles.client'), config('roles.reviewer')])
+                ->where('auth.user.is_client', true)
+            );
+    }
+
+    /**
+     * El aislamiento de la cuenta de revisión no viene de su rol sino de
+     * `users.client_id`. Previsualizar sin ese amarre enseñaría datos de otros
+     * clientes y daría una falsa alarma (o peor, una falsa tranquilidad).
+     */
+    public function test_el_preview_puede_acotarse_a_un_cliente(): void
+    {
+        $admin = $this->usuarioConRol(config('roles.admin'));
+        $cliente = \App\Models\Client::create([
+            'business_name' => 'Demo Coffee Roasters',
+            'contact_name'  => 'Ana Demo',
+            'email'         => 'demo@example.com',
+        ]);
+
+        $this->actingAs($admin)->post(route('role-preview.store'), [
+            'roles'     => [config('roles.client')],
+            'client_id' => $cliente->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertInertia(fn ($page) => $page
+                ->where('role_preview.client.id', $cliente->id)
+                ->where('auth.user.client_id', $cliente->id)
+            );
+    }
+
+    /**
+     * El amarre es solo de lectura en memoria: si una escritura cualquiera lo
+     * persistiera, el administrador quedaría atado a un cliente real y perdería
+     * el acceso al resto del sistema.
+     */
+    public function test_el_cliente_del_preview_no_se_guarda_en_el_usuario(): void
+    {
+        $admin = $this->usuarioConRol(config('roles.admin'));
+        $cliente = \App\Models\Client::create([
+            'business_name' => 'Demo Coffee Roasters',
+            'contact_name'  => 'Ana Demo',
+            'email'         => 'demo@example.com',
+        ]);
+
+        $this->actingAs($admin)->post(route('role-preview.store'), [
+            'roles'     => [config('roles.client')],
+            'client_id' => $cliente->id,
+        ]);
+
+        // Una escritura normal sobre el usuario durante el preview.
+        $this->actingAs($admin)->patch(route('profile.update'), [
+            'name'  => $admin->name,
+            'email' => $admin->email,
+        ]);
+
+        $this->assertNull($admin->fresh()->client_id);
+    }
+
+    /** Acotar a un cliente es privilegio del admin real, no de quien depura. */
+    public function test_quien_solo_depura_no_puede_acotar_a_un_cliente(): void
+    {
+        $designer = $this->usuarioConRol('Designer');
+        $designer->givePermissionTo(RolePreview::PERMISSION);
+
+        $cliente = \App\Models\Client::create([
+            'business_name' => 'Otro Cliente',
+            'contact_name'  => 'Contacto',
+            'email'         => 'otro@example.com',
+        ]);
+
+        $this->actingAs($designer)
+            ->post(route('role-preview.store'), [
+                'roles'     => [config('roles.client')],
+                'client_id' => $cliente->id,
+            ])
+            ->assertSessionHasErrors('client_id');
+    }
+
+    /** La cuenta de revisión de Meta no debe poder usar el switch. */
+    public function test_la_cuenta_de_revision_no_tiene_acceso_al_switch(): void
+    {
+        \Spatie\Permission\Models\Role::findOrCreate(config('roles.reviewer'), 'web');
+
+        $revisor = User::factory()->create(['email_verified_at' => now()]);
+        $revisor->syncRoles([config('roles.reviewer'), config('roles.client')]);
+
+        $this->assertFalse(RolePreview::canPreview($revisor));
+
+        $this->actingAs($revisor)
+            ->post(route('role-preview.store'), ['roles' => ['Designer']])
+            ->assertForbidden();
+
+        $this->actingAs($revisor)
+            ->get(route('dashboard'))
+            ->assertInertia(fn ($page) => $page->where('role_preview.can_preview', false));
     }
 
     public function test_las_props_de_inertia_reflejan_el_rol_previsualizado(): void
     {
         $admin = $this->usuarioConRol(config('roles.admin'));
 
-        $this->actingAs($admin)->post(route('role-preview.store'), ['role' => 'Designer']);
+        $this->actingAs($admin)->post(route('role-preview.store'), ['roles' => ['Designer']]);
 
         $this->actingAs($admin)
             ->get(route('dashboard'))
             ->assertInertia(fn ($page) => $page
                 ->where('auth.user.is_admin', false)
                 ->where('role_preview.active', true)
-                ->where('role_preview.role', 'Designer')
+                ->where('role_preview.roles', ['Designer'])
                 ->where('role_preview.real_roles', [config('roles.admin')])
             );
     }

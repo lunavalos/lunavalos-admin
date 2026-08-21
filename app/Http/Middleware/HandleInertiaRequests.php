@@ -100,6 +100,22 @@ class HandleInertiaRequests extends Middleware
             // calcula con los roles REALES del usuario, no con los del preview:
             // si no, un admin viendo como "Cliente" perdería el control para salir.
             'role_preview' => fn () => \App\Support\RolePreview::state($user),
+
+            // Catálogo de clientes para acotar el preview. Va como prop
+            // opcional: solo se resuelve cuando el front la pide con un
+            // `router.reload({ only: [...] })` al abrir el selector, así que
+            // los 70+ clientes no viajan en cada visita.
+            'role_preview_clients' => \Inertia\Inertia::optional(function () use ($user) {
+                if (! \App\Support\RolePreview::canBindClient($user)) {
+                    return [];
+                }
+
+                return \App\Models\Client::query()
+                    ->orderBy('business_name')
+                    ->get(['id', 'business_name'])
+                    ->map(fn ($c) => ['id' => $c->id, 'name' => $c->business_name])
+                    ->all();
+            }),
             'flash' => [
                 'success' => $request->session()->get('success'),
                 'message' => $request->session()->get('message'),

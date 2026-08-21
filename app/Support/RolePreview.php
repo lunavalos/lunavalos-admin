@@ -2,54 +2,62 @@
 
 namespace App\Support;
 
+use App\Models\Client;
 use App\Models\User;
 use Illuminate\Support\Facades\Session;
 use Spatie\Permission\Models\Role;
 
 /**
- * Modo "Ver como rol" (role preview).
+ * Modo "Ver como" (role preview): depurar qué ve cada rol sin mantener
+ * usuarios de prueba ni cerrar sesión.
  *
- * Permite a un administrador recorrer el sistema con los roles y permisos de
- * otro rol sin cerrar sesión ni mantener usuarios de prueba. La suplantación es
- * de ROL, no de usuario: la identidad, la sesión y la auditoría siguen siendo
- * las del administrador real; lo único que cambia es el conjunto de
- * roles/permisos efectivo durante el request.
+ * La suplantación es de ROL, no de usuario: la identidad, la sesión y la
+ * auditoría siguen siendo las del administrador real; lo único que cambia,
+ * durante el request y solo en memoria, es:
  *
- * Cómo funciona: `apply()` sustituye en memoria las relaciones `roles` y
- * `permissions` del usuario autenticado. Como TODA la autorización de la app
- * pasa por Spatie (`hasRole`, `can`, `getAllPermissions`) y por el `Gate::before`
- * de AppServiceProvider —que también usa `hasRole`—, el cambio se propaga solo
- * al backend, a las policies y a las props que Inertia comparte con el front.
- * No se escribe nada en base de datos.
+ *   1. el conjunto de roles/permisos efectivo, y
+ *   2. opcionalmente `users.client_id`, el amarre que acota a un cliente.
+ *
+ * Los dos, porque en esta app la visibilidad no depende solo del rol. La
+ * cuenta de revisión de Meta (`platform-reviewer@…`) es el ejemplo exacto:
+ * lleva DOS roles a la vez (Revisor de Plataforma + Cliente) y su aislamiento
+ * de datos en Social y Conversaciones viene de `users.client_id`, no de
+ * ningún rol. Previsualizar un solo rol y sin cliente mostraría algo que esa
+ * cuenta NO ve, que es la peor forma de fallar en una herramienta de auditoría.
+ *
+ * Cómo se propaga: toda la autorización pasa por Spatie (`hasRole`, `can`,
+ * `getAllPermissions`) y por el `Gate::before` de AppServiceProvider —que
+ * también usa `hasRole`—, así que basta con sustituir las relaciones para que
+ * el cambio llegue al backend, a las policies y a las props de Inertia. No se
+ * escribe nada en base de datos.
  */
 class RolePreview
 {
-    /** Clave de sesión donde vive el rol que se está previsualizando. */
-    public const SESSION_KEY = 'role_preview.role';
+    /** Clave de sesión con el estado del preview. */
+    public const SESSION_KEY = 'role_preview';
 
     /**
-     * Permiso que habilita el switch a roles NO administradores. Existe para
+     * Permiso que habilita el switch a quien no es administrador. Existe para
      * poder delegar la depuración (p. ej. a un líder técnico) sin regalar el
-     * rol de administrador. El rol admin real siempre puede, vía Gate::before.
+     * rol de administrador. El admin real pasa por Gate::before y no lo necesita.
      */
     public const PERMISSION = 'Depurar Roles';
 
-    /** Copia del usuario con sus roles REALES, cacheada por request. */
-    protected static ?User $realUser = null;
-
-    /** Rol efectivamente aplicado en este request (null si no hay preview). */
-    protected static ?string $applied = null;
-
     /**
-     * Limpia la memoria del request. `apply()` la llama al inicio: el
-     * middleware corre una vez por request, y sin este reset las estáticas
-     * sobrevivirían entre requests dentro de un mismo proceso (tests, Octane)
-     * y arrastrarían el estado de otro usuario.
+     * La memoria de este servicio vive en el contenedor, no en propiedades
+     * estáticas: el contenedor se recicla junto con el request (y entre tests),
+     * mientras que una estática sobreviviría al proceso y arrastraría el estado
+     * de otro usuario —con ids que se repiten, el caché acertaría por accidente
+     * y respondería con los roles de alguien más.
      */
+    protected const CACHE_REAL_USER = 'role-preview.real-user';
+    protected const CACHE_APPLIED   = 'role-preview.applied';
+
+    /** Limpia la memoria del request. `apply()` la llama al inicio. */
     protected static function flush(): void
     {
-        static::$realUser = null;
-        static::$applied = null;
+        app()->forgetInstance(static::CACHE_REAL_USER);
+        app()->forgetInstance(static::CACHE_APPLIED);
     }
 
     /**
@@ -60,13 +68,19 @@ class RolePreview
      */
     public static function realUser(User $user): User
     {
-        if (static::$realUser && static::$realUser->getKey() === $user->getKey()) {
-            return static::$realUser;
+        $cached = app()->bound(static::CACHE_REAL_USER) ? app(static::CACHE_REAL_USER) : null;
+
+        if ($cached instanceof User && $cached->getKey() === $user->getKey()) {
+            return $cached;
         }
 
-        return static::$realUser = User::query()
+        $real = User::query()
             ->with(['roles.permissions', 'permissions'])
             ->find($user->getKey()) ?? $user;
+
+        app()->instance(static::CACHE_REAL_USER, $real);
+
+        return $real;
     }
 
     /** Nombres de los roles reales del usuario. */
@@ -89,7 +103,7 @@ class RolePreview
         );
     }
 
-    /** ¿Este usuario puede usar el switch de roles? */
+    /** ¿Este usuario puede usar el switch? */
     public static function canPreview(?User $user): bool
     {
         if (! $user) {
@@ -111,8 +125,8 @@ class RolePreview
     }
 
     /**
-     * Roles que este usuario puede previsualizar. Nunca se puede escalar: quien
-     * no es admin real no puede ponerse el rol de administrador.
+     * Roles que este usuario puede previsualizar. Nunca se puede escalar:
+     * quien no es admin real no puede ponerse el rol de administrador.
      */
     public static function previewableRoles(User $user): array
     {
@@ -122,58 +136,75 @@ class RolePreview
             return [];
         }
 
+        if (static::isRealAdmin($user)) {
+            return array_values($roles);
+        }
+
         $admin = (string) config('roles.admin', 'Administrador');
 
-        // El rol propio real no se "previsualiza": para eso está salir del modo.
-        $real = static::realRoleNames($user);
-
-        return array_values(array_filter($roles, function ($role) use ($user, $admin, $real) {
-            if (! static::isRealAdmin($user) && $role === $admin) {
-                return false;
-            }
-
-            return ! in_array($role, $real, true);
-        }));
+        return array_values(array_filter($roles, fn ($role) => $role !== $admin));
     }
 
-    /** ¿Hay un preview activo en la sesión? */
+    /**
+     * Solo el administrador real puede amarrar el preview a un cliente.
+     *
+     * Para un admin es una RESTRICCIÓN (pasa de verlo todo a ver un cliente),
+     * pero para alguien que solo tiene `Depurar Roles` sería lo contrario:
+     * una forma de asomarse a los datos de un cliente que no le tocan.
+     */
+    public static function canBindClient(?User $user): bool
+    {
+        return static::isRealAdmin($user);
+    }
+
+    /** ¿Hay un preview guardado en la sesión? */
     public static function isActive(): bool
     {
-        return (bool) Session::get(static::SESSION_KEY);
+        return ! empty(static::sessionState()['roles'] ?? []);
     }
 
-    /** Rol previsualizado según la sesión (aún sin validar). */
-    public static function sessionRole(): ?string
+    /** Estado crudo de la sesión, aún sin validar. */
+    protected static function sessionState(): array
     {
-        $role = Session::get(static::SESSION_KEY);
+        $state = Session::get(static::SESSION_KEY);
 
-        return $role ? (string) $role : null;
+        return is_array($state) ? $state : [];
     }
 
-    /** Entrar al modo preview con el rol indicado. */
-    public static function start(string $role): void
+    /**
+     * Entrar al modo preview.
+     *
+     * @param  array<int,string>  $roles  Uno o varios roles simultáneos: hay
+     *                                    cuentas reales con más de uno y el
+     *                                    preview debe poder reproducirlas.
+     */
+    public static function start(array $roles, ?int $clientId = null): void
     {
-        Session::put(static::SESSION_KEY, $role);
+        Session::put(static::SESSION_KEY, [
+            'roles'     => array_values(array_unique($roles)),
+            'client_id' => $clientId,
+        ]);
     }
 
     /** Salir del modo preview. */
     public static function stop(): void
     {
         Session::forget(static::SESSION_KEY);
-        static::$applied = null;
+        app()->forgetInstance(static::CACHE_APPLIED);
     }
 
     /**
-     * Sobreescribe en memoria los roles/permisos del usuario autenticado.
-     * Devuelve el rol aplicado, o null si no había preview válido.
+     * Sobreescribe en memoria los roles/permisos (y el cliente) del usuario
+     * autenticado. Devuelve el estado aplicado, o null si no había preview.
      */
-    public static function apply(User $user): ?string
+    public static function apply(User $user): ?array
     {
         static::flush();
 
-        $role = static::sessionRole();
+        $state = static::sessionState();
+        $roles = array_values(array_filter((array) ($state['roles'] ?? [])));
 
-        if (! $role) {
+        if (! $roles) {
             // Devolvemos al usuario sus relaciones reales. Importa cuando la
             // misma instancia de User sobrevive a varios requests (tests,
             // Octane): si no, se quedaría con el rol del preview anterior.
@@ -182,18 +213,20 @@ class RolePreview
             return null;
         }
 
+        $permitidos = static::previewableRoles($user);
+
         // Quien perdió el permiso (o el rol admin) mientras tenía un preview
         // abierto vuelve a su rol real de inmediato.
-        if (! static::canPreview($user) || ! in_array($role, static::previewableRoles($user), true)) {
+        if (! static::canPreview($user) || array_diff($roles, $permitidos)) {
             static::stop();
             static::restore($user);
 
             return null;
         }
 
-        $model = Role::query()->with('permissions')->where('name', $role)->first();
+        $models = Role::query()->with('permissions')->whereIn('name', $roles)->get();
 
-        if (! $model) {
+        if ($models->isEmpty()) {
             static::stop();
             static::restore($user);
 
@@ -203,26 +236,69 @@ class RolePreview
         // Los permisos directos del usuario real se descartan: durante el
         // preview solo cuentan los del rol elegido, que es justo lo que se
         // quiere verificar.
-        $user->setRelation('roles', collect([$model]));
+        $user->setRelation('roles', $models);
         $user->setRelation('permissions', collect());
 
-        return static::$applied = $role;
+        $clientId = static::applyClient($user, $state['client_id'] ?? null);
+
+        $applied = [
+            'roles'     => $models->pluck('name')->values()->all(),
+            'client_id' => $clientId,
+        ];
+
+        app()->instance(static::CACHE_APPLIED, $applied);
+
+        return $applied;
     }
 
-    /** Deshace la sustitución de relaciones: se recargarán desde la base. */
+    /**
+     * Amarra el preview a un cliente sobreescribiendo `users.client_id`.
+     *
+     * `syncOriginalAttribute` es deliberado y no cosmético: sin él, cualquier
+     * `save()` sobre el usuario durante el preview —actualizar el perfil, por
+     * ejemplo— escribiría ese client_id en la fila del administrador y lo
+     * dejaría amarrado a un cliente de verdad. Con el original sincronizado la
+     * columna nunca sale sucia y el `save()` no la toca.
+     */
+    protected static function applyClient(User $user, $clientId): ?int
+    {
+        if (! $clientId || ! static::canBindClient($user)) {
+            return null;
+        }
+
+        $cliente = Client::query()->find($clientId);
+
+        if (! $cliente) {
+            return null;
+        }
+
+        $user->setAttribute('client_id', $cliente->getKey());
+        $user->syncOriginalAttribute('client_id');
+        $user->setRelation('client', $cliente);
+
+        return (int) $cliente->getKey();
+    }
+
+    /** Deshace la sustitución: las relaciones se recargarán desde la base. */
     protected static function restore(User $user): void
     {
-        foreach (['roles', 'permissions'] as $relation) {
+        foreach (['roles', 'permissions', 'client'] as $relation) {
             if ($user->relationLoaded($relation)) {
                 $user->unsetRelation($relation);
             }
         }
     }
 
-    /** Rol aplicado en este request (null si el usuario ve su rol real). */
-    public static function applied(): ?string
+    /** Estado aplicado en este request (null si el usuario ve su rol real). */
+    public static function applied(): ?array
     {
-        return static::$applied;
+        return app()->bound(static::CACHE_APPLIED) ? app(static::CACHE_APPLIED) : null;
+    }
+
+    /** Roles aplicados en este request. */
+    public static function appliedRoles(): array
+    {
+        return static::applied()['roles'] ?? [];
     }
 
     /** Estado que Inertia comparte con el front para pintar el switch. */
@@ -230,20 +306,32 @@ class RolePreview
     {
         if (! $user || ! static::canPreview($user)) {
             return [
-                'can_preview'  => false,
-                'active'       => false,
-                'role'         => null,
-                'real_roles'   => [],
-                'available'    => [],
+                'can_preview' => false,
+                'active'      => false,
+                'roles'       => [],
+                'client'      => null,
+                'real_roles'  => [],
+                'available'   => [],
+                'can_bind_client' => false,
             ];
         }
 
+        $applied = static::applied();
+        $cliente = null;
+
+        if ($applied && ! empty($applied['client_id'])) {
+            $modelo = Client::query()->find($applied['client_id']);
+            $cliente = $modelo ? ['id' => $modelo->getKey(), 'name' => $modelo->business_name] : null;
+        }
+
         return [
-            'can_preview' => true,
-            'active'      => static::applied() !== null,
-            'role'        => static::applied(),
-            'real_roles'  => static::realRoleNames($user),
-            'available'   => static::previewableRoles($user),
+            'can_preview'     => true,
+            'active'          => $applied !== null,
+            'roles'           => $applied['roles'] ?? [],
+            'client'          => $cliente,
+            'real_roles'      => static::realRoleNames($user),
+            'available'       => static::previewableRoles($user),
+            'can_bind_client' => static::canBindClient($user),
         ];
     }
 }

@@ -53,15 +53,44 @@ const markOneAsRead = (notif) => {
 // el rol elegido. El estado llega en la prop compartida `role_preview` y se
 // calcula con los roles REALES: por eso el botón de salir nunca desaparece.
 const rolePreview = computed(() => page.props?.role_preview ?? {
-    can_preview: false, active: false, role: null, real_roles: [], available: [],
+    can_preview: false, active: false, roles: [], client: null,
+    real_roles: [], available: [], can_bind_client: false,
 });
 
-const previewRole = (role) => {
-    router.post(route('role-preview.store'), { role }, { preserveScroll: false });
+// Selección en curso dentro del menú. Arranca desde lo que ya está aplicado
+// para poder ajustar un preview activo sin volver a armarlo desde cero.
+const selectedRoles = ref([...(page.props?.role_preview?.roles ?? [])]);
+const selectedClientId = ref(page.props?.role_preview?.client?.id ?? null);
+
+const toggleRole = (role) => {
+    const i = selectedRoles.value.indexOf(role);
+    if (i === -1) selectedRoles.value.push(role);
+    else selectedRoles.value.splice(i, 1);
+};
+
+// El catálogo de clientes es una prop opcional: no viaja en cada visita, se
+// pide la primera vez que se abre el menú.
+const previewClients = computed(() => page.props?.role_preview_clients ?? []);
+const clientsLoaded = ref(false);
+
+const loadPreviewClients = () => {
+    if (clientsLoaded.value || !rolePreview.value.can_bind_client) return;
+    clientsLoaded.value = true;
+    router.reload({ only: ['role_preview_clients'] });
+};
+
+const applyRolePreview = () => {
+    if (!selectedRoles.value.length) return;
+    router.post(route('role-preview.store'), {
+        roles: selectedRoles.value,
+        client_id: selectedClientId.value || null,
+    });
 };
 
 const exitRolePreview = () => {
-    router.delete(route('role-preview.destroy'), { preserveScroll: false });
+    selectedRoles.value = [];
+    selectedClientId.value = null;
+    router.delete(route('role-preview.destroy'));
 };
 
 const isSidebarExpanded = ref(true);
@@ -153,13 +182,14 @@ onMounted(() => {
             <!-- Notifications & DarkMode & User Dropdown -->
             <div class="flex items-center space-x-3">
                 
-                <!-- Ver como rol (solo para quien puede depurar permisos) -->
+                <!-- Ver como… (depuración de permisos) -->
                 <div v-if="rolePreview.can_preview" class="relative">
-                    <Dropdown align="right" width="64">
+                    <Dropdown align="right" width="80">
                         <template #trigger>
                             <button
                                 type="button"
-                                :title="rolePreview.active ? `Viendo como ${rolePreview.role}` : 'Ver el sistema como otro rol'"
+                                @click="loadPreviewClients"
+                                :title="rolePreview.active ? `Viendo como ${rolePreview.roles.join(' + ')}` : 'Ver el sistema como otro rol'"
                                 :class="[
                                     'relative p-2 rounded-full transition-colors focus:outline-none',
                                     rolePreview.active
@@ -172,11 +202,14 @@ onMounted(() => {
                         </template>
 
                         <template #content>
-                            <div class="dark:bg-zinc-900">
-                                <div class="px-4 py-2 border-b border-gray-100 dark:border-zinc-800">
-                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Ver como rol</p>
+                            <!-- @click.stop: el Dropdown se cierra al hacer clic
+                                 en su contenido, y aquí hay que poder marcar
+                                 varios roles antes de aplicar. -->
+                            <div class="dark:bg-zinc-900" @click.stop>
+                                <div class="px-4 py-3 border-b border-gray-100 dark:border-zinc-800">
+                                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Ver como…</p>
                                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                        Recorre el sistema con los permisos de otro rol. No cambia nada en la base de datos.
+                                        Recorre el sistema con los permisos de otros roles. No cambia nada en la base de datos.
                                     </p>
                                 </div>
 
@@ -184,31 +217,64 @@ onMounted(() => {
                                     v-if="rolePreview.active"
                                     type="button"
                                     @click="exitRolePreview"
-                                    class="w-full flex items-center gap-2 px-4 py-2 text-start text-sm font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition"
+                                    class="w-full flex items-center gap-2 px-4 py-2 text-start text-sm font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition border-b border-gray-100 dark:border-zinc-800"
                                 >
                                     <ArrowUturnLeftIcon class="h-4 w-4" />
                                     Volver a mi rol ({{ rolePreview.real_roles.join(', ') }})
                                 </button>
 
-                                <div class="max-h-72 overflow-y-auto">
-                                    <button
+                                <!-- Varios roles a la vez: hay cuentas reales que
+                                     los combinan (la de revisión de Meta lleva
+                                     Revisor de Plataforma + Cliente) y el preview
+                                     tiene que poder reproducirlas tal cual. -->
+                                <div class="max-h-60 overflow-y-auto py-1">
+                                    <label
                                         v-for="role in rolePreview.available"
                                         :key="role"
-                                        type="button"
-                                        @click="previewRole(role)"
-                                        :class="[
-                                            'w-full flex items-center justify-between px-4 py-2 text-start text-sm transition',
-                                            role === rolePreview.role
-                                                ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 font-semibold'
-                                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800'
-                                        ]"
+                                        class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-zinc-800 cursor-pointer transition"
                                     >
+                                        <input
+                                            type="checkbox"
+                                            :checked="selectedRoles.includes(role)"
+                                            @change="toggleRole(role)"
+                                            class="rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 text-[#264ab3] focus:ring-[#264ab3]"
+                                        />
                                         <span>{{ role }}</span>
-                                        <span v-if="role === rolePreview.role" class="text-[10px] uppercase tracking-wide">Activo</span>
-                                    </button>
+                                    </label>
                                     <p v-if="!rolePreview.available.length" class="px-4 py-3 text-sm text-gray-500">
-                                        No hay otros roles para previsualizar.
+                                        No hay roles para previsualizar.
                                     </p>
+                                </div>
+
+                                <!-- El amarre `users.client_id` es lo que aísla a
+                                     las cuentas de cliente en Social y en
+                                     Conversaciones: sin él, el preview enseñaría
+                                     datos que esa cuenta no ve. -->
+                                <div v-if="rolePreview.can_bind_client" class="px-4 py-3 border-t border-gray-100 dark:border-zinc-800">
+                                    <label class="block text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                        Acotar a un cliente
+                                    </label>
+                                    <select
+                                        v-model="selectedClientId"
+                                        class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200 text-sm focus:border-[#264ab3] focus:ring-[#264ab3]"
+                                    >
+                                        <option :value="null">Sin cliente (ve todo lo que el rol permita)</option>
+                                        <option v-for="c in previewClients" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                    </select>
+                                    <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                                        Simula <code>users.client_id</code>, el amarre real de las cuentas de cliente.
+                                    </p>
+                                </div>
+
+                                <div class="px-4 py-3 border-t border-gray-100 dark:border-zinc-800">
+                                    <button
+                                        type="button"
+                                        @click="applyRolePreview"
+                                        :disabled="!selectedRoles.length"
+                                        class="w-full rounded-md bg-[#264ab3] px-3 py-2 text-sm font-semibold text-white hover:bg-[#1e3c94] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                    >
+                                        Aplicar vista
+                                    </button>
                                 </div>
                             </div>
                         </template>
@@ -324,7 +390,7 @@ onMounted(() => {
                 <EyeIcon class="h-4 w-4 shrink-0" />
                 <span>
                     Modo depuración: estás viendo el sistema como
-                    <strong>{{ rolePreview.role }}</strong>.
+                    <strong>{{ rolePreview.roles.join(' + ') }}</strong><template v-if="rolePreview.client">, acotado al cliente <strong>{{ rolePreview.client.name }}</strong></template>.
                     Tus permisos de {{ rolePreview.real_roles.join(', ') }} están suspendidos.
                 </span>
             </p>
