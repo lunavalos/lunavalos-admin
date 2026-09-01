@@ -100,7 +100,7 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
                         :value="modelValue.observations"
                         @input="update({ observations: $event.target.value })"
                         rows="3"
-                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900"
+                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100"
                     />
                 </div>
 
@@ -110,7 +110,7 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
                         :value="modelValue.notes"
                         @input="update({ notes: $event.target.value })"
                         rows="3"
-                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900"
+                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100"
                     />
                 </div>
 
@@ -156,7 +156,7 @@ const update = (patch) => emit('update:modelValue', { ...props.modelValue, ...pa
                 <div>
                     <InputLabel value="Guardar como" />
                     <select :value="modelValue.status" @change="update({ status: $event.target.value })"
-                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900">
+                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100">
                         <option value="Borrador">Borrador</option>
                         <option value="Enviada">Enviada</option>
                     </select>

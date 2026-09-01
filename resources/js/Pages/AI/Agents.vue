@@ -161,7 +161,7 @@ const colorConsumo = (pct) => {
                         <span class="text-sm font-medium text-gray-700 dark:text-zinc-300">Cliente</span>
                         <select
                             v-model="form.client_id"
-                            class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                            class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                         >
                             <option v-if="puedeCrearPropio" :value="null">LunAvalos (número propio)</option>
                             <option v-for="c in clientesSinAgente" :key="c.id" :value="c.id">
@@ -179,7 +179,7 @@ const colorConsumo = (pct) => {
                             v-model="form.name"
                             type="text"
                             placeholder="Asistente de Grupo Macadam"
-                            class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                            class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                         />
                         <p v-if="form.errors.name" class="mt-1 text-sm text-red-600">{{ form.errors.name }}</p>
                     </label>
@@ -302,7 +302,7 @@ const colorConsumo = (pct) => {
                             <input
                                 v-model="form.name"
                                 type="text"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                             />
                         </label>
 
@@ -310,7 +310,7 @@ const colorConsumo = (pct) => {
                             <span class="text-sm font-medium text-gray-700 dark:text-zinc-300">Modelo</span>
                             <select
                                 v-model="form.model"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                             >
                                 <option v-for="m in modelos" :key="m.id" :value="m.id">
                                     {{ m.nombre }} — {{ m.costo }}
@@ -327,7 +327,7 @@ const colorConsumo = (pct) => {
                                 type="number"
                                 min="0"
                                 step="10000"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                             />
                             <span class="mt-1 block text-xs text-gray-500 dark:text-zinc-500">
                                 0 = sin tope. Como referencia, 500,000 tokens son del orden de 250 respuestas.
@@ -342,7 +342,7 @@ const colorConsumo = (pct) => {
                             <textarea
                                 v-model="form.system_prompt"
                                 rows="10"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 font-mono"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 font-mono text-gray-900 dark:text-gray-100"
                             />
                             <span class="mt-1 block text-xs text-gray-500 dark:text-zinc-500">
                                 Si lo dejas vacío se arma solo con la ficha del cliente. Usa
@@ -361,7 +361,7 @@ const colorConsumo = (pct) => {
                                 v-model="form.disclosure"
                                 type="text"
                                 :placeholder="agente.disclosure_efectivo"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                             />
                             <span class="mt-1 block text-xs text-gray-500 dark:text-zinc-500">
                                 Va en el primer mensaje del agente en cada conversación, y solo en el primero.

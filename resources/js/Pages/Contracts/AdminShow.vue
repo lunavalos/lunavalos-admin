@@ -679,14 +679,14 @@ function openCurrentCycle() {
                         <div class="col-span-2">
                             <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Nombre</label>
                             <input v-model="serviceForm.name" type="text" required
-                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" />
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
                             <p v-if="serviceForm.errors.name" class="text-xs text-rose-600 mt-1">{{ serviceForm.errors.name }}</p>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Prefijo</label>
                             <input v-model="serviceForm.prefix" type="text" maxlength="8" required
                                 placeholder="R, B, EM…"
-                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono uppercase" />
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-mono uppercase text-gray-900 dark:text-gray-100" />
                             <p v-if="serviceForm.errors.prefix" class="text-xs text-rose-600 mt-1">{{ serviceForm.errors.prefix }}</p>
                         </div>
                     </div>
@@ -695,7 +695,7 @@ function openCurrentCycle() {
                         <div>
                             <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Tipo de unidad</label>
                             <select v-model="serviceForm.unit_type"
-                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm">
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
                                 <option value="fixed">Cuota fija</option>
                                 <option value="on_demand_pool">Bolsa on-demand</option>
                                 <option value="unlimited">Ilimitado</option>
@@ -708,7 +708,7 @@ function openCurrentCycle() {
                             </label>
                             <input v-model.number="serviceForm.quantity_per_cycle" type="number" min="0" max="999"
                                 :disabled="serviceForm.unit_type === 'unlimited'"
-                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm disabled:opacity-50" />
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm disabled:opacity-50 text-gray-900 dark:text-gray-100" />
                         </div>
                     </div>
 
@@ -733,7 +733,7 @@ function openCurrentCycle() {
                             <span class="text-gray-400 font-normal">(vincula los tickets automáticamente)</span>
                         </label>
                         <select v-model="serviceForm.client_service_id"
-                            class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm">
+                            class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
                             <option :value="null">Sin vincular</option>
                             <option v-for="cs in clientServices" :key="cs.id" :value="cs.id">
                                 {{ cs.service_name }}
@@ -748,12 +748,12 @@ function openCurrentCycle() {
                         <div>
                             <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Color (opcional)</label>
                             <input v-model="serviceForm.color" type="text" placeholder="#264ab3"
-                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" />
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 dark:text-zinc-300 mb-1">Orden</label>
                             <input v-model.number="serviceForm.sort_order" type="number"
-                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm" />
+                                class="w-full rounded-md border border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100" />
                         </div>
                     </div>
 

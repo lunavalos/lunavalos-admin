@@ -344,7 +344,7 @@ const enviarPlantilla = () => {
                                     <input
                                         v-model="ticketForm.title"
                                         placeholder="Título del ticket"
-                                        class="flex-1 text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-900"
+                                        class="flex-1 text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-900 text-gray-900 dark:text-gray-100"
                                         @keyup.enter="crearTicket"
                                     />
                                     <button
@@ -419,7 +419,7 @@ const enviarPlantilla = () => {
                                     <form v-else @submit.prevent="enviarPlantilla" class="space-y-2">
                                         <select
                                             v-model="plantillaId"
-                                            class="w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                            class="w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                         >
                                             <option :value="null">Elige una plantilla…</option>
                                             <option v-for="p in plantillas" :key="p.id" :value="p.id">
@@ -439,7 +439,7 @@ const enviarPlantilla = () => {
                                                 :key="n"
                                                 v-model="parametros[n - 1]"
                                                 :placeholder="`Valor ${n}`"
-                                                class="w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                                class="w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                             />
                                         </template>
 
@@ -459,7 +459,7 @@ const enviarPlantilla = () => {
                                     <input
                                         v-model="replyForm.body"
                                         placeholder="Escribe una respuesta…"
-                                        class="flex-1 text-sm rounded-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                        class="flex-1 text-sm rounded-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                     />
                                     <button
                                         type="submit"

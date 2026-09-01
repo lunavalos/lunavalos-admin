@@ -309,6 +309,51 @@ class SocialCoverImageTest extends TestCase
         $this->assertCount(1, $post->mediaPrincipal());
     }
 
+    public function test_el_compositor_recibe_las_urls_para_la_vista_previa(): void
+    {
+        Storage::fake('public');
+
+        $client = Client::create(['business_name' => 'Demo']);
+        $post   = SocialPost::create([
+            'client_id' => $client->id,
+            'media'     => [
+                ['path' => 'social/reel.mp4',    'mime' => 'video/mp4',  'name' => 'reel.mp4'],
+                ['path' => 'social/portada.jpg', 'mime' => 'image/jpeg', 'name' => 'portada.jpg', 'role' => 'cover'],
+            ],
+            'status'    => SocialPost::STATUS_DRAFT,
+        ]);
+
+        $this->actingAs($this->staff())
+            ->get("/social/clients/{$client->id}/posts/{$post->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                // `media` solo guarda la ruta: sin estas URLs el frontend no
+                // puede dibujar la vista previa ni la portada.
+                ->where('post.cover_url', fn ($url) => str_contains($url, 'portada.jpg'))
+                // El adjunto de la vista previa es el que se publica, nunca la
+                // portada.
+                ->where('post.media_url', fn ($url) => str_contains($url, 'reel.mp4'))
+                ->where('post.media_mime', 'video/mp4'));
+    }
+
+    public function test_un_post_sin_adjuntos_no_inventa_urls(): void
+    {
+        $client = Client::create(['business_name' => 'Demo']);
+        $post   = SocialPost::create([
+            'client_id' => $client->id,
+            'body'      => 'Solo texto',
+            'status'    => SocialPost::STATUS_DRAFT,
+        ]);
+
+        $this->actingAs($this->staff())
+            ->get("/social/clients/{$client->id}/posts/{$post->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('post.cover_url', null)
+                ->where('post.media_url', null)
+                ->where('post.media_mime', null));
+    }
+
     public function test_la_portada_tiene_que_ser_una_imagen(): void
     {
         Storage::fake('public');

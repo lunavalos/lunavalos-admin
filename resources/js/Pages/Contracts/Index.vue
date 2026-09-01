@@ -131,11 +131,11 @@ const copyLink = (token) => {
                     <div class="flex-1 min-w-[200px]">
                         <label class="block text-[11px] uppercase font-bold text-gray-500 mb-1">Buscar</label>
                         <input type="text" v-model="search" placeholder="No. contrato, razón social, cliente…"
-                               class="block w-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 rounded-md text-sm" />
+                               class="block w-full border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 rounded-md text-sm text-gray-900 dark:text-gray-100" />
                     </div>
                     <div>
                         <label class="block text-[11px] uppercase font-bold text-gray-500 mb-1">Estado</label>
-                        <select v-model="statusFilter" class="border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 rounded-md text-sm">
+                        <select v-model="statusFilter" class="border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 rounded-md text-sm text-gray-900 dark:text-gray-100">
                             <option value="">Todos</option>
                             <option value="pending">Pendiente firma</option>
                             <option value="signed">Firmado</option>
@@ -144,7 +144,7 @@ const copyLink = (token) => {
                     </div>
                     <div>
                         <label class="block text-[11px] uppercase font-bold text-gray-500 mb-1">Renovación</label>
-                        <select v-model="renewalFilter" class="border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 rounded-md text-sm">
+                        <select v-model="renewalFilter" class="border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 rounded-md text-sm text-gray-900 dark:text-gray-100">
                             <option value="">Todas</option>
                             <option value="none">Sin marca</option>
                             <option value="pending">Pendiente</option>

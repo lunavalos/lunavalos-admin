@@ -714,7 +714,7 @@ const monthlyNetMargin = computed(() => totalMonthlyIncome.value - totalMonthlyC
                                         </div>
                                         <div class="w-32">
                                             <InputLabel value="Tipo Pago" class="text-xs" />
-                                            <select v-model="s.billing_type" class="w-full text-sm py-1 border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950">
+                                            <select v-model="s.billing_type" class="w-full text-sm py-1 border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950 text-gray-900 dark:text-gray-100">
                                                 <option value="once">Único</option>
                                                 <option value="monthly">Mensual</option>
                                                 <option value="annual">Anual</option>

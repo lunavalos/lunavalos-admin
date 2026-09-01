@@ -175,7 +175,7 @@ const planUnit = computed(() => {
         <div class="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-zinc-700 bg-gray-50 dark:bg-zinc-900/60">
             <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">Moneda de la cotización</label>
             <select :value="quoteCurrency" @change="setCurrency($event.target.value)"
-                    class="border-gray-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-950">
+                    class="border-gray-300 dark:border-zinc-700 rounded-md text-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-gray-100">
                 <option v-for="opt in currencyOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
             <p class="text-xs text-gray-500 dark:text-zinc-400">
@@ -342,7 +342,7 @@ const planUnit = computed(() => {
                     <input type="number" min="1" :max="maxPaymentMonths"
                            :value="modelValue.package_payment_plan_months"
                            @input="setMonths($event.target.value)"
-                           class="w-24 rounded-lg border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-center font-bold text-lg" />
+                           class="w-24 rounded-lg border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-center font-bold text-lg text-gray-900 dark:text-gray-100" />
                     <span class="text-sm text-gray-500">{{ planUnit }}</span>
                 </div>
                 <p class="text-xs text-gray-400 mt-1">

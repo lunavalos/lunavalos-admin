@@ -244,7 +244,7 @@ const grouped = computed(() => {
                     <div>
                         <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wide">Tipo</label>
                         <select v-model="form.kind"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm">
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100">
                             <option v-for="k in KINDS" :key="k.value" :value="k.value">{{ k.label }}</option>
                         </select>
                     </div>
@@ -253,7 +253,7 @@ const grouped = computed(() => {
                         <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wide">Nombre / Etiqueta</label>
                         <input v-model="form.label" type="text" required
                             placeholder="Ej. Logo principal, Tipografía body…"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm" />
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100" />
                         <p v-if="form.errors.label" class="text-xs text-rose-500 mt-1">{{ form.errors.label }}</p>
                     </div>
 
@@ -272,7 +272,7 @@ const grouped = computed(() => {
                         <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wide">URL</label>
                         <input v-model="form.url" type="url" required
                             placeholder="https://…"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm" />
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100" />
                     </div>
 
                     <!-- Tipografía -->
@@ -280,12 +280,12 @@ const grouped = computed(() => {
                         <div>
                             <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wide">Familia</label>
                             <input v-model="form.typography_family" type="text" required placeholder="Inter, Poppins…"
-                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm" />
+                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100" />
                         </div>
                         <div>
                             <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wide">Peso / Variante</label>
                             <input v-model="form.typography_weight" type="text" placeholder="400, Bold…"
-                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm" />
+                                class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100" />
                         </div>
                     </div>
 
@@ -295,7 +295,7 @@ const grouped = computed(() => {
                         <div class="space-y-1">
                             <div v-for="(c, i) in form.palette_colors" :key="i" class="flex items-center gap-2">
                                 <input type="color" v-model="form.palette_colors[i]" class="h-8 w-10 rounded border border-gray-300 dark:border-zinc-700" />
-                                <input type="text" v-model="form.palette_colors[i]" class="flex-1 rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-xs font-mono" />
+                                <input type="text" v-model="form.palette_colors[i]" class="flex-1 rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-xs font-mono text-gray-900 dark:text-gray-100" />
                                 <button type="button" @click="removePaletteColor(i)" class="text-rose-500 hover:text-rose-700">
                                     <TrashIcon class="h-4 w-4" />
                                 </button>
@@ -311,7 +311,7 @@ const grouped = computed(() => {
                     <div v-if="form.kind === 'note'">
                         <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase tracking-wide">Nota</label>
                         <textarea v-model="form.note_text" rows="3"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm"></textarea>
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100"></textarea>
                     </div>
 
                     <div class="flex justify-end gap-2 pt-2">

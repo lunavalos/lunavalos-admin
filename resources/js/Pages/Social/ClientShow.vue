@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import SocialAvatar from '@/Components/SocialAvatar.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import {
@@ -179,10 +180,7 @@ const view = ref('calendar'); // calendar | list
                     <div v-for="a in accounts" :key="a.id"
                         class="flex items-center justify-between border border-gray-200 dark:border-zinc-700 rounded-lg p-3">
                         <div class="flex items-center gap-3">
-                            <img v-if="a.avatar_url" :src="a.avatar_url" class="w-9 h-9 rounded-full" />
-                            <div v-else class="w-9 h-9 rounded-full bg-gray-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold uppercase">
-                                {{ a.provider[0] }}
-                            </div>
+                            <SocialAvatar :src="a.avatar_url" :name="a.name" :provider="a.provider" />
                             <div>
                                 <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ a.name }}</p>
                                 <span :class="['text-[10px] px-1.5 py-0.5 rounded-full font-medium border', providerColors[a.provider]]">

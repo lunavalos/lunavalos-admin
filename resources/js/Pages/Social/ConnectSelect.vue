@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import SocialAvatar from '@/Components/SocialAvatar.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ref, computed } from 'vue';
 import { LinkIcon, ExclamationTriangleIcon, ChevronLeftIcon } from '@heroicons/vue/24/outline';
@@ -61,11 +62,7 @@ function enviar() {
                     <input type="checkbox" :value="cuenta.provider_user_id" v-model="seleccion"
                            class="mt-1 rounded border-gray-300 text-primary focus:ring-primary" />
 
-                    <img v-if="cuenta.avatar_url" :src="cuenta.avatar_url" alt=""
-                         class="w-9 h-9 rounded-full object-cover" />
-                    <div v-else class="w-9 h-9 rounded-full bg-gray-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-semibold text-gray-500">
-                        {{ (cuenta.name || '?').charAt(0) }}
-                    </div>
+                    <SocialAvatar :src="cuenta.avatar_url" :name="cuenta.name" :provider="provider" />
 
                     <div class="min-w-0 flex-1">
                         <p class="font-medium text-gray-800 dark:text-gray-100 truncate">{{ cuenta.name }}</p>

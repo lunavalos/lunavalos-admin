@@ -371,7 +371,7 @@ const submitConvert = () => {
                             <div>
                                 <InputLabel value="Régimen fiscal" />
                                 <select v-model="convertForm.tax_regime"
-                                    class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100">
                                     <option value="">— No especificado —</option>
                                     <option v-for="(reg, code) in taxRegimes" :key="code" :value="code">{{ code }} · {{ reg.label }}</option>
                                 </select>
@@ -444,7 +444,7 @@ const submitConvert = () => {
                             <div>
                                 <InputLabel value="Método de pago *" />
                                 <select v-model="convertForm.payment_method"
-                                    class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900">
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100">
                                     <option v-for="m in paymentMethods" :key="m" :value="m">{{ m }}</option>
                                 </select>
                                 <InputError :message="convertForm.errors.payment_method" />
@@ -466,7 +466,7 @@ const submitConvert = () => {
                             <div class="md:col-span-2">
                                 <InputLabel value="Notas del pago" />
                                 <textarea v-model="convertForm.payment_notes" rows="2"
-                                    class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900" />
+                                    class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100" />
                             </div>
                         </div>
                     </section>
@@ -474,7 +474,7 @@ const submitConvert = () => {
                     <div>
                         <InputLabel value="Notas internas del contrato" />
                         <textarea v-model="convertForm.notes" rows="3"
-                            class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900" />
+                            class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100" />
                     </div>
 
                     <div class="flex justify-end gap-2 pt-2 border-t border-gray-200 dark:border-zinc-700">

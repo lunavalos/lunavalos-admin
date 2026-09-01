@@ -34,7 +34,7 @@ class YouTubePublisher extends AbstractPublisher
         $metadata = json_encode([
             'snippet' => [
                 'title'       => mb_substr($post->title ?: 'Video', 0, 100),
-                'description' => $post->body ?? '',
+                'description' => $this->descripcion($post),
                 'categoryId'  => $post->options['youtube_category_id'] ?? '22',
             ],
             'status' => [
@@ -73,6 +73,29 @@ class YouTubePublisher extends AbstractPublisher
     }
 
     /**
+     * La descripción, con `#Shorts` al final si se pidió publicar un short.
+     *
+     * La API no tiene ningún campo para marcar un video como Short: YouTube lo
+     * decide por la duración y la relación de aspecto, y usa la etiqueta de la
+     * descripción como señal. Sin ella, elegir "Short" en el compositor no
+     * cambiaba absolutamente nada de lo que se subía.
+     */
+    private function descripcion($post): string
+    {
+        $texto = $post->body ?? '';
+
+        if (($post->options['youtube_type'] ?? 'video') !== 'short') {
+            return $texto;
+        }
+
+        if (stripos($texto, '#shorts') !== false) {
+            return $texto;
+        }
+
+        return trim($texto . "\n\n#Shorts");
+    }
+
+    /**
      * Miniatura personalizada del video (thumbnails.set).
      *
      * Va en una llamada aparte: `videos.insert` no acepta la imagen. El canal
@@ -101,5 +124,21 @@ class YouTubePublisher extends AbstractPublisher
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    public function fetchAvatarUrl(\App\Models\SocialAccount $account): ?string
+    {
+        $resp = $this->http()
+            ->withToken($account->access_token)
+            ->get('https://www.googleapis.com/youtube/v3/channels', [
+                'part' => 'snippet',
+                'id'   => $account->provider_user_id,
+            ])
+            ->throw()
+            ->json();
+
+        $miniaturas = $resp['items'][0]['snippet']['thumbnails'] ?? [];
+
+        return $miniaturas['medium']['url'] ?? $miniaturas['default']['url'] ?? null;
     }
 }

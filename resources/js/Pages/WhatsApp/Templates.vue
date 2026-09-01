@@ -129,7 +129,7 @@ const estilosEstado = {
                                 <select
                                     :value="cuentaId"
                                     @change="cambiarCuenta(Number($event.target.value))"
-                                    class="mt-1 block text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                    class="mt-1 block text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                 >
                                     <option v-for="c in cuentas" :key="c.id" :value="c.id">
                                         {{ c.name }} — WABA {{ c.waba_id }}
@@ -177,7 +177,7 @@ const estilosEstado = {
                                 <input
                                     v-model="form.name"
                                     placeholder="pedido_listo"
-                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                 />
                                 <span class="text-xs text-gray-500">minúsculas, números y _</span>
                                 <span v-if="form.errors.name" class="block text-xs text-red-600">{{ form.errors.name }}</span>
@@ -188,7 +188,7 @@ const estilosEstado = {
                                 <input
                                     v-model="form.language"
                                     placeholder="es_MX"
-                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                 />
                                 <span v-if="form.errors.language" class="block text-xs text-red-600">{{ form.errors.language }}</span>
                             </label>
@@ -197,7 +197,7 @@ const estilosEstado = {
                                 <span class="text-sm font-medium text-gray-700 dark:text-zinc-300">Categoría</span>
                                 <select
                                     v-model="form.category"
-                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                 >
                                     <option v-for="c in categorias" :key="c" :value="c">{{ c }}</option>
                                 </select>
@@ -211,7 +211,7 @@ const estilosEstado = {
                             <input
                                 v-model="form.header"
                                 maxlength="60"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                             />
                         </label>
 
@@ -222,7 +222,7 @@ const estilosEstado = {
                                 rows="4"
                                 maxlength="1024"
                                 :placeholder="ejemploCuerpo"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                             ></textarea>
                             <div class="mt-1 rounded-md bg-blue-50 dark:bg-blue-900/20 p-3 text-xs text-blue-900 dark:text-blue-200">
                                 <p class="font-semibold">¿Qué son las llaves dobles?</p>
@@ -265,7 +265,7 @@ const estilosEstado = {
                                 <input
                                     v-model="form.ejemplos[n - 1]"
                                     :placeholder="n === 1 ? 'Ana' : 'A-42'"
-                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                    class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                                 />
                             </label>
                         </div>
@@ -293,7 +293,7 @@ const estilosEstado = {
                             <input
                                 v-model="form.footer"
                                 maxlength="60"
-                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800"
+                                class="mt-1 block w-full text-sm rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 text-gray-900 dark:text-gray-100"
                             />
                         </label>
 

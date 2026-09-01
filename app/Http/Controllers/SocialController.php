@@ -318,7 +318,6 @@ class SocialController extends Controller implements HasMiddleware
             'options.youtube_privacy'          => 'nullable|in:public,unlisted,private',
             'options.youtube_category_id'      => 'nullable|string|max:8',
             'options.facebook_type'            => 'nullable|in:post,photo,reel,video',
-            'options.facebook_audience'        => 'nullable|in:PUBLIC,FRIENDS,SELF',
             'options.instagram_type'           => 'nullable|in:feed,reel,story',
             'options.tiktok_type'              => 'nullable|in:video,draft',
             'options.tiktok_privacy'           => 'nullable|in:PUBLIC_TO_EVERYONE,MUTUAL_FOLLOW_FRIENDS,SELF_ONLY',
@@ -327,6 +326,7 @@ class SocialController extends Controller implements HasMiddleware
             'options.tiktok_disable_stitch'    => 'nullable|boolean',
             'options.linkedin_type'            => 'nullable|in:text,image,article',
             'options.linkedin_alt_text'        => 'nullable|string|max:200',
+            'options.linkedin_article_url'     => 'nullable|url|max:2048',
             // Segundo del video que TikTok —y las demás, si no hay portada—
             // usa de carátula. En milisegundos, como lo pide la API.
             'options.cover_timestamp_ms'       => 'nullable|integer|min:0|max:600000',

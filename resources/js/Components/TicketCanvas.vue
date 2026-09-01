@@ -296,7 +296,7 @@ const statusLabel = {
                         <div class="flex items-center gap-2">
                             <input v-model="pinComment" placeholder="Comentario…"
                                 :disabled="!pendingPin"
-                                class="flex-1 rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-xs" />
+                                class="flex-1 rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-xs text-gray-900 dark:text-gray-100" />
                             <button @click="submitPin" :disabled="!pendingPin || !pinComment.trim()"
                                 class="rounded-md bg-[#264ab3] px-2 py-1 text-[11px] font-bold text-white hover:bg-[#193074] disabled:opacity-40">
                                 Guardar
@@ -368,7 +368,7 @@ const statusLabel = {
                     <div>
                         <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase">Título / Caption</label>
                         <input v-model="uploadForm.caption" type="text" placeholder="Ej. Frame 03 — Hero"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm" />
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100" />
                     </div>
                     <div>
                         <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase">Archivo (imagen, video o PDF)</label>
@@ -382,7 +382,7 @@ const statusLabel = {
                     <div>
                         <label class="block text-[11px] font-bold text-gray-600 dark:text-zinc-300 uppercase">URL externa</label>
                         <input v-model="uploadForm.url" type="url" placeholder="https://… (Drive, XD, Figma…)"
-                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm" />
+                            class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-950 text-sm text-gray-900 dark:text-gray-100" />
                     </div>
                     <div class="flex justify-end gap-2 pt-2">
                         <button type="button" @click="showUploader = false"

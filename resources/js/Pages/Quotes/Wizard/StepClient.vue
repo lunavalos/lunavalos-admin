@@ -61,7 +61,7 @@ const canNext = computed(() => props.modelValue.client_name && props.modelValue.
             <select
                 :value="modelValue.client_id || ''"
                 @change="onPickClient"
-                class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900"
+                class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100"
             >
                 <option value="">— Cotización nueva sin cliente registrado —</option>
                 <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.business_name }}</option>
@@ -127,7 +127,7 @@ const canNext = computed(() => props.modelValue.client_name && props.modelValue.
                     <select
                         :value="modelValue.tax_regime"
                         @change="update({ tax_regime: $event.target.value })"
-                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900"
+                        class="mt-1 block w-full rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100"
                     >
                         <option value="">— No especificado —</option>
                         <option v-for="(reg, code) in taxRegimes" :key="code" :value="code">{{ code }} · {{ reg.label }}</option>

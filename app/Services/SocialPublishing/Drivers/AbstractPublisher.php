@@ -124,4 +124,9 @@ abstract class AbstractPublisher implements Publisher
     {
         return [];
     }
+
+    public function fetchAvatarUrl(SocialAccount $account): ?string
+    {
+        return null;
+    }
 }

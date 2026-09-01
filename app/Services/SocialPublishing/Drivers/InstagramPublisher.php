@@ -63,9 +63,22 @@ class InstagramPublisher extends AbstractPublisher
             'access_token' => $token,
         ];
 
-        if ($esVideo) {
+        // Los posts guardados antes del selector no traen `instagram_type`.
+        $tipo = $post->options['instagram_type'] ?? ($esVideo ? 'reel' : 'feed');
+
+        if ($tipo === 'story') {
+            // Las stories son su propio media_type. Sin esto, elegir "Story"
+            // publicaba un post normal al feed: quedaba fijo en el perfil algo
+            // que se pensó para durar 24 horas.
+            //
+            // No llevan caption ni portada: Instagram ignora los dos.
+            unset($payload['caption']);
+            $payload['media_type'] = 'STORIES';
+            $payload[$esVideo ? 'video_url' : 'image_url'] = $media[0];
+        } elseif ($esVideo) {
             // REELS es el único formato de video que acepta la API de
-            // publicación de contenido; `video_url`, no `image_url`.
+            // publicación de contenido —también para el feed—; `video_url`,
+            // no `image_url`.
             $payload['media_type'] = 'REELS';
             $payload['video_url']  = $media[0];
 
@@ -256,5 +269,22 @@ class InstagramPublisher extends AbstractPublisher
     protected function dormir(int $segundos): void
     {
         sleep($segundos);
+    }
+
+    public function fetchAvatarUrl(\App\Models\SocialAccount $account): ?string
+    {
+        $igId = $account->meta['ig_business_id'] ?? null;
+        if (!$igId) {
+            return null;
+        }
+
+        $version = config('services.facebook.graph_version', 'v19.0');
+
+        $resp = $this->http()->get("https://graph.facebook.com/{$version}/{$igId}", [
+            'fields'       => 'profile_picture_url',
+            'access_token' => $account->access_token,
+        ])->throw()->json();
+
+        return $resp['profile_picture_url'] ?? null;
     }
 }

@@ -1,11 +1,13 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PostPreview from './PostPreview.vue';
+import SocialAvatar from '@/Components/SocialAvatar.vue';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import {
     MegaphoneIcon, PhotoIcon, XMarkIcon, ExclamationTriangleIcon,
     ChevronDownIcon, ChevronUpIcon, LinkIcon, CheckCircleIcon,
-    ArrowPathIcon, DocumentDuplicateIcon, ArrowTopRightOnSquareIcon,
+    ArrowPathIcon, DocumentDuplicateIcon, ArrowTopRightOnSquareIcon, EyeIcon,
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -51,7 +53,6 @@ const defaultOptions = () => ({
     youtube_privacy: 'public',
     youtube_category_id: '22',
     facebook_type: 'post',
-    facebook_audience: 'PUBLIC',
     instagram_type: 'feed',
     tiktok_privacy: 'PUBLIC_TO_EVERYONE',
     tiktok_type: 'video',
@@ -60,6 +61,7 @@ const defaultOptions = () => ({
     tiktok_disable_stitch: false,
     linkedin_type: 'text',
     linkedin_alt_text: '',
+    linkedin_article_url: '',
     // Segundo del video que se usa de carátula cuando no se sube una portada
     // (TikTok solo acepta esto). El fotograma 0 suele salir negro.
     cover_timestamp_ms: 1000,
@@ -198,6 +200,10 @@ const validationErrors = computed(() => {
         && form.options.linkedin_type === 'image' && !hasImage.value) {
         errs.push('LinkedIn con imagen requiere una imagen adjunta.');
     }
+    if (selectedProviders.value.has('linkedin')
+        && form.options.linkedin_type === 'article' && !form.options.linkedin_article_url?.trim()) {
+        errs.push('LinkedIn Artículo requiere la URL que se va a compartir.');
+    }
     if (selectedProviders.value.has('youtube') && !form.title?.trim()) {
         errs.push('YouTube requiere un título.');
     }
@@ -205,6 +211,54 @@ const validationErrors = computed(() => {
 });
 
 const canPublish = computed(() => validationErrors.value.length === 0 && !form.processing);
+
+// ── Cuánto texto acepta cada red ───────────────────────────────────────────
+// El tope real de cada plataforma, no un "2200 aprox" para todas: pasarse en
+// Instagram o LinkedIn es que la API rechace el post, y en TikTok que el pie
+// salga cortado a la mitad.
+const limitesDeTexto = {
+    instagram: 2200,
+    facebook: 63206,
+    linkedin: 3000,
+    // Lo que el publisher manda de verdad: recorta ahí antes de llamar a la API.
+    tiktok: 150,
+    youtube: 5000,
+};
+
+const redesElegidas = computed(() => allProviders.filter(p => selectedProviders.value.has(p)));
+
+const conteoPorRed = computed(() => redesElegidas.value.map(provider => {
+    if (provider === 'instagram' && form.options.instagram_type === 'story') {
+        return { provider, nota: 'la story no lleva texto' };
+    }
+
+    // TikTok publica el título si lo hay, y si no el contenido.
+    const texto = provider === 'tiktok' ? (form.title || form.body || '') : (form.body || '');
+    const limite = limitesDeTexto[provider];
+
+    return { provider, usado: texto.length, limite, excedido: texto.length > limite };
+}));
+
+const hashtags = computed(() => ((form.body || '').match(/#[\p{L}\p{N}_]+/gu) || []).length);
+
+// ── Vista previa ───────────────────────────────────────────────────────────
+const pestanaPreview = ref(null);
+const previewActivo = computed(() => redesElegidas.value.includes(pestanaPreview.value)
+    ? pestanaPreview.value
+    : redesElegidas.value[0]);
+
+// La cuenta con la que se va a ver el post: la primera elegida de esa red.
+const cuentaDelPreview = computed(() =>
+    props.accounts.find(a => a.provider === previewActivo.value && form.account_ids.includes(a.id)) || null);
+
+// El adjunto que se está por publicar: el archivo nuevo si lo hay, y si no el
+// que ya tenía el post.
+const mediaDelPreview = computed(() => {
+    const nuevo = filePreviews.value[0];
+    if (nuevo) return { url: nuevo.url, type: nuevo.type };
+    if (props.post?.media_url) return { url: props.post.media_url, type: props.post.media_mime };
+    return null;
+});
 
 // ── Portada: a qué redes les sirve ─────────────────────────────────────────
 // El campo aparece en cuanto el post es de video, aunque todavía no se haya
@@ -220,7 +274,11 @@ const mostrarPortada = computed(() => hasVideo.value || formatoDeVideo.value);
 // Redes que aceptan la imagen que se sube aquí.
 const redesConPortada = computed(() => {
     const redes = [];
-    if (selectedProviders.value.has('instagram') && form.options.instagram_type === 'reel') redes.push('Instagram');
+    // Un video en el feed de Instagram también se publica como reel: la API no
+    // tiene otro formato de video.
+    if (selectedProviders.value.has('instagram')
+        && (form.options.instagram_type === 'reel'
+            || (form.options.instagram_type === 'feed' && hasVideo.value))) redes.push('Instagram');
     if (selectedProviders.value.has('facebook') && ['reel', 'video'].includes(form.options.facebook_type)) redes.push('Facebook');
     if (selectedProviders.value.has('youtube')) redes.push('YouTube');
     return redes;
@@ -235,6 +293,9 @@ const sugerencias = computed(() => {
     const avisos = [];
     if (redesConPortada.value.length && !portadaUrl.value) {
         avisos.push(`Sube una portada: es lo primero que se ve del video en ${redesConPortada.value.join(', ')}.`);
+    }
+    if (selectedProviders.value.has('instagram') && hashtags.value > 30) {
+        avisos.push(`Instagram admite 30 hashtags por publicación y llevas ${hashtags.value}: los rechaza todos, no solo los de más.`);
     }
     if (selectedProviders.value.has('youtube') && portadaUrl.value) {
         avisos.push('YouTube usa la portada como miniatura (ideal 1280×720) y solo la acepta en canales verificados.');
@@ -449,11 +510,8 @@ function connectUrl(provider) {
                                              form.account_ids.includes(a.id)
                                                ? 'bg-primary/10 text-primary border-primary ring-1 ring-primary'
                                                : 'bg-white dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 border-gray-300 dark:border-zinc-600 hover:border-gray-400']">
-                                    <img v-if="a.avatar_url" :src="a.avatar_url" :alt="a.name"
-                                        class="w-6 h-6 rounded-full object-cover bg-gray-200" />
-                                    <span v-else :class="['w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold', providerColors[provider]]">
-                                        {{ a.name?.charAt(0)?.toUpperCase() }}
-                                    </span>
+                                    <SocialAvatar :src="a.avatar_url" :name="a.name" :provider="provider"
+                                        size="w-6 h-6" text="text-[10px]" />
                                     <span class="font-medium">{{ a.name }}</span>
                                     <CheckCircleIcon v-if="form.account_ids.includes(a.id)" class="w-4 h-4 text-primary" />
                                 </button>
@@ -472,9 +530,11 @@ function connectUrl(provider) {
                         <span v-else class="text-gray-400 text-xs font-normal">(opcional)</span>
                     </label>
                     <input v-model="form.title" type="text" maxlength="255"
-                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm" />
-                    <p v-if="selectedProviders.has('youtube')" class="text-xs text-gray-400 mt-1">
-                        Se usará como título del video en YouTube (máx. 100 caracteres efectivos).
+                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm" />
+                    <p v-if="selectedProviders.has('youtube')" class="text-xs mt-1"
+                        :class="(form.title || '').length > 100 ? 'text-rose-600 font-medium' : 'text-gray-400'">
+                        Título del video en YouTube: {{ (form.title || '').length }} / 100
+                        <template v-if="(form.title || '').length > 100"> — se recorta al publicar.</template>
                     </p>
                 </div>
 
@@ -482,8 +542,25 @@ function connectUrl(provider) {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-zinc-200 mb-1">Contenido</label>
                     <textarea v-model="form.body" rows="6"
-                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm"></textarea>
-                    <p class="text-xs text-gray-400 mt-1">{{ (form.body || '').length }} / 2200 caracteres aprox.</p>
+                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm"></textarea>
+                    <div v-if="conteoPorRed.length" class="flex flex-wrap gap-1.5 mt-2">
+                        <span v-for="c in conteoPorRed" :key="c.provider"
+                            :class="['inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full border',
+                                     c.excedido
+                                       ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-900/20 dark:border-rose-800'
+                                       : 'bg-gray-50 text-gray-600 border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700']">
+                            <span :class="['w-1.5 h-1.5 rounded-full', providerColors[c.provider]]"></span>
+                            {{ providerLabels[c.provider] }}
+                            <template v-if="c.nota">· {{ c.nota }}</template>
+                            <template v-else>{{ c.usado }} / {{ c.limite.toLocaleString('es-MX') }}</template>
+                        </span>
+                    </div>
+                    <p v-else class="text-xs text-gray-400 mt-1">
+                        {{ (form.body || '').length }} caracteres. Elige las cuentas para ver el tope de cada red.
+                    </p>
+                    <p v-if="conteoPorRed.some(c => c.excedido)" class="text-xs text-rose-600 mt-1.5">
+                        El texto se pasa del tope de alguna red: ahí se recorta o la publicación se rechaza.
+                    </p>
                 </div>
 
                 <!-- ── Media ────────────────────────────────────────────── -->
@@ -559,7 +636,7 @@ function connectUrl(provider) {
                                     <input type="number" min="0" step="0.5"
                                         :value="(form.options.cover_timestamp_ms || 0) / 1000"
                                         @input="form.options.cover_timestamp_ms = Math.round(($event.target.value || 0) * 1000)"
-                                        class="w-24 rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm" />
+                                        class="w-24 dark:[color-scheme:dark] rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm" />
                                     <span class="text-xs text-gray-500">segundos</span>
                                 </div>
                             </label>
@@ -595,7 +672,7 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Tipo</span>
                                     <select v-model="form.options.youtube_type"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option value="video">Video normal (horizontal)</option>
                                         <option value="short">Short (vertical, &lt; 60s)</option>
                                     </select>
@@ -603,7 +680,7 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Privacidad</span>
                                     <select v-model="form.options.youtube_privacy"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option value="public">Público</option>
                                         <option value="unlisted">No listado</option>
                                         <option value="private">Privado</option>
@@ -612,7 +689,7 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Categoría</span>
                                     <select v-model="form.options.youtube_category_id"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option v-for="c in youtubeCategories" :key="c.id" :value="c.id">{{ c.label }}</option>
                                     </select>
                                 </label>
@@ -633,23 +710,18 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Tipo de publicación</span>
                                     <select v-model="form.options.facebook_type"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option value="post">Post de texto</option>
                                         <option value="photo">Foto</option>
                                         <option value="reel">Reel</option>
                                         <option value="video">Video normal</option>
                                     </select>
                                 </label>
-                                <label class="block">
-                                    <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Audiencia</span>
-                                    <select v-model="form.options.facebook_audience"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
-                                        <option value="PUBLIC">Público</option>
-                                        <option value="FRIENDS">Amigos</option>
-                                        <option value="SELF">Solo yo</option>
-                                    </select>
-                                </label>
                             </div>
+                            <p class="text-xs text-gray-400">
+                                Se publica en la página, y lo de una página siempre es público:
+                                Facebook no admite restringir la audiencia por publicación.
+                            </p>
                             <p v-if="form.options.facebook_type === 'reel'"
                                 class="text-xs text-amber-600 flex items-center gap-1">
                                 <ExclamationTriangleIcon class="w-3 h-3" />
@@ -666,7 +738,7 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Tipo</span>
                                     <select v-model="form.options.instagram_type"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option value="feed">Feed post</option>
                                         <option value="reel">Reel</option>
                                         <option value="story">Story</option>
@@ -676,7 +748,7 @@ function connectUrl(provider) {
                             <p v-if="form.options.instagram_type === 'story'"
                                 class="text-xs text-amber-600 flex items-center gap-1">
                                 <ExclamationTriangleIcon class="w-3 h-3" />
-                                Story: solo imagen o video corto (&lt; 15s). Desaparece a las 24 horas.
+                                Story: solo imagen o video corto (&lt; 15s). Desaparece a las 24 horas y no lleva texto.
                             </p>
                             <p v-if="form.options.instagram_type === 'reel'"
                                 class="text-xs text-amber-600 flex items-center gap-1">
@@ -694,7 +766,7 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Tipo</span>
                                     <select v-model="form.options.tiktok_type"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option value="video">Video normal</option>
                                         <option value="draft">Enviar a borradores</option>
                                     </select>
@@ -702,7 +774,7 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Privacidad</span>
                                     <select v-model="form.options.tiktok_privacy"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option value="PUBLIC_TO_EVERYONE">Público</option>
                                         <option value="MUTUAL_FOLLOW_FRIENDS">Amigos</option>
                                         <option value="SELF_ONLY">Privado</option>
@@ -737,7 +809,7 @@ function connectUrl(provider) {
                                 <label class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Tipo</span>
                                     <select v-model="form.options.linkedin_type"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm">
                                         <option value="text">Post de texto</option>
                                         <option value="image">Post con imagen</option>
                                         <option value="article">Artículo</option>
@@ -746,10 +818,47 @@ function connectUrl(provider) {
                                 <label v-if="form.options.linkedin_type === 'image'" class="block">
                                     <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">Texto alternativo (opcional)</span>
                                     <input v-model="form.options.linkedin_alt_text" type="text" maxlength="200"
-                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm" />
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm" />
+                                </label>
+                                <label v-if="form.options.linkedin_type === 'article'" class="block">
+                                    <span class="block text-xs text-gray-600 dark:text-zinc-300 mb-1">
+                                        URL del artículo <span class="text-rose-600">*</span>
+                                    </span>
+                                    <input v-model="form.options.linkedin_article_url" type="url" maxlength="2048"
+                                        placeholder="https://..."
+                                        class="w-full rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm" />
                                 </label>
                             </div>
                         </fieldset>
+                    </div>
+                </div>
+
+                <!-- ── Vista previa por red ────────────────────────────── -->
+                <div v-if="redesElegidas.length"
+                    class="border border-gray-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                    <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-zinc-800">
+                        <EyeIcon class="w-4 h-4 text-gray-400" />
+                        <span class="text-sm font-medium text-gray-700 dark:text-zinc-200">Vista previa</span>
+                        <span class="text-xs text-gray-400">aproximada</span>
+                    </div>
+
+                    <div v-if="redesElegidas.length > 1" class="flex flex-wrap gap-1.5 px-4 pt-3">
+                        <button v-for="p in redesElegidas" :key="p" type="button"
+                            @click="pestanaPreview = p"
+                            :class="['inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition',
+                                     previewActivo === p
+                                       ? 'bg-primary/10 text-primary border-primary'
+                                       : 'bg-white dark:bg-zinc-800 text-gray-600 dark:text-zinc-300 border-gray-300 dark:border-zinc-600 hover:border-gray-400']">
+                            <span :class="['w-1.5 h-1.5 rounded-full', providerColors[p]]"></span>
+                            {{ providerLabels[p] }}
+                        </button>
+                    </div>
+
+                    <div class="p-4 bg-gray-50 dark:bg-zinc-950/40">
+                        <PostPreview :provider="previewActivo" :account="cuentaDelPreview"
+                            :title="form.title" :body="form.body"
+                            :media="mediaDelPreview" :cover-url="portadaUrl"
+                            :options="form.options" />
                     </div>
                 </div>
 
@@ -757,7 +866,7 @@ function connectUrl(provider) {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-zinc-200 mb-1">Programar (opcional)</label>
                     <input v-model="form.scheduled_at" type="datetime-local"
-                        class="rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm" />
+                        class="dark:[color-scheme:dark] rounded-md border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-gray-900 dark:text-gray-100 text-sm" />
                 </div>
 
                 <!-- ── Sugerencias (no bloquean) ───────────────────────── -->

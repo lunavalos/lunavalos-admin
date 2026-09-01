@@ -63,7 +63,7 @@ const submit = () => form.post(route('service-addons.store'));
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <InputLabel for="category" value="Categoría" class="font-bold" />
-                                <select id="category" v-model="form.category" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950" required>
+                                <select id="category" v-model="form.category" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950 text-gray-900 dark:text-gray-100" required>
                                     <option value="">— Selecciona —</option>
                                     <option v-for="(label, key) in categories" :key="key" :value="key">{{ label }}</option>
                                 </select>
@@ -79,7 +79,7 @@ const submit = () => form.post(route('service-addons.store'));
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <InputLabel for="billing_cycle" value="Modalidad de pago" class="font-bold" />
-                                <select id="billing_cycle" v-model="form.billing_cycle" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950">
+                                <select id="billing_cycle" v-model="form.billing_cycle" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 rounded-md bg-white dark:bg-zinc-950 text-gray-900 dark:text-gray-100">
                                     <option v-for="(label, key) in cycles" :key="key" :value="key">{{ label }}</option>
                                 </select>
                                 <InputError class="mt-2" :message="form.errors.billing_cycle" />
@@ -93,7 +93,7 @@ const submit = () => form.post(route('service-addons.store'));
 
                         <div>
                             <InputLabel for="description" value="Descripción" class="font-bold" />
-                            <textarea id="description" v-model="form.description" rows="3" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 rounded-md dark:bg-zinc-950" />
+                            <textarea id="description" v-model="form.description" rows="3" class="mt-1 block w-full border-gray-300 dark:border-zinc-800 rounded-md dark:bg-zinc-950 text-gray-900 dark:text-gray-100" />
                         </div>
 
                         <label class="inline-flex items-center">

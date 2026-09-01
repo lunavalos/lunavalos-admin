@@ -35,7 +35,7 @@ class SocialPost extends Model
         'created_by', 'approved_by', 'approved_at',
     ];
 
-    protected $appends = ['cover_url'];
+    protected $appends = ['cover_url', 'media_url', 'media_mime'];
 
     protected $casts = [
         'media'        => 'array',
@@ -78,6 +78,33 @@ class SocialPost extends Model
         $path = $this->portada()['path'] ?? null;
 
         return $path ? Storage::disk('public')->url($path) : null;
+    }
+
+    /**
+     * El primer adjunto publicable, que es el único que sale a las redes.
+     *
+     * Viaja al compositor para la vista previa: `media` solo guarda la ruta en
+     * disco y el frontend no puede armar la URL pública por su cuenta.
+     */
+    public function getMediaUrlAttribute(): ?string
+    {
+        $path = $this->rutaDelPrimerAdjunto();
+
+        return $path ? Storage::disk('public')->url($path) : null;
+    }
+
+    public function getMediaMimeAttribute(): ?string
+    {
+        $primero = $this->mediaPrincipal()[0] ?? null;
+
+        return is_array($primero) ? ($primero['mime'] ?? null) : null;
+    }
+
+    private function rutaDelPrimerAdjunto(): ?string
+    {
+        $primero = $this->mediaPrincipal()[0] ?? null;
+
+        return is_array($primero) ? ($primero['path'] ?? null) : $primero;
     }
 
     public function client(): BelongsTo

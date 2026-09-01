@@ -17,6 +17,9 @@ Schedule::command('recurring:open-cycles')->monthlyOn(1, '02:00');
 Schedule::command('social:dispatch-scheduled')->everyFiveMinutes();
 Schedule::command('social:fetch-insights')->everySixHours();
 Schedule::command('social:fetch-account-stats')->dailyAt('03:00');
+// Las URLs de foto de perfil de Meta caducan a las pocas horas: sin refrescarlas
+// la interfaz acaba mostrando el avatar de respaldo en vez de la foto real.
+Schedule::command('social:refresh-avatars')->dailyAt('03:30');
 
 // FX: Banxico publica el tipo de cambio FIX hábil ~12:00 CDMX.
 // Lo jalamos a las 13:30 (zona MX) para tener la tasa del día disponible

@@ -100,7 +100,7 @@ const allRequiredMet = computed(() => categoryStatus.value.every(c => c.met));
                         min="1"
                         :value="findRow(addon.id).quantity"
                         @input="setQty(addon.id, $event.target.value)"
-                        class="w-20 rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900"
+                        class="w-20 rounded border-gray-300 dark:border-zinc-600 dark:bg-zinc-900 text-gray-900 dark:text-gray-100"
                     />
                 </li>
             </ul>

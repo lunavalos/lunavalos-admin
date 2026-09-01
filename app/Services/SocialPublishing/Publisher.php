@@ -33,5 +33,15 @@ interface Publisher
      *   page_impressions, page_reach, raw
      */
     public function fetchAccountStats(SocialAccount $account): array;
+
+    /**
+     * URL actual de la foto de perfil de la cuenta.
+     *
+     * Hay que volver a pedirla cada tanto: Meta firma las suyas y caducan a
+     * las pocas horas, así que la que se guardó al conectar la cuenta acaba
+     * devolviendo 403. Devuelve null si el provider no la expone o si la
+     * consulta falla.
+     */
+    public function fetchAvatarUrl(SocialAccount $account): ?string;
 }
 
