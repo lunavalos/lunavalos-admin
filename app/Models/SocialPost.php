@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class SocialPost extends Model
 {
@@ -20,11 +21,21 @@ class SocialPost extends Model
     public const STATUS_FAILED     = 'failed';
     public const STATUS_CANCELED   = 'canceled';
 
+    /**
+     * Rol del adjunto dentro de `media`. La portada viaja en el mismo arreglo
+     * que el resto de los archivos —así se duplica y se borra con el post sin
+     * columnas extra—, pero nunca se publica como contenido: es la imagen que
+     * la red usa de carátula del video.
+     */
+    public const ROLE_COVER = 'cover';
+
     protected $fillable = [
         'client_id', 'ticket_id', 'title', 'body', 'media', 'options',
         'scheduled_at', 'published_at', 'status', 'error_message',
         'created_by', 'approved_by', 'approved_at',
     ];
+
+    protected $appends = ['cover_url'];
 
     protected $casts = [
         'media'        => 'array',
@@ -33,6 +44,41 @@ class SocialPost extends Model
         'published_at' => 'datetime',
         'approved_at'  => 'datetime',
     ];
+
+    /**
+     * Los adjuntos que sí se publican: todo menos la portada.
+     *
+     * Los publishers tienen que usar esto y no `media` directo; si no, una
+     * portada subida junto a un reel se colaba como `media[0]` y se publicaba
+     * la imagen en lugar del video.
+     */
+    public function mediaPrincipal(): array
+    {
+        return array_values(array_filter(
+            $this->media ?? [],
+            fn ($m) => !is_array($m) || ($m['role'] ?? null) !== self::ROLE_COVER,
+        ));
+    }
+
+    /** La imagen de portada del video, si se subió una. */
+    public function portada(): ?array
+    {
+        foreach ($this->media ?? [] as $m) {
+            if (is_array($m) && ($m['role'] ?? null) === self::ROLE_COVER) {
+                return $m;
+            }
+        }
+
+        return null;
+    }
+
+    /** URL pública de la portada, para previsualizarla en el compositor. */
+    public function getCoverUrlAttribute(): ?string
+    {
+        $path = $this->portada()['path'] ?? null;
+
+        return $path ? Storage::disk('public')->url($path) : null;
+    }
 
     public function client(): BelongsTo
     {

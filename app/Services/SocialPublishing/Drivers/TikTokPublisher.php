@@ -31,7 +31,11 @@ class TikTokPublisher extends AbstractPublisher
                     'disable_duet'           => false,
                     'disable_comment'        => false,
                     'disable_stitch'         => false,
-                    'video_cover_timestamp_ms' => 1000,
+                    // TikTok no acepta una imagen de portada: solo el segundo
+                    // del video que quieres de carátula. Lo elige quien publica
+                    // desde el compositor; 1s es el valor por omisión porque el
+                    // fotograma 0 suele ser negro.
+                    'video_cover_timestamp_ms' => (int) ($post->options['cover_timestamp_ms'] ?? 1000),
                 ],
                 'source_info' => [
                     'source'          => 'PULL_FROM_URL',

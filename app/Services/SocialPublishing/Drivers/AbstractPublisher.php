@@ -46,11 +46,13 @@ abstract class AbstractPublisher implements Publisher
 
     /**
      * Devuelve URLs absolutas de los media adjuntos al post.
+     *
+     * `mediaPrincipal()` y no `media`: la portada del video vive en el mismo
+     * arreglo y no se publica como contenido.
      */
     protected function mediaUrls(SocialPostTarget $target): array
     {
-        $media = $target->post->media ?? [];
-        return collect($media)->map(function ($m) {
+        return collect($target->post->mediaPrincipal())->map(function ($m) {
             $path = is_array($m) ? ($m['path'] ?? null) : $m;
             if (!$path) return null;
             return Storage::disk('public')->url($path);
@@ -67,7 +69,7 @@ abstract class AbstractPublisher implements Publisher
      */
     protected function primerAdjuntoEsVideo(SocialPostTarget $target): bool
     {
-        $primero = ($target->post->media ?? [])[0] ?? null;
+        $primero = $target->post->mediaPrincipal()[0] ?? null;
         if ($primero === null) {
             return false;
         }
@@ -79,6 +81,29 @@ abstract class AbstractPublisher implements Publisher
         $path = is_array($primero) ? (string) ($primero['path'] ?? '') : (string) $primero;
 
         return (bool) preg_match('/\.(mp4|mov|m4v|webm)$/i', $path);
+    }
+
+    /**
+     * URL pública de la portada del video, para las redes que la reciben como
+     * enlace (Instagram `cover_url`). Null si el post no trae portada.
+     */
+    protected function urlDePortada(SocialPostTarget $target): ?string
+    {
+        $path = $target->post->portada()['path'] ?? null;
+
+        return $path ? Storage::disk('public')->url($path) : null;
+    }
+
+    /**
+     * Ruta en disco de la portada, para las redes que la reciben como archivo
+     * (Facebook `/thumbnails`, YouTube `thumbnails/set`). Null si no hay
+     * portada o si el archivo ya no está.
+     */
+    protected function rutaDePortada(SocialPostTarget $target): ?string
+    {
+        $path = $target->post->portada()['path'] ?? null;
+
+        return $path && Storage::disk('public')->exists($path) ? $path : null;
     }
 
     protected function http()

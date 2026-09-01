@@ -68,6 +68,18 @@ class InstagramPublisher extends AbstractPublisher
             // publicación de contenido; `video_url`, no `image_url`.
             $payload['media_type'] = 'REELS';
             $payload['video_url']  = $media[0];
+
+            // La carátula del reel. Sin esto Instagram toma el primer
+            // fotograma, que casi siempre es lo peor que tiene el video, y el
+            // reel se ve mal en la cuadrícula del perfil.
+            //
+            // `cover_url` gana sobre `thumb_offset`: mandar los dos hace que
+            // Meta ignore uno sin avisar.
+            if ($portada = $this->urlDePortada($target)) {
+                $payload['cover_url'] = $portada;
+            } elseif (($ms = $post->options['cover_timestamp_ms'] ?? null) !== null) {
+                $payload['thumb_offset'] = (int) $ms;
+            }
         } else {
             $payload['image_url'] = $media[0];
         }

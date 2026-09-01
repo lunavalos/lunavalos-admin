@@ -3,6 +3,7 @@
 namespace App\Services\SocialPublishing\Drivers;
 
 use App\Models\SocialPostTarget;
+use Illuminate\Support\Facades\Storage;
 
 class FacebookPublisher extends AbstractPublisher
 {
@@ -42,6 +43,10 @@ class FacebookPublisher extends AbstractPublisher
 
             $videoId = $resp['id'] ?? null;
 
+            if ($videoId) {
+                $this->subirMiniatura($videoId, $token, $version, $target);
+            }
+
             return [
                 'id'  => $videoId,
                 'url' => $videoId ? "https://facebook.com/{$videoId}" : null,
@@ -62,5 +67,35 @@ class FacebookPublisher extends AbstractPublisher
             'id'  => $postId,
             'url' => $postId ? "https://facebook.com/{$postId}" : null,
         ];
+    }
+
+    /**
+     * Sube la portada como miniatura preferida del video.
+     *
+     * Va después de publicar y no como parámetro de `/videos`: la Graph API
+     * solo acepta la imagen por `/{video-id}/thumbnails`, con el archivo en
+     * multipart (no admite URL).
+     *
+     * Nunca tumba la publicación: el video ya salió, quedarse con la miniatura
+     * automática es un detalle estético, no un fallo que haya que reintentar.
+     */
+    private function subirMiniatura(string $videoId, string $token, string $version, SocialPostTarget $target): void
+    {
+        $ruta = $this->rutaDePortada($target);
+        if (!$ruta) {
+            return;
+        }
+
+        try {
+            $this->http()
+                ->attach('source', Storage::disk('public')->get($ruta), basename($ruta))
+                ->post("https://graph.facebook.com/{$version}/{$videoId}/thumbnails", [
+                    'is_preferred' => 'true',
+                    'access_token' => $token,
+                ])
+                ->throw();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

@@ -18,7 +18,7 @@ class YouTubePublisher extends AbstractPublisher
         $post    = $target->post;
         $token   = $account->access_token;
 
-        $media = $post->media ?? [];
+        $media = $post->mediaPrincipal();
         if (empty($media)) {
             throw new \RuntimeException('YouTube requiere un archivo de video.');
         }
@@ -62,9 +62,44 @@ class YouTubePublisher extends AbstractPublisher
 
         $id = $resp['id'] ?? null;
 
+        if ($id) {
+            $this->subirMiniatura($id, $token, $target);
+        }
+
         return [
             'id'  => $id,
             'url' => $id ? "https://www.youtube.com/watch?v={$id}" : null,
         ];
+    }
+
+    /**
+     * Miniatura personalizada del video (thumbnails.set).
+     *
+     * Va en una llamada aparte: `videos.insert` no acepta la imagen. El canal
+     * tiene que estar verificado; si no lo está Google responde 403
+     * `forbidden` y ahí se queda la miniatura automática.
+     *
+     * No tumba la publicación: el video ya está subido y volver a intentarlo
+     * lo duplicaría.
+     */
+    private function subirMiniatura(string $videoId, string $token, SocialPostTarget $target): void
+    {
+        $ruta = $this->rutaDePortada($target);
+        if (!$ruta) {
+            return;
+        }
+
+        try {
+            $this->http()
+                ->withToken($token)
+                ->withBody(
+                    Storage::disk('public')->get($ruta),
+                    $target->post->portada()['mime'] ?? 'image/jpeg',
+                )
+                ->post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set?videoId={$videoId}")
+                ->throw();
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

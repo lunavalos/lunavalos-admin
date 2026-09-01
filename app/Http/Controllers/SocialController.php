@@ -208,7 +208,7 @@ class SocialController extends Controller implements HasMiddleware
                 'scheduled_at' => $data['scheduled_at'] ?? null,
                 'status'       => $data['action'] === 'publish_now'
                     ? SocialPost::STATUS_PUBLISHING
-                    : ($data['scheduled_at'] ? SocialPost::STATUS_SCHEDULED : SocialPost::STATUS_DRAFT),
+                    : (($data['scheduled_at'] ?? null) ? SocialPost::STATUS_SCHEDULED : SocialPost::STATUS_DRAFT),
                 'created_by'   => $request->user()->id,
             ]);
 
@@ -244,7 +244,7 @@ class SocialController extends Controller implements HasMiddleware
         $data = $this->validatePost($request);
 
         DB::transaction(function () use ($data, $post, $request) {
-            $media = $this->storeMedia($request) ?: $post->media;
+            $media = $this->storeMedia($request, $post);
 
             $post->update([
                 'title'        => $data['title'] ?? null,
@@ -252,7 +252,7 @@ class SocialController extends Controller implements HasMiddleware
                 'media'        => $media,
                 'options'      => $data['options'] ?? null,
                 'scheduled_at' => $data['scheduled_at'] ?? null,
-                'status'       => $data['scheduled_at'] ? SocialPost::STATUS_SCHEDULED : SocialPost::STATUS_DRAFT,
+                'status'       => ($data['scheduled_at'] ?? null) ? SocialPost::STATUS_SCHEDULED : SocialPost::STATUS_DRAFT,
             ]);
 
             $post->targets()->delete();
@@ -306,6 +306,12 @@ class SocialController extends Controller implements HasMiddleware
             'action'        => 'required|in:save_draft,schedule,publish_now',
             'media.*'       => 'nullable|file|max:204800', // 200 MB
 
+            // Portada del video (reels, shorts, videos de Facebook). Se guarda
+            // dentro de `media` con role=cover y nunca se publica como
+            // contenido. 5 MB cubre de sobra un 1080x1920.
+            'cover'         => 'nullable|image|max:5120',
+            'remove_cover'  => 'nullable|boolean',
+
             // Per-provider options (todas opcionales; los publishers leen lo que necesitan).
             'options'                          => 'nullable|array',
             'options.youtube_type'             => 'nullable|in:video,short',
@@ -321,20 +327,51 @@ class SocialController extends Controller implements HasMiddleware
             'options.tiktok_disable_stitch'    => 'nullable|boolean',
             'options.linkedin_type'            => 'nullable|in:text,image,article',
             'options.linkedin_alt_text'        => 'nullable|string|max:200',
+            // Segundo del video que TikTok —y las demás, si no hay portada—
+            // usa de carátula. En milisegundos, como lo pide la API.
+            'options.cover_timestamp_ms'       => 'nullable|integer|min:0|max:600000',
         ], [
             'account_ids.required' => 'Selecciona al menos una cuenta para publicar.',
             'account_ids.min'      => 'Selecciona al menos una cuenta para publicar.',
+            'cover.image'          => 'La portada tiene que ser una imagen (JPG o PNG).',
+            'cover.max'            => 'La portada no puede pesar más de 5 MB.',
         ]);
     }
 
-    private function storeMedia(Request $request): array
+    /**
+     * Deja en `media` los adjuntos del post más, al final, la portada.
+     *
+     * Recibe el post al editar porque los dos campos se conservan por separado:
+     * cambiar solo la portada no debe borrar el video, y volver a subir el
+     * video no debe borrar la portada. Con un único arreglo y el fallback de
+     * antes (`?: $post->media`) cualquiera de las dos cosas perdía la otra.
+     */
+    private function storeMedia(Request $request, ?SocialPost $post = null): array
     {
-        $stored = [];
+        $principales = [];
         foreach ((array) $request->file('media', []) as $file) {
             if (!$file) continue;
             $path = $file->store('social', 'public');
-            $stored[] = ['path' => $path, 'mime' => $file->getMimeType(), 'name' => $file->getClientOriginalName()];
+            $principales[] = ['path' => $path, 'mime' => $file->getMimeType(), 'name' => $file->getClientOriginalName()];
         }
-        return $stored;
+
+        if (!$principales && $post) {
+            $principales = $post->mediaPrincipal();
+        }
+
+        $portada = null;
+        if ($archivo = $request->file('cover')) {
+            $path    = $archivo->store('social', 'public');
+            $portada = [
+                'path' => $path,
+                'mime' => $archivo->getMimeType(),
+                'name' => $archivo->getClientOriginalName(),
+                'role' => SocialPost::ROLE_COVER,
+            ];
+        } elseif ($post && !$request->boolean('remove_cover')) {
+            $portada = $post->portada();
+        }
+
+        return $portada ? [...$principales, $portada] : $principales;
     }
 }
