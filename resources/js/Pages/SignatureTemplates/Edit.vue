@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import TextInput from '@/Components/TextInput.vue';
@@ -7,7 +7,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import CodeEditor from '@/Components/CodeEditor.vue';
-import { SwatchIcon } from '@heroicons/vue/24/outline';
+import { SwatchIcon, ClipboardIcon, CheckIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     template: Object
@@ -65,6 +65,68 @@ const parsedHtml = computed(() => {
     });
     return html;
 });
+
+const copied = ref(false);
+
+const copySignature = async () => {
+    const html = `<div style="text-align:left;">${parsedHtml.value}</div>`;
+    const plain = html.replace(/<[^>]+>/g, '');
+
+    const markCopied = () => {
+        copied.value = true;
+        setTimeout(() => copied.value = false, 2000);
+    };
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.write) {
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    'text/html': new Blob([html], { type: 'text/html' }),
+                    'text/plain': new Blob([plain], { type: 'text/plain' }),
+                }),
+            ]);
+            markCopied();
+            return;
+        }
+
+        const listener = (e) => {
+            e.preventDefault();
+            e.clipboardData.setData('text/html', html);
+            e.clipboardData.setData('text/plain', plain);
+        };
+        document.addEventListener('copy', listener);
+        document.execCommand('copy');
+        document.removeEventListener('copy', listener);
+        markCopied();
+    } catch (err) {
+        console.error('Cant copy', err);
+    }
+};
+
+// Outlook exige un documento completo con charset declarado; si no, rompe los acentos.
+const downloadOutlookFile = () => {
+    const doc = `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>${(form.name || 'Firma').replace(/[<>&]/g, '')}</title>
+</head>
+<body style="margin:0;padding:0;">
+<div style="text-align:left;">${parsedHtml.value}</div>
+</body>
+</html>`;
+
+    const blob = new Blob(['\ufeff', doc], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = url;
+    link.download = `${form.slug || 'firma'}.htm`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
 </script>
 
 <template>
@@ -118,6 +180,21 @@ const parsedHtml = computed(() => {
                                         </div>
                                     </div>
                                     <p class="text-[10px] text-gray-400 text-center italic">Visualización con datos de ejemplo para demostración.</p>
+
+                                    <div class="flex items-center gap-2">
+                                        <button type="button" @click="copySignature" class="flex-1 bg-[#264ab3] text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center hover:bg-blue-800 transition-colors">
+                                            <CheckIcon v-if="copied" class="h-4 w-4 mr-2" />
+                                            <ClipboardIcon v-else class="h-4 w-4 mr-2" />
+                                            {{ copied ? '¡Copiado!' : 'Copiar Firma' }}
+                                        </button>
+                                        <button type="button" @click="downloadOutlookFile" class="flex-1 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 border border-gray-300 dark:border-zinc-700 px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors">
+                                            <ArrowDownTrayIcon class="h-4 w-4 mr-2" />
+                                            Archivo Outlook (.htm)
+                                        </button>
+                                    </div>
+                                    <p class="text-[10px] text-gray-400 dark:text-zinc-500 text-center">
+                                        El .htm va en <b>%APPDATA%\Microsoft\Signatures</b> en Outlook de escritorio.
+                                    </p>
                                 </div>
                             </div>
 

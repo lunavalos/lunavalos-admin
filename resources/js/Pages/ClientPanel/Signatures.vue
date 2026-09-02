@@ -12,6 +12,7 @@ import {
     ClipboardIcon,
     CheckIcon,
     SwatchIcon,
+    ArrowDownTrayIcon,
 } from '@heroicons/vue/24/outline';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -121,6 +122,32 @@ const copySignature = async () => {
     } catch (err) {
         console.error('Cant copy', err);
     }
+};
+
+// Outlook exige un documento completo con charset declarado; si no, rompe los acentos.
+const downloadOutlookFile = () => {
+    const doc = `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>${(formData.value.name || 'Firma').replace(/[<>&]/g, '')}</title>
+</head>
+<body style="margin:0;padding:0;">
+<div style="text-align:left;">${renderedSignature.value}</div>
+</body>
+</html>`;
+
+    const blob = new Blob(['\ufeff', doc], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = (formData.value.name || 'firma').trim().replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+
+    link.href = url;
+    link.download = `${safeName || 'firma'}.htm`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 };
 
 const handleFileUpload = (event, type) => {
@@ -297,11 +324,17 @@ const handleFileUpload = (event, type) => {
                         <div class="bg-white dark:bg-zinc-900 p-6 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800 h-full">
                             <div class="flex justify-between items-center mb-6">
                                 <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100">Vista Previa</h3>
-                                <button @click="copySignature" class="bg-[#264ab3] text-white px-6 py-2 rounded-full font-bold text-sm flex items-center hover:bg-blue-800 transition-colors shadow-lg">
-                                    <CheckIcon v-if="copied" class="h-4 w-4 mr-2" />
-                                    <ClipboardIcon v-else class="h-4 w-4 mr-2" />
-                                    {{ copied ? '¡Copiado!' : 'Copiar Firma' }}
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button @click="copySignature" class="bg-[#264ab3] text-white px-6 py-2 rounded-full font-bold text-sm flex items-center hover:bg-blue-800 transition-colors shadow-lg">
+                                        <CheckIcon v-if="copied" class="h-4 w-4 mr-2" />
+                                        <ClipboardIcon v-else class="h-4 w-4 mr-2" />
+                                        {{ copied ? '¡Copiado!' : 'Copiar Firma' }}
+                                    </button>
+                                    <button @click="downloadOutlookFile" class="bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-200 border border-gray-300 dark:border-zinc-700 px-5 py-2 rounded-full font-bold text-sm flex items-center hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors">
+                                        <ArrowDownTrayIcon class="h-4 w-4 mr-2" />
+                                        Archivo Outlook
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="bg-gray-50 rounded-xl p-8 border border-dashed border-gray-300 min-h-[300px] flex items-center justify-center relative overflow-auto">
@@ -316,6 +349,14 @@ const handleFileUpload = (event, type) => {
                                     <li>Haga clic en <b>"Copiar Firma"</b>.</li>
                                     <li>Vaya a su cliente de correo (Outlook, Gmail, Apple Mail).</li>
                                     <li>En la configuración de "Firma", simplemente <b>Pegue (Ctrl+V o Cmd+V)</b>.</li>
+                                </ul>
+
+                                <h4 class="text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase mb-3 mt-6">Outlook de escritorio (Windows):</h4>
+                                <ul class="text-xs text-gray-600 dark:text-zinc-400 space-y-2 list-disc pl-4">
+                                    <li>Haga clic en <b>"Archivo Outlook"</b> para descargar el archivo <b>.htm</b>.</li>
+                                    <li>Abra el Explorador y vaya a <b>%APPDATA%\Microsoft\Signatures</b>.</li>
+                                    <li>Copie ahí el archivo descargado.</li>
+                                    <li>Reinicie Outlook y seleccione la firma en <b>Archivo → Opciones → Correo → Firmas</b>.</li>
                                 </ul>
                             </div>
                         </div>
