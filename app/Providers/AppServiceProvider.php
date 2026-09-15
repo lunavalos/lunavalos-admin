@@ -32,6 +32,10 @@ class AppServiceProvider extends ServiceProvider
         Carbon::setLocale('es');
         Vite::prefetch(concurrency: 3);
 
+        // Avisa por WhatsApp los cambios de estado y de responsable. Se apaga
+        // solo mientras falte `services.whatsapp.ticket_alerts`.
+        \App\Models\Ticket::observe(\App\Observers\TicketObserver::class);
+
         // Blade directive central para formatear importes con moneda.
         //   @money($amount)              -> usa moneda default (MXN)
         //   @money($amount, 'USD')       -> formato USD

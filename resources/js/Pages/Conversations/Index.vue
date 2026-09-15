@@ -382,6 +382,7 @@ const enviarPlantilla = () => {
                                         <div class="mt-1 flex items-center gap-2 text-[10px] opacity-80">
                                             <span>{{ horaCorta(m.created_at) }}</span>
                                             <span v-if="m.author_type === 'ai'">· IA</span>
+                                            <span v-else-if="m.author_type === 'system'">· automático</span>
                                             <span v-else-if="m.user">· {{ m.user.name }}</span>
                                             <span
                                                 v-if="m.direction === 'out'"

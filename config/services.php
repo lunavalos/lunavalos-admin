@@ -67,6 +67,33 @@ return [
         // Embedded Signup: el `configuration_id` del flujo que se crea en el
         // panel de Meta. Sin él el SDK no puede lanzar el diálogo.
         'embedded_signup_config_id' => env('WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID'),
+
+        /*
+        | Aviso interno por WhatsApp cuando cambia un ticket.
+        |
+        | Apagado mientras falte cualquiera de los dos valores: sin destino no
+        | hay a quién avisar, y sin plantilla aprobada Meta rechaza el envío
+        | con 131047 en cuanto se cierra la ventana de 24 h. Un aviso interno
+        | casi siempre nace fuera de la ventana, así que la plantilla no es
+        | opcional.
+        |
+        | `to` va en formato internacional y solo dígitos: 528442751165, no
+        | 8442751165 ni +52 844 275 11 65.
+        |
+        | `template` es el NOMBRE de la plantilla en Meta, no su id: el id
+        | cambia si se recrea la plantilla y dejaría el aviso muerto en
+        | silencio. Tiene que estar APPROVED, ser de la WABA propia y llevar
+        | exactamente 4 variables, en este orden:
+        |
+        |   {{1}} ticket   {{2}} título   {{3}} qué cambió   {{4}} quién
+        |
+        | Por ejemplo:
+        |   Ticket {{1}} — {{2}}. {{3}}. Por {{4}}.
+        */
+        'ticket_alerts' => [
+            'to'       => env('WHATSAPP_TICKET_ALERT_TO'),
+            'template' => env('WHATSAPP_TICKET_ALERT_TEMPLATE'),
+        ],
     ],
 
     /*

@@ -13,6 +13,10 @@ class ConversationMessage extends Model
     public const AUTHOR_CONTACT = 'contact';
     public const AUTHOR_STAFF   = 'staff';
     public const AUTHOR_AI      = 'ai';
+    // Lo manda la aplicación, no una persona: avisos automáticos como el de
+    // ticket actualizado. Sin distinguirlo, en el hilo se lee como si alguien
+    // del equipo lo hubiera escrito.
+    public const AUTHOR_SYSTEM  = 'system';
 
     public const DELIVERY_PENDING   = 'pending';
     public const DELIVERY_SENT      = 'sent';
