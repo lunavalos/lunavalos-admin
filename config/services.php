@@ -87,8 +87,16 @@ return [
         |
         |   {{1}} ticket   {{2}} título   {{3}} qué cambió   {{4}} quién
         |
-        | Por ejemplo:
-        |   Ticket {{1}} — {{2}}. {{3}}. Por {{4}}.
+        | La plantilla creada el 2026-09-14 es `ticket_actualizado`, con este
+        | cuerpo:
+        |
+        |   Hola, hubo un cambio en el ticket {{1}} — {{2}}. {{3}}.
+        |   Actualizado por {{4}} en el panel de LunAvalos.
+        |
+        | El texto da igual mientras las 4 variables vayan en ese orden, pero
+        | no puede ser mucho más corto: Meta rechaza un cuerpo con demasiadas
+        | variables para su longitud —63 caracteres con 4 variables no pasa,
+        | 103 sí—.
         */
         'ticket_alerts' => [
             'to'       => env('WHATSAPP_TICKET_ALERT_TO'),

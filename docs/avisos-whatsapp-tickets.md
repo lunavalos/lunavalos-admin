@@ -123,11 +123,18 @@ que cumplir cuatro cosas o el envío se rechaza:
    aprueba más lento, cuesta más y puede quedar bloqueada por las preferencias
    de marketing del destinatario.
 
-Cuerpo esperado, con las variables en este orden:
+Cuerpo de la plantilla creada el 2026-09-14, con las variables en este orden:
 
 ```
-Ticket {{1}} — {{2}}. {{3}}. Por {{4}}.
+Hola, hubo un cambio en el ticket {{1}} — {{2}}. {{3}}. Actualizado por {{4}} en el panel de LunAvalos.
 ```
+
+> El texto da igual mientras las 4 variables vayan en ese orden, pero **no
+> puede ser mucho más corto**. Meta rechaza el cuerpo con *"This template has
+> too many variables for its length"*: la primera versión —`Ticket {{1}} —
+> {{2}}. {{3}}. Por {{4}}.`, 63 caracteres— no pasó la validación, y a 103
+> caracteres sí. La regla no está documentada con un número exacto; con 4
+> variables, cuenta con unos 100 caracteres.
 
 | Variable | Contenido | Ejemplo |
 |---|---|---|
