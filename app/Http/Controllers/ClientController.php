@@ -435,6 +435,8 @@ class ClientController extends Controller implements HasMiddleware
             'contracts' => fn ($q) => $q->orderByDesc('created_at'),
             'contracts.payments:id,contract_id,amount,status',
         ]);
+        // La ficha sí pinta la bóveda: se saca del `$hidden` solo aquí.
+        $client->makeVisible(['vault_credentials', 'login_credentials', 'email_accounts']);
         return \Inertia\Inertia::render('Clients/Show', [
             'client' => $client
         ]);
@@ -443,6 +445,8 @@ class ClientController extends Controller implements HasMiddleware
     public function edit(Client $client)
     {
         $client->load(['costs', 'services', 'assets.creator']);
+        // El formulario edita la bóveda, así que necesita los valores actuales.
+        $client->makeVisible(['vault_credentials', 'login_credentials', 'email_accounts']);
         return \Inertia\Inertia::render('Clients/Edit', [
             'client'             => $client,
             'services'           => \App\Models\Service::all(),

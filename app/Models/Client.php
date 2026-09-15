@@ -63,6 +63,19 @@ class Client extends Model
         'signature_defaults',
     ];
 
+    /**
+     * Campos sensibles que NO deben viajar en props por defecto.
+     *
+     * Un `Client` completo se serializa en varias pantallas (social, recurring,
+     * whatsapp, assets…) donde la bóveda no se pinta. `ClientController::show()`
+     * y `edit()` la reexponen con `makeVisible()` porque ahí sí se edita.
+     */
+    protected $hidden = [
+        'vault_credentials',
+        'login_credentials',
+        'email_accounts',
+    ];
+
     protected $casts = [
         'contract_date' => 'date',
         'is_historical' => 'boolean',

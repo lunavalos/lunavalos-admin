@@ -9,10 +9,10 @@ import Modal from '@/Components/Modal.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-const user = usePage().props.auth.user;
-
+// La bóveda ya no viaja en `auth.user` (está en `User::$hidden`); ProfileController
+// la manda como prop propia solo en esta página.
 const form = useForm({
-    vault_credentials: user.vault_credentials || '',
+    vault_credentials: usePage().props.vaultCredentials || '',
 });
 
 const confirmForm = useForm({

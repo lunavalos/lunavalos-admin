@@ -293,7 +293,7 @@ const deleteTicket = (ticketId) => {
                                         <span class="text-[10px] uppercase text-gray-400 dark:text-zinc-500 font-bold mb-1 tracking-tighter">Mensajes</span>
                                         <div class="flex items-center font-bold text-sm text-gray-600 dark:text-gray-300">
                                             <ChatBubbleOvalLeftEllipsisIcon class="h-4 w-4 mr-1 text-blue-500" />
-                                            {{ ticket.messages?.length || 0 }}
+                                            {{ ticket.messages_count || 0 }}
                                         </div>
                                     </div>
 

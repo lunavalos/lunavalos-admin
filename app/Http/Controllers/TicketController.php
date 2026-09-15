@@ -48,13 +48,35 @@ class TicketController extends Controller
     /** Servicios del cliente sin importes: solo lo que alimenta al selector. */
     private const CLIENT_SERVICE_COLUMNS = ['id', 'client_id', 'service_name', 'billing_type', 'status'];
 
+    /** Lo único que la tarjeta del tablero pinta del usuario asignado. */
+    private const USER_CARD_COLUMNS = ['id', 'name', 'profile_photo_path'];
+
+    /**
+     * `is_client` / `is_admin` son accessors en `$appends` que preguntan a
+     * Spatie, y la relación `roles` se carga por instancia de modelo: una
+     * query por cada usuario DISTINTO que se serializa (los asignados del
+     * tablero más la lista de asignables). Medido: 26 queries con un usuario,
+     * 71 con dieciséis. Todo eso por dos booleanos que la tarjeta no usa.
+     *
+     * Ocultarlos no solo los quita del payload: `attributesToArray()` filtra
+     * los appends por `$hidden` ANTES de calcularlos, así que el accessor ni
+     * se ejecuta.
+     */
+    private const USER_ROLE_APPENDS = ['is_client', 'is_admin'];
+
     public function index()
     {
         $user = Auth::user();
-        $query = Ticket::with([
+        // La tarjeta solo muestra el NÚMERO de mensajes, así que va un
+        // `withCount` en vez de `messages.user`: ese eager load traía el cuerpo
+        // de cada mensaje más un `User` completo por mensaje para pintar un
+        // contador, y era el grueso del peso de esta pantalla.
+        $query = Ticket::withCount('messages')
+            ->with([
+                // Del creador solo se usa a qué cliente pertenece.
+                'creator:id,client_id',
                 'creator.client:' . implode(',', self::CLIENT_LIST_COLUMNS),
-                'assigned',
-                'messages.user',
+                'assigned:' . implode(',', self::USER_CARD_COLUMNS),
                 'client:' . implode(',', self::CLIENT_LIST_COLUMNS),
                 'clientService:' . implode(',', self::CLIENT_SERVICE_COLUMNS),
             ])
@@ -72,9 +94,15 @@ class TicketController extends Controller
                              ->where('client_id', $clientId);
                       });
                 })
-                ->with(['assigned', 'messages', 'clientService'])
+                ->withCount('messages') // El portal también pinta solo el contador.
+                ->with([
+                    'assigned:' . implode(',', self::USER_CARD_COLUMNS),
+                    'clientService:' . implode(',', self::CLIENT_SERVICE_COLUMNS),
+                ])
                 ->latest()
                 ->get();
+
+            $tickets->each(fn ($ticket) => $this->trimTicketUsers($ticket));
 
             // Load the client's active services for the services summary widget
             $clientServices = collect();
@@ -92,11 +120,14 @@ class TicketController extends Controller
         }
 
         $tickets = $query->latest()->get();
+        $tickets->each(fn ($ticket) => $this->trimTicketUsers($ticket));
 
         // Solo usuarios internos pueden ser asignados — los clientes usan ClientIndex.vue
+        // El <select> solo necesita id y nombre.
         $assignableUsers = User::staff()
             ->orderBy('name')
-            ->get();
+            ->get(self::USER_CARD_COLUMNS)
+            ->each->makeHidden(self::USER_ROLE_APPENDS);
 
         // Fetch clients with their active services for the dropdown
         $clients = Client::select(self::CLIENT_LIST_COLUMNS)
@@ -113,6 +144,20 @@ class TicketController extends Controller
             'assignableUsers' => $assignableUsers,
             'clients'         => $clients,
         ]);
+    }
+
+    /**
+     * Quita de los usuarios del ticket lo que la tarjeta no pinta.
+     *
+     * Del asignado sobran los dos booleanos de rol (ver `USER_ROLE_APPENDS`).
+     * Del creador sobra todo lo derivado: solo se usa para saber a qué cliente
+     * pertenece, y `profile_photo_url` además reventaría porque a `creator` no
+     * se le seleccionan ni `name` ni `profile_photo_path`.
+     */
+    private function trimTicketUsers(Ticket $ticket): void
+    {
+        $ticket->assigned?->makeHidden(self::USER_ROLE_APPENDS);
+        $ticket->creator?->makeHidden(['profile_photo_url', ...self::USER_ROLE_APPENDS]);
     }
 
     public function store(Request $request)

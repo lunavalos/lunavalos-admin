@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\ProfilePhoto;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,6 +23,9 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
             'twoFactorEnabled' => $request->user()->hasTwoFactorEnabled(),
+            // `vault_credentials` está en `User::$hidden`, así que no llega por
+            // `auth.user`. Se manda solo en esta página, que es la que la edita.
+            'vaultCredentials' => $request->user()->vault_credentials,
         ]);
     }
 
@@ -33,8 +37,9 @@ class ProfileController extends Controller
         $request->user()->fill($request->validated());
 
         if ($request->hasFile('photo')) {
-            $path = $request->file('photo')->store('profile-photos', 'public');
-            $request->user()->profile_photo_path = $path;
+            // El avatar va en el layout, así que viaja en cada vista: se guarda
+            // reducido en vez de tal cual lo subió el usuario.
+            $request->user()->profile_photo_path = ProfilePhoto::store($request->file('photo'));
         }
 
         if ($request->user()->isDirty('email')) {

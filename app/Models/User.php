@@ -48,6 +48,11 @@ class User extends Authenticatable implements TwoFactorContract
     protected $hidden = [
         'password',
         'remember_token',
+        // Bóveda de accesos del usuario. Se serializa un `User` completo en
+        // muchos props (mensajes de ticket, `assigned`, `auth.user`), así que
+        // por defecto NO viaja: `ProfileController::edit()` la expone a mano
+        // para el único formulario que la edita.
+        'vault_credentials',
     ];
 
     /**

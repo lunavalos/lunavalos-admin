@@ -577,7 +577,7 @@ const submitReport = () => {
                                     <div class="flex items-center space-x-2 text-gray-400 dark:text-zinc-500">
                                         <span class="flex items-center" title="Mensajes">
                                             <ChatBubbleOvalLeftEllipsisIcon class="h-3.5 w-3.5 mr-0.5 text-gray-400" />
-                                            {{ ticket.messages?.length || 0 }}
+                                            {{ ticket.messages_count || 0 }}
                                         </span>
                                         <span v-if="ticket.due_date" class="flex items-center text-orange-600 dark:text-orange-400 font-semibold bg-orange-50 dark:bg-orange-950/20 px-1 py-0.5 rounded border border-orange-100/30" title="Fecha de entrega">
                                             <CalendarIcon class="h-3.5 w-3.5 mr-0.5" />
