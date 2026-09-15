@@ -19,12 +19,29 @@ class DispatchScheduledSocialPostsCommand extends Command
             ->limit(50)
             ->get();
 
+        $encolados = 0;
+
         foreach ($posts as $post) {
+            // Marcamos el post ANTES de encolar y sólo si sigue en 'scheduled'.
+            // El comando corre cada 5 minutos y el job puede tardar más que eso
+            // (o la cola ir retrasada): sin este candado la siguiente corrida
+            // volvía a encolar el mismo post y la red recibía la publicación
+            // duplicada.
+            $reclamado = SocialPost::whereKey($post->id)
+                ->where('status', SocialPost::STATUS_SCHEDULED)
+                ->update(['status' => SocialPost::STATUS_PUBLISHING]);
+
+            if (!$reclamado) {
+                continue;
+            }
+
             $this->info("Dispatch post #{$post->id} ({$post->title})");
             PublishSocialPostJob::dispatch($post->id);
+            $encolados++;
         }
 
-        $this->info("Total: {$posts->count()}");
+        $this->info("Total: {$encolados}");
+
         return self::SUCCESS;
     }
 }

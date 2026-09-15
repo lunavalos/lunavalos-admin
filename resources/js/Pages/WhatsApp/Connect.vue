@@ -199,6 +199,25 @@ onUnmounted(() => window.removeEventListener('message', escucharMensajes));
                                         · acceso revocado
                                     </span>
                                 </p>
+
+                                <!-- Sin registro en Cloud API el número recibe pero no envía, y
+                                     desde fuera se ve idéntico a uno sano. -->
+                                <div
+                                    v-if="n.necesita_registro"
+                                    class="mt-2 flex items-start gap-2 rounded-md bg-amber-50 dark:bg-amber-900/20 p-2 text-xs text-amber-800 dark:text-amber-300"
+                                >
+                                    <ExclamationTriangleIcon class="h-4 w-4 shrink-0 mt-0.5" />
+                                    <span>
+                                        <strong>Sin registrar en Cloud API.</strong> Este número no puede
+                                        enviar mensajes todavía.
+                                        <span v-if="n.registration_error" class="block mt-0.5">
+                                            {{ n.registration_error }}
+                                        </span>
+                                        <span v-else class="block mt-0.5">
+                                            Vuelve a conectar la cuenta para reintentar el registro.
+                                        </span>
+                                    </span>
+                                </div>
                             </div>
                             <button
                                 v-if="n.account_id && n.is_active"

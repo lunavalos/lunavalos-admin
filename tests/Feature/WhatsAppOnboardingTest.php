@@ -252,4 +252,151 @@ class WhatsAppOnboardingTest extends TestCase
                 ->component('WhatsApp/Connect')
                 ->where('configId', null));
     }
+
+    /**
+     * El paso que faltaba: sin `/register` la WABA queda concedida, el webhook
+     * suscrito y el número guardado, pero cualquier envío falla porque para
+     * Meta ese número todavía no vive en Cloud API.
+     */
+    public function test_registra_el_numero_en_cloud_api(): void
+    {
+        Http::fake([
+            '*/oauth/access_token*' => Http::response(['access_token' => 'token-del-cliente'], 200),
+            '*/phone_numbers*'      => Http::response(['data' => [[
+                'id'                   => self::PHONE_ID,
+                'display_phone_number' => '+52 1 844 000 1111',
+                'status'               => 'PENDING',
+            ]]], 200),
+            '*/register'         => Http::response(['success' => true], 200),
+            '*/subscribed_apps*' => Http::response(['success' => true], 200),
+            '*'                  => Http::response(['id' => self::WABA_ID, 'name' => 'Macadam WABA'], 200),
+        ]);
+
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.connect.store', $this->cliente()), [
+                'code' => 'code', 'waba_id' => self::WABA_ID,
+            ])
+            ->assertSessionHasNoErrors();
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), self::PHONE_ID . '/register')
+            && $r->method() === 'POST'
+            && $r['messaging_product'] === 'whatsapp'
+            && preg_match('/^\d{6}$/', (string) $r['pin']) === 1);
+
+        $numero = WhatsAppNumber::firstWhere('phone_number_id', self::PHONE_ID);
+        $this->assertSame(WhatsAppNumber::ESTADO_CONECTADO, $numero->status);
+        $this->assertNotNull($numero->registered_at);
+        $this->assertNull($numero->registration_error);
+        $this->assertFalse($numero->necesitaRegistro());
+    }
+
+    /**
+     * El PIN es la credencial de verificación en dos pasos del número del
+     * cliente: mismo criterio que el token de la cuenta.
+     */
+    public function test_el_pin_queda_cifrado_en_la_base(): void
+    {
+        Http::fake([
+            '*/oauth/access_token*' => Http::response(['access_token' => 'token-del-cliente'], 200),
+            '*/phone_numbers*'      => Http::response(['data' => [[
+                'id'                   => self::PHONE_ID,
+                'display_phone_number' => '+52 1 844 000 1111',
+                'status'               => 'PENDING',
+            ]]], 200),
+            '*/register'         => Http::response(['success' => true], 200),
+            '*/subscribed_apps*' => Http::response(['success' => true], 200),
+            '*'                  => Http::response(['id' => self::WABA_ID], 200),
+        ]);
+
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.connect.store', $this->cliente()), [
+                'code' => 'code', 'waba_id' => self::WABA_ID,
+            ]);
+
+        $pin = WhatsAppNumber::firstWhere('phone_number_id', self::PHONE_ID)->registration_pin;
+        $crudo = \DB::table('whatsapp_numbers')->where('phone_number_id', self::PHONE_ID)->value('registration_pin');
+
+        $this->assertMatchesRegularExpression('/^\d{6}$/', (string) $pin);
+        $this->assertNotSame($pin, $crudo);
+        $this->assertStringNotContainsString((string) $pin, (string) $crudo);
+    }
+
+    /**
+     * Un número que ya está vivo no se vuelve a registrar: si el cliente fijó
+     * su propio PIN, reintentarlo produce un 133005 en cada sincronización.
+     */
+    public function test_no_reregistra_un_numero_ya_conectado(): void
+    {
+        Http::fake([
+            '*/oauth/access_token*' => Http::response(['access_token' => 'token-del-cliente'], 200),
+            '*/phone_numbers*'      => Http::response(['data' => [[
+                'id'                   => self::PHONE_ID,
+                'display_phone_number' => '+52 1 844 000 1111',
+                'status'               => 'CONNECTED',
+            ]]], 200),
+            '*/subscribed_apps*' => Http::response(['success' => true], 200),
+            '*'                  => Http::response(['id' => self::WABA_ID], 200),
+        ]);
+
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.connect.store', $this->cliente()), [
+                'code' => 'code', 'waba_id' => self::WABA_ID,
+            ]);
+
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/register'));
+
+        $numero = WhatsAppNumber::firstWhere('phone_number_id', self::PHONE_ID);
+        $this->assertNotNull($numero->registered_at);
+        $this->assertFalse($numero->necesitaRegistro());
+    }
+
+    /**
+     * Que el registro falle no puede dejar al cliente sin entrada de mensajes:
+     * para cuando corre, la cuenta y el webhook ya están guardados. Pero
+     * tampoco puede quedar invisible, que es el patrón que este módulo ya pagó
+     * caro con los envíos fuera de la ventana de 24h.
+     */
+    public function test_un_fallo_de_registro_no_tumba_la_conexion_pero_queda_a_la_vista(): void
+    {
+        Http::fake([
+            '*/oauth/access_token*' => Http::response(['access_token' => 'token-del-cliente'], 200),
+            '*/phone_numbers*'      => Http::response(['data' => [[
+                'id'                   => self::PHONE_ID,
+                'display_phone_number' => '+52 1 844 000 1111',
+                'status'               => 'PENDING',
+            ]]], 200),
+            '*/register' => Http::response([
+                'error' => ['message' => 'Two step verification PIN mismatch', 'code' => 133005],
+            ], 400),
+            '*/subscribed_apps*' => Http::response(['success' => true], 200),
+            '*'                  => Http::response(['id' => self::WABA_ID], 200),
+        ]);
+
+        $cliente = $this->cliente();
+
+        $this->actingAs($this->staff())
+            ->post(route('whatsapp.connect.store', $cliente), [
+                'code' => 'code', 'waba_id' => self::WABA_ID,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        // La entrada de mensajes sí quedó montada.
+        $this->assertNotNull(WhatsAppAccount::firstWhere('waba_id', self::WABA_ID));
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/subscribed_apps') && $r->method() === 'POST');
+
+        $numero = WhatsAppNumber::firstWhere('phone_number_id', self::PHONE_ID);
+        $this->assertTrue($numero->necesitaRegistro());
+        $this->assertNull($numero->registered_at);
+        // El mensaje dice qué tiene que hacer el cliente, no solo qué dijo Meta.
+        $this->assertStringContainsString('verificación en dos pasos', $numero->registration_error);
+
+        // Y la pantalla lo muestra: sin esto el número se ve idéntico a uno sano.
+        $this->actingAs($this->staff())
+            ->get(route('whatsapp.connect.show', $cliente))
+            ->assertInertia(fn ($page) => $page
+                ->component('WhatsApp/Connect')
+                ->where('numeros.0.necesita_registro', true)
+                ->where('numeros.0.registration_error', $numero->registration_error));
+    }
 }

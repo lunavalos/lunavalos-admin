@@ -18,12 +18,37 @@ class WhatsAppNumber extends Model
         'display_phone_number',
         'verified_name',
         'quality_rating',
+        'status',
+        'registered_at',
+        'registration_pin',
+        'registration_error',
         'is_active',
     ];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'is_active'     => 'boolean',
+            'registered_at' => 'datetime',
+            // Credencial del número del cliente: mismo criterio que el token
+            // de WhatsAppAccount.
+            'registration_pin' => 'encrypted',
+        ];
+    }
+
+    /**
+     * Estado que Meta reporta cuando el número ya está activo en Cloud API.
+     */
+    public const ESTADO_CONECTADO = 'CONNECTED';
+
+    /**
+     * Un número conectado pero sin registrar no puede enviar: Meta responde
+     * con error a cualquier llamada a /messages. Es el estado que la UI tiene
+     * que gritar, porque desde fuera se ve idéntico a uno sano.
+     */
+    public function necesitaRegistro(): bool
+    {
+        return $this->status !== self::ESTADO_CONECTADO;
     }
 
     public function account(): BelongsTo

@@ -49,6 +49,10 @@ class WhatsAppConnectController extends Controller implements HasMiddleware
             'verified_name'        => $n->verified_name,
             'quality_rating'       => $n->quality_rating,
             'is_active'            => $n->is_active,
+            // Un número sin registrar se ve igual de sano que uno bueno hasta
+            // que alguien intenta enviar. El PIN no sale de aquí.
+            'necesita_registro'    => $n->necesitaRegistro(),
+            'registration_error'   => $n->registration_error,
             'waba_id'              => $n->account?->waba_id,
             'account_id'           => $n->account?->id,
             'account_status'       => $n->account?->status,

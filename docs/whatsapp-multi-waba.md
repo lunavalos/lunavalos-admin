@@ -20,13 +20,49 @@
 > plan original: sin ella ningún sistema externo podía usar este WhatsApp. El
 > agente de IA pasa a Fase 7, y se decidió que corre en Laravel, no en n8n.
 > Sustituye al modelo descrito en `docs/n8n/README.md`, que quedó obsoleto.
+> **Revisado el 2026-09-14**: **App Review aprobado** (enviado el 2026-08-21,
+> resultado el 2026-08-31). Se verificó en el panel que no queda ninguna acción
+> pendiente del lado de Meta, y se implementó el paso de **registro del número
+> en Cloud API**, que faltaba en el onboarding (§5, paso 7).
 
-## 0. Qué falta (al 2026-08-20)
+## 0. Qué falta (al 2026-09-14)
 
 Todo lo de abajo está verificado contra producción o contra el panel de Meta.
 Lo que no aparece aquí, está hecho.
 
-### A. Bloquea App Review
+### A. App Review — ✅ cerrado el 2026-08-31
+
+Aprobado. Los 9 permisos salieron aprobados en una sola pasada. Verificado en
+el panel el 2026-09-14:
+
+| Punto | Estado |
+|---|---|
+| `whatsapp_business_messaging` | ✅ Aprobado |
+| `whatsapp_business_management` | ✅ Aprobado |
+| `business_management`, `pages_*`, `instagram_*`, `public_profile` | ✅ Aprobados |
+| App Publish Status | ✅ Published (live desde el 2026-08-19) |
+| Required actions | ✅ Ninguna |
+| Alertas de restricción o del deadline del 10/12/2026 | ✅ Ninguna |
+
+> **El panel nuevo de use cases ya no dice "Standard/Advanced Access".** La
+> columna Status muestra **"Ready to publish"** para todo permiso aprobado, y
+> ese texto es la única etiqueta que existe —se leyó el árbol de accesibilidad
+> de la fila y no hay ningún "Advanced" en ninguna parte—. Que no es un bloqueo
+> lo demuestra `public_profile`, que se concede automáticamente a toda app y
+> sale con la misma etiqueta. No hay nada que activar: Access Verification
+> (Tech Provider) + App Review + app publicada es todo lo que Meta pide para
+> pedirle permisos a un negocio ajeno.
+
+**Un dato de la misma pantalla que sí merece atención:** la columna *API Calls*
+marca **1 llamada** en los dos permisos de WhatsApp, contra 85 de
+`business_management` y 38 de `public_profile`. El 2026-08-21 marcaba 46 y 60,
+así que es una ventana móvil: **el tráfico real de WhatsApp en producción es
+prácticamente cero**. No es un error en sí, pero significa que si algo se rompió
+desde entonces nadie se habría enterado —y encaja con que B6 siga sin
+comprobarse—.
+
+<details>
+<summary>Histórico: lo que bloqueaba App Review antes del 2026-08-31</summary>
 
 | # | Qué | Quién |
 |---|---|---|
@@ -41,6 +77,8 @@ Lo que no aparece aquí, está hecho.
 > Los tres videos están grabados contra el número real. `public_profile` no
 > pide screencast, solo la casilla de conformidad. Las *API test calls* de los
 > 9 permisos ya salen en verde solas.
+
+</details>
 
 ### B. Higiene de producción
 
@@ -101,10 +139,20 @@ usan HTTP falseado, y esta semana demostró tres veces lo que eso vale: el
 `DELETE` de plantillas, los ejemplos de `example.body_text` y el enrutado del
 webhook estaban todos "probados" y todos rotos.
 
-No se puede adelantar: requiere un negocio ajeno con su propia cuenta de
-Facebook, y con Standard Access Meta ni siquiera le pediría los permisos. La
-primera conexión real —Macadam, tras Advanced Access— es la prueba. Conviene
-tener los logs a mano ese día.
+Ya no hay nada que esperar del lado de Meta: con App Review aprobado el
+2026-08-31 (§0.A), el flujo le pedirá los permisos a un negocio ajeno. La
+primera conexión real —Macadam— es la prueba, y ahora es el paso que bloquea.
+Conviene tener los logs a mano ese día.
+
+**Qué mirar en esa primera conexión**, por orden de probabilidad de romperse:
+
+1. Que `GET /{waba_id}/phone_numbers?fields=…,status` no devuelva error por el
+   campo `status` (§5.1).
+2. Que `POST /{phone_number_id}/register` conteste `success` — y si no, qué
+   código manda, porque de eso depende si el mensaje que pinta la UI sirve.
+3. Que el `code` del SDK se canjee: `expires_in` dirá si el token es de 60 días
+   o sin caducidad, que es lo que decide la urgencia de C2.
+4. Que entre un mensaje de vuelta por el webhook enrutado a la WABA nueva.
 
 ## 1. Qué cambia y por qué
 
@@ -155,11 +203,11 @@ Vale la pena dejarlo escrito, porque el repo documenta una arquitectura que
 | Campo `messages` suscrito | ✅ (`calls` también) |
 | App Publish Status | ✅ **Published** (el 2026-08-19) |
 | Access Verification (Tech Provider) | ✅ **Verified** (aprobado el 2026-08-16) |
-| App Review | ❌ **Not submitted** (verificado en el panel el 2026-08-17) |
+| App Review | ✅ **Aprobado el 2026-08-31** (se envió el 2026-08-21) |
 | Configuración de Embedded Signup | ✅ Creada el 2026-08-17 → `1006528675722697` (token sin caducidad) |
 | Campo `message_template_status_update` | ✅ Suscrito |
-| `whatsapp_business_messaging` | ⚠️ Standard Access ("Ready for testing", 46 llamadas) |
-| `whatsapp_business_management` | ⚠️ Standard Access ("Ready for testing", 60 llamadas) |
+| `whatsapp_business_messaging` | ✅ Aprobado (ver §0.A sobre la etiqueta del panel) |
+| `whatsapp_business_management` | ✅ Aprobado (ver §0.A sobre la etiqueta del panel) |
 
 ### El bug que hay que arreglar sí o sí — ✅ corregido en código (2026-08-14, ver Fase 1)
 
@@ -425,8 +473,50 @@ por Embedded Signup. El flujo:
 6. **Paso que hoy no existe en ningún lado y sin el cual no llega nada:**
    suscribir nuestra app al webhook de esa WABA:
    `POST /v2X.0/{waba_id}/subscribed_apps`
+7. **Registrar el número en Cloud API** — ✅ hecho el 2026-09-14:
+   `POST /v2X.0/{phone_number_id}/register` con `messaging_product=whatsapp` y
+   un `pin` de 6 dígitos.
 
-Cada paso de 4 a 6 debe ser idempotente: el cliente va a repetir el flujo.
+Cada paso de 4 a 7 debe ser idempotente: el cliente va a repetir el flujo.
+
+### 5.1 El registro del número (paso 7)
+
+Era el hueco real del onboarding, y el más traicionero: sin él la WABA queda
+concedida, el webhook suscrito y el número guardado en la tabla —todo se ve
+verde— pero `POST /{phone_number_id}/messages` falla porque para Meta ese
+número todavía no vive en Cloud API. **Entra pero no sale.**
+
+Decisiones tomadas, todas en `WhatsAppOnboardingService::registrarNumero()`:
+
+- **Se pregunta antes de registrar.** `GET /{waba_id}/phone_numbers` ahora pide
+  también `status`, y solo se registra lo que no esté `CONNECTED`. Reintentarlo
+  contra un número ya vivo cuyo cliente fijó su propio PIN devolvería un 133005
+  en cada sincronización, y contra nuestro número de producción sería tocar
+  algo que lleva meses funcionando sin motivo.
+- **Si Meta no manda `status`, se registra solo en la WABA de un cliente.** En
+  la propia se salta: ahí el número ya está vivo. Es el criterio conservador en
+  las dos direcciones —no registrar uno recién concedido garantiza que no
+  envíe; registrar el propio a ciegas es tocar producción—.
+- **El PIN lo generamos nosotros y se guarda cifrado** en
+  `whatsapp_numbers.registration_pin`. Es la verificación en dos pasos del
+  número del cliente: sin ella no se puede volver a registrar ni migrar a otro
+  proveedor. Mismo criterio que el token de `WhatsAppAccount`. **No se muestra
+  en la UI**; si un cliente lo pide, sale por tinker.
+- **Un fallo de registro no tumba la conexión.** Para cuando corre, la cuenta y
+  el webhook ya están guardados, y reventar dejaría al cliente sin *entrada* de
+  mensajes por un fallo que solo afecta a la *salida*.
+- **Pero no se traga.** El motivo queda en `registration_error` y la pantalla
+  de Conectar lo pinta en ámbar. Es exactamente el patrón que este módulo ya
+  pagó caro con el 131047 (§8): un número sin registrar se ve idéntico a uno
+  sano hasta que alguien intenta enviar.
+- Los dos códigos que de verdad aparecen se traducen a una instrucción, no a la
+  frase de Meta: **133005** (ya tiene 2FA con otro PIN → el cliente la
+  desactiva desde WhatsApp Manager) y **133006** (número sin verificar).
+
+> ⚠️ Como todo lo demás de Embedded Signup, esto está probado con `Http::fake()`
+> y **no se ha ejecutado contra Meta**. Ver §D. En particular, que `status` sea
+> un campo válido del edge `phone_numbers` en v26.0 hay que confirmarlo en el
+> piloto: si Graph lo rechazara, la lectura de números fallaría entera.
 
 > ⚠️ Los nombres exactos de parámetros y la versión de Graph cambian entre
 > versiones. Verificar contra la doc vigente de Embedded Signup al implementar;

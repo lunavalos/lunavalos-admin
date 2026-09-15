@@ -27,7 +27,8 @@ class WhatsAppOnboardingService
 {
     /**
      * Cierra el flujo completo: canjea el code, lee la WABA y sus números,
-     * suscribe nuestra app al webhook y deja todo guardado.
+     * los registra en Cloud API, suscribe nuestra app al webhook y deja todo
+     * guardado.
      *
      * @throws RuntimeException si Meta rechaza cualquiera de los pasos.
      */
@@ -197,7 +198,7 @@ class WhatsAppOnboardingService
     private function sincronizarNumeros(WhatsAppAccount $cuenta, ?Client $client, string $token): void
     {
         $respuesta = $this->graph()->withToken($token)->get("/{$cuenta->waba_id}/phone_numbers", [
-            'fields' => 'id,display_phone_number,verified_name,quality_rating',
+            'fields' => 'id,display_phone_number,verified_name,quality_rating,status',
         ]);
 
         if (!$respuesta->successful()) {
@@ -217,26 +218,127 @@ class WhatsAppOnboardingService
                 'is_active'            => true,
             ];
 
+            // Solo cuando Meta lo manda: escribir null encima borraría el
+            // estado que ya conocíamos y volvería a disparar el registro.
+            if (array_key_exists('status', $numero)) {
+                $siempre['status'] = $numero['status'];
+            }
+
             if ($client !== null) {
                 // Embedded Signup: la WABA es del cliente, mandamos siempre.
-                WhatsAppNumber::updateOrCreate(
+                $fila = WhatsAppNumber::updateOrCreate(
                     ['phone_number_id' => $numero['id']],
                     $siempre + ['client_id' => $client->id],
                 );
+            } else {
+                // WABA propia: se respeta la asignación que ya tuviera el número.
+                $fila = WhatsAppNumber::firstOrNew(['phone_number_id' => $numero['id']]);
+                $fila->fill($siempre);
 
-                continue;
+                if (!$fila->exists) {
+                    $fila->client_id = null;
+                }
+
+                $fila->save();
             }
 
-            // WABA propia: se respeta la asignación que ya tuviera el número.
-            $fila = WhatsAppNumber::firstOrNew(['phone_number_id' => $numero['id']]);
-            $fila->fill($siempre);
-
-            if (!$fila->exists) {
-                $fila->client_id = null;
-            }
-
-            $fila->save();
+            $this->registrarNumero($fila, $token, $client !== null);
         }
+    }
+
+    /**
+     * Activa el número en Cloud API.
+     *
+     * Es el paso que faltaba y sin el cual el resto del onboarding no sirve de
+     * nada: la WABA queda concedida, el webhook suscrito y el número guardado,
+     * pero `POST /{phone_number_id}/messages` falla porque para Meta ese
+     * número todavía no vive en Cloud API.
+     *
+     * Registrar exige fijar el PIN de verificación en dos pasos. Lo generamos
+     * nosotros y lo guardamos cifrado, porque es lo único que permite volver a
+     * registrar el número después —o entregárselo al cliente si algún día se
+     * lleva su número a otro proveedor—.
+     *
+     * **No revienta el flujo.** Para cuando esto corre, la cuenta y el webhook
+     * ya están guardados, y tirar la petición dejaría al cliente sin entrada
+     * de mensajes por un fallo que solo afecta a la salida. Pero tampoco se
+     * traga: el motivo queda en `registration_error` y la pantalla lo muestra.
+     */
+    private function registrarNumero(WhatsAppNumber $numero, string $token, bool $esDeCliente): void
+    {
+        if (!$numero->necesitaRegistro()) {
+            // Ya activo. Volver a registrarlo no aporta nada y, si el cliente
+            // fijó su propio PIN, solo produce un 133005 en cada sincronización.
+            if ($numero->registered_at === null || $numero->registration_error !== null) {
+                $numero->forceFill([
+                    'registered_at'      => $numero->registered_at ?? now(),
+                    'registration_error' => null,
+                ])->save();
+            }
+
+            return;
+        }
+
+        // Meta no nos dijo el estado. En la WABA de un cliente recién
+        // concedida, no registrar es garantizar que no pueda enviar; en la
+        // propia, el número ya lleva meses vivo y registrarlo a ciegas sería
+        // tocar producción sin motivo.
+        if ($numero->status === null && !$esDeCliente) {
+            return;
+        }
+
+        $pin = $numero->registration_pin ?: $this->pinNuevo();
+
+        $respuesta = $this->graph()->withToken($token)->post("/{$numero->phone_number_id}/register", [
+            'messaging_product' => 'whatsapp',
+            'pin'               => $pin,
+        ]);
+
+        if ($respuesta->successful()) {
+            $numero->forceFill([
+                'status'             => WhatsAppNumber::ESTADO_CONECTADO,
+                'registration_pin'   => $pin,
+                'registered_at'      => now(),
+                'registration_error' => null,
+            ])->save();
+
+            return;
+        }
+
+        $error = $respuesta->json('error', []);
+
+        Log::warning('whatsapp onboarding: no se pudo registrar el número', [
+            'phone_number_id' => $numero->phone_number_id,
+            'codigo'          => $error['code']    ?? null,
+            'mensaje'         => $error['message'] ?? null,
+        ]);
+
+        $numero->forceFill([
+            'registration_error' => $this->explicarFalloDeRegistro($error),
+        ])->save();
+    }
+
+    /**
+     * Los dos códigos que de verdad aparecen piden una acción del cliente, no
+     * nuestra. Decirlo aquí evita que alguien se quede mirando un mensaje de
+     * Meta que no explica qué hacer.
+     */
+    private function explicarFalloDeRegistro(array $error): string
+    {
+        $mensaje = $error['message'] ?? 'Meta rechazó el registro.';
+
+        return match ((int) ($error['code'] ?? 0)) {
+            133005 => 'El número ya tiene verificación en dos pasos con otro PIN. '
+                . 'El cliente debe desactivarla desde WhatsApp Manager para que podamos registrarlo.',
+            133006 => 'El número aún no está verificado por Meta. '
+                . 'El cliente tiene que completar la verificación del número antes de poder enviar.',
+            default => $mensaje,
+        };
+    }
+
+    private function pinNuevo(): string
+    {
+        return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
     private function suscribirApp(string $wabaId, string $token): void
