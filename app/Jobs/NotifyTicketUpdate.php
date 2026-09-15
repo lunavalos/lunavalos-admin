@@ -58,8 +58,13 @@ class NotifyTicketUpdate implements ShouldQueue
         $numero = $this->numeroPropio();
 
         if (!$numero) {
+            // Decir contra qué se buscó: el fallo real de este paso fue elegir
+            // el número equivocado, y un mensaje sin datos no lo habría dejado
+            // ver.
             Log::warning('aviso de ticket: no hay número propio activo', [
-                'ticket_id' => $this->ticketId,
+                'ticket_id'       => $this->ticketId,
+                'phone_number_id' => config('services.whatsapp.phone_number_id'),
+                'waba'            => config('services.whatsapp.business_account_id'),
             ]);
 
             return;
@@ -72,7 +77,12 @@ class NotifyTicketUpdate implements ShouldQueue
         if (!$plantilla) {
             Log::warning('aviso de ticket: la plantilla configurada no existe', [
                 'plantilla' => $nombrePlantilla,
-                'waba'      => $numero->whatsapp_account_id,
+                // El waba_id de Meta además de la FK local: con solo la FK,
+                // "waba: 1" no dice de qué cuenta habla y el diagnóstico exige
+                // una consulta más.
+                'waba_id'   => $numero->account?->waba_id,
+                'cuenta'    => $numero->whatsapp_account_id,
+                'numero'    => $numero->phone_number_id,
             ]);
 
             return;
@@ -115,16 +125,47 @@ class NotifyTicketUpdate implements ShouldQueue
     }
 
     /**
-     * El número propio de LunAvalos es el que tiene `client_id` null (§4 del
-     * plan). Si hubiera más de uno activo se toma el primero: son todos
-     * nuestros, y aquí el emisor da igual mientras el aviso llegue.
+     * El número desde el que sale el aviso.
+     *
+     * `client_id` null significa "nuestro" (§4 del plan), pero **no alcanza
+     * para identificarlo**: producción arrastra la WABA de prueba que Meta
+     * regala, registrada el 2026-08-19 y nunca borrada, cuyo número también
+     * tiene `client_id` null y un id más bajo. Elegir con `first()` cogía ésa,
+     * y entonces la plantilla —que vive en la WABA de verdad— "no existía".
+     *
+     * Quien manda es la configuración, que es la que declara cuál es nuestro
+     * número de producción. Primero el `phone_number_id` exacto; si no está
+     * puesto, cualquiera de la WABA declarada.
+     *
+     * **Sin coincidencia no se cae a "cualquier número propio".** Ese fallback
+     * era el bug: mandar desde una identidad equivocada es peor que no mandar,
+     * y encima es invisible —el número de prueba solo entrega a 5 destinatarios
+     * dados de alta a mano, así que el aviso se evapora sin error—.
      */
     private function numeroPropio(): ?WhatsAppNumber
     {
-        return WhatsAppNumber::whereNull('client_id')
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->first();
+        $propios = fn () => WhatsAppNumber::whereNull('client_id')->where('is_active', true);
+
+        $phoneNumberId = (string) config('services.whatsapp.phone_number_id');
+
+        if ($phoneNumberId !== '') {
+            $numero = $propios()->where('phone_number_id', $phoneNumberId)->first();
+
+            if ($numero) {
+                return $numero;
+            }
+        }
+
+        $wabaId = (string) config('services.whatsapp.business_account_id');
+
+        if ($wabaId !== '') {
+            return $propios()
+                ->whereHas('account', fn ($q) => $q->where('waba_id', $wabaId))
+                ->orderBy('id')
+                ->first();
+        }
+
+        return null;
     }
 
     /**

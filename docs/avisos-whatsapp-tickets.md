@@ -101,12 +101,45 @@ que no cuadran.
 **`author_type = 'system'`.** En el hilo se pinta como «· automático». Sin eso
 se leería como si alguien del equipo lo hubiera escrito a mano.
 
+**El número emisor sale de configuración, no de la tabla.** Esto costó una
+tarde, así que conviene dejarlo escrito.
+
+`client_id = null` significa "número nuestro", pero **no identifica a uno**:
+producción arrastra la WABA de prueba que Meta regala —registrada el
+2026-08-19, nunca borrada (§10 del plan)—, y su número también tiene
+`client_id` null, con un id más bajo que el real. La primera versión de
+`NotifyTicketUpdate::numeroPropio()` elegía con `orderBy('id')->first()` y se
+llevaba el de prueba.
+
+El síntoma fue engañoso: el log decía **`la plantilla configurada no existe`**
+mientras `ticket_actualizado` estaba aprobada y sincronizada. Y era verdad —
+no existía *en esa* WABA, porque la plantilla vive en la real. El mensaje
+culpaba a la plantilla de un error de selección de número.
+
+Ahora manda `WHATSAPP_PHONE_NUMBER_ID`, con `WHATSAPP_BUSINESS_ACCOUNT_ID` de
+respaldo, y **no hay fallback a "cualquier número propio"**: sin coincidencia no
+se manda. Mandar desde la identidad equivocada es peor que no mandar, y encima
+es invisible — el número de prueba solo entrega a 5 destinatarios dados de alta
+a mano, así que el aviso se evapora sin un solo error.
+
+Lo cubren `test_ignora_la_waba_de_prueba_y_usa_la_declarada_en_configuracion` y
+`test_sin_numero_declarado_no_cae_a_cualquier_numero_propio`, ambos verificados
+contra el código viejo: fallan con él.
+
 ## Configuración
 
 ```env
 # Apagado mientras falte cualquiera de los dos.
 WHATSAPP_TICKET_ALERT_TO=528442751165
 WHATSAPP_TICKET_ALERT_TEMPLATE=ticket_actualizado
+```
+
+Y hacen falta, además, las dos que ya deberían estar en producción — son las
+que dicen desde qué número sale el aviso:
+
+```env
+WHATSAPP_PHONE_NUMBER_ID=1230737580126123
+WHATSAPP_BUSINESS_ACCOUNT_ID=2436841820155807
 ```
 
 **`WHATSAPP_TICKET_ALERT_TO` va internacional y solo dígitos.** Con
@@ -155,7 +188,7 @@ Ninguno de estos casos rompe el ticket. Todos quedan en el log.
 | Síntoma | Causa | Dónde se ve |
 |---|---|---|
 | No se encola nada | Falta `TO` o `TEMPLATE` | En ningún sitio: es el apagado normal |
-| El job corre y no manda | No hay número propio activo | `aviso de ticket: no hay número propio activo` |
+| El job corre y no manda | No hay número propio activo, o `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_BUSINESS_ACCOUNT_ID` no están en el `.env` | `aviso de ticket: no hay número propio activo`, que ahora dice contra qué buscó |
 | El job corre y no manda | El nombre de la plantilla no existe en esa WABA | `aviso de ticket: la plantilla configurada no existe` |
 | El job corre y no manda | Plantilla PENDING, o no son 4 variables | `aviso de ticket: La plantilla «…» no está aprobada` |
 | El mensaje sale `failed` en la bandeja | Meta rechazó el envío | El hilo de Conversaciones lo pinta en rojo, y el log de `WhatsAppService` trae el código |

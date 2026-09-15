@@ -27,6 +27,7 @@ class TicketWhatsAppAlertTest extends TestCase
 
     private const DESTINO  = '528442751165';
     private const PHONE_ID = '1230737580126123';
+    private const WABA_ID  = '2436841820155807';
 
     private function encender(string $plantilla = 'ticket_actualizado'): void
     {
@@ -36,6 +37,10 @@ class TicketWhatsAppAlertTest extends TestCase
             // El número propio no guarda token en su fila: cae al del system
             // user que vive en configuración.
             'services.whatsapp.token'                  => 'token-del-system-user',
+            // Y configuración es la que declara cuál es nuestro número, no el
+            // orden de los ids en la tabla.
+            'services.whatsapp.phone_number_id'        => self::PHONE_ID,
+            'services.whatsapp.business_account_id'    => self::WABA_ID,
         ]);
     }
 
@@ -46,7 +51,7 @@ class TicketWhatsAppAlertTest extends TestCase
     private function numeroPropio(): WhatsAppNumber
     {
         $cuenta = WhatsAppAccount::create([
-            'waba_id' => '2436841820155807',
+            'waba_id' => self::WABA_ID,
             'name'    => 'LunAvalos',
             'status'  => WhatsAppAccount::STATUS_ACTIVE,
         ]);
@@ -189,6 +194,75 @@ class TicketWhatsAppAlertTest extends TestCase
         $ticket->update(['status' => 'Completados']);
 
         $this->assertSame('Completados', $ticket->fresh()->status);
+        Http::assertNothingSent();
+    }
+
+    /**
+     * Producción arrastra la WABA de prueba que Meta regala: registrada el
+     * 2026-08-19, nunca borrada, y su número también tiene `client_id` null
+     * con un id MÁS BAJO que el de la cuenta real.
+     *
+     * Elegir el número propio con `first()` cogía ése, y entonces la plantilla
+     * —que vive en la WABA de verdad— "no existía". El aviso no llegaba y el
+     * log culpaba a la plantilla, que estaba perfectamente aprobada.
+     */
+    public function test_ignora_la_waba_de_prueba_y_usa_la_declarada_en_configuracion(): void
+    {
+        $this->encender();
+
+        // Primero la de prueba, para que se lleve el id más bajo.
+        $vieja = WhatsAppAccount::create([
+            'waba_id' => '987252317374914',
+            'name'    => 'WABA de prueba de Meta',
+            'status'  => WhatsAppAccount::STATUS_ACTIVE,
+        ]);
+
+        WhatsAppNumber::create([
+            'whatsapp_account_id'  => $vieja->id,
+            'client_id'            => null,
+            'phone_number_id'      => '1201903109667621',
+            'display_phone_number' => '+1 555 628-6220',
+            'is_active'            => true,
+        ]);
+
+        $numero = $this->numeroPropio();
+        $this->plantilla($numero);
+
+        // La de prueba quedó con el id más bajo: es la trampa.
+        $this->assertLessThan($numero->id, WhatsAppNumber::min('id'));
+
+        Http::fake(['*' => Http::response(['messages' => [['id' => 'wamid.AVISO']]], 200)]);
+
+        $this->ticket()->update(['status' => 'En progreso']);
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), self::PHONE_ID . '/messages'));
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '1201903109667621'));
+
+        $this->assertSame(1, ConversationMessage::count());
+    }
+
+    /**
+     * Mandar desde la identidad equivocada es peor que no mandar, y además es
+     * invisible: el número de prueba solo entrega a 5 destinatarios dados de
+     * alta a mano, así que el aviso se evaporaría sin error.
+     */
+    public function test_sin_numero_declarado_no_cae_a_cualquier_numero_propio(): void
+    {
+        $this->encender();
+        config([
+            'services.whatsapp.phone_number_id'     => null,
+            'services.whatsapp.business_account_id' => null,
+        ]);
+
+        $numero = $this->numeroPropio();
+        $this->plantilla($numero);
+
+        Http::fake();
+
+        $ticket = $this->ticket();
+        $ticket->update(['status' => 'En progreso']);
+
+        $this->assertSame('En progreso', $ticket->fresh()->status);
         Http::assertNothingSent();
     }
 
