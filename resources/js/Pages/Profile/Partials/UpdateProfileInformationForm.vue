@@ -20,6 +20,7 @@ const form = useForm({
     _method: 'patch',
     name: user.name,
     email: user.email,
+    whatsapp: user.whatsapp ?? '',
     photo: null,
 });
 </script>
@@ -89,6 +90,28 @@ const form = useForm({
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
+            </div>
+
+            <div>
+                <InputLabel for="whatsapp" value="WhatsApp" />
+
+                <TextInput
+                    id="whatsapp"
+                    type="text"
+                    class="mt-1 block w-full"
+                    v-model="form.whatsapp"
+                    autocomplete="tel"
+                    placeholder="528442751165"
+                />
+
+                <p class="mt-1 text-xs text-gray-500 dark:text-zinc-400">
+                    Con lada de país. Si escribes 10 dígitos se le antepone 52.
+                    Aquí llegan los avisos cuando alguien te asigna un ticket o
+                    cambia el estado de uno tuyo. Si el campo vuelve vacío, el
+                    número no era válido.
+                </p>
+
+                <InputError class="mt-2" :message="form.errors.whatsapp" />
             </div>
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">

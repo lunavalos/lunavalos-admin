@@ -69,23 +69,19 @@ return [
         'embedded_signup_config_id' => env('WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID'),
 
         /*
-        | Aviso interno por WhatsApp cuando cambia un ticket.
+        | Aviso por WhatsApp cuando cambia un ticket.
         |
-        | Apagado mientras falte cualquiera de los dos valores: sin destino no
-        | hay a quién avisar, y sin plantilla aprobada Meta rechaza el envío
-        | con 131047 en cuanto se cierra la ventana de 24 h. Un aviso interno
-        | casi siempre nace fuera de la ventana, así que la plantilla no es
-        | opcional.
-        |
-        | `to` va en formato internacional y solo dígitos: 528442751165, no
-        | 8442751165 ni +52 844 275 11 65.
-        |
-        | `template` es el NOMBRE de la plantilla en Meta, no su id: el id
-        | cambia si se recrea la plantilla y dejaría el aviso muerto en
-        | silencio. Tiene que estar APPROVED, ser de la WABA propia y llevar
-        | exactamente 4 variables, en este orden:
+        | `template` es el interruptor: sin él no se avisa nada. Va el NOMBRE
+        | de la plantilla en Meta, no su id —el id cambia si se recrea la
+        | plantilla y dejaría el aviso muerto en silencio—. Tiene que estar
+        | APPROVED, ser de la WABA propia y llevar exactamente 4 variables:
         |
         |   {{1}} ticket   {{2}} título   {{3}} qué cambió   {{4}} quién
+        |
+        | El destinatario NO se configura aquí: es el responsable del ticket,
+        | y su número sale de `users.whatsapp`. Un número fijo no servía —el
+        | aviso tiene que llegarle a quien le acaban de asignar algo, no
+        | siempre a la misma persona—.
         |
         | La plantilla creada el 2026-09-14 es `ticket_actualizado`, con este
         | cuerpo:
@@ -99,7 +95,6 @@ return [
         | 103 sí—.
         */
         'ticket_alerts' => [
-            'to'       => env('WHATSAPP_TICKET_ALERT_TO'),
             'template' => env('WHATSAPP_TICKET_ALERT_TEMPLATE'),
         ],
     ],

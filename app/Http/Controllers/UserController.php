@@ -57,6 +57,7 @@ class UserController extends Controller implements HasMiddleware
             'email'     => 'required|string|lowercase|email|max:255|unique:' . User::class,
             'password'  => 'required|string|min:8',
             'roles'     => 'array',
+            'whatsapp'  => 'nullable|string|max:32',
             'client_id' => 'nullable|exists:clients,id',
         ]);
 
@@ -64,6 +65,7 @@ class UserController extends Controller implements HasMiddleware
             'name'      => $request->name,
             'email'     => $request->email,
             'password'  => Hash::make($request->password),
+            'whatsapp'  => $request->whatsapp,
             'client_id' => $request->client_id,
         ]);
 
@@ -92,12 +94,14 @@ class UserController extends Controller implements HasMiddleware
             'email'     => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'password'  => 'nullable|string|min:8',
             'roles'     => 'array',
+            'whatsapp'  => 'nullable|string|max:32',
             'client_id' => 'nullable|exists:clients,id',
         ]);
 
         $data = [
             'name'      => $request->name,
             'email'     => $request->email,
+            'whatsapp'  => $request->whatsapp,
             'client_id' => $request->client_id,
         ];
 

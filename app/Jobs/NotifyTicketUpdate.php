@@ -5,12 +5,14 @@ namespace App\Jobs;
 use App\Exceptions\WhatsApp\PlantillaNoDisponibleException;
 use App\Models\ConversationMessage;
 use App\Models\Ticket;
+use App\Models\User;
 use App\Models\WhatsAppNumber;
 use App\Models\WhatsAppTemplate;
 use App\Services\WhatsApp\ConversationSender;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 /**
  * Aviso interno por WhatsApp cuando cambia un ticket.
@@ -35,17 +37,28 @@ class NotifyTicketUpdate implements ShouldQueue
      */
     public int $tries = 2;
 
+    /**
+     * Tope de avisos por destinatario y hora.
+     *
+     * Sin esto, una acción masiva en el Kanban —o un comando que toque cien
+     * tickets del mismo responsable— dispara cien plantillas seguidas al mismo
+     * número. Meta lo lee como ráfaga y lo paga el `quality_rating`, que es
+     * compartido por todos los clientes de la WABA.
+     */
+    private const MAX_POR_HORA = 10;
+
     public function __construct(
         public int $ticketId,
         public string $cambio,
         public string $quien,
+        public int $destinatarioId,
     ) {}
 
     public function handle(ConversationSender $sender): void
     {
-        [$destino, $nombrePlantilla] = $this->configuracion();
+        $nombrePlantilla = config('services.whatsapp.ticket_alerts.template') ?: null;
 
-        if (!$destino || !$nombrePlantilla) {
+        if (!$nombrePlantilla) {
             return; // apagado
         }
 
@@ -53,6 +66,32 @@ class NotifyTicketUpdate implements ShouldQueue
 
         if (!$ticket) {
             return; // lo borraron entre el cambio y el aviso
+        }
+
+        $destinatario = User::find($this->destinatarioId);
+        $destino      = $destinatario?->whatsapp;
+
+        // El caso más común mientras el equipo no tenga sus números cargados.
+        // Se loguea con nombre para que se sepa a quién hay que pedírselo, en
+        // vez de dejar un id suelto.
+        if (!$destino) {
+            Log::warning('aviso de ticket: el destinatario no tiene WhatsApp', [
+                'ticket_id'    => $this->ticketId,
+                'usuario_id'   => $this->destinatarioId,
+                'usuario'      => $destinatario?->name,
+            ]);
+
+            return;
+        }
+
+        if (!$this->dentroDelTope($destino)) {
+            Log::warning('aviso de ticket: destinatario por encima del tope horario', [
+                'ticket_id'  => $this->ticketId,
+                'usuario'    => $destinatario->name,
+                'tope'       => self::MAX_POR_HORA,
+            ]);
+
+            return;
         }
 
         $numero = $this->numeroPropio();
@@ -112,16 +151,23 @@ class NotifyTicketUpdate implements ShouldQueue
     }
 
     /**
-     * @return array{0: ?string, 1: ?string}
+     * El tope se cuenta por número, no por usuario ni global: es el número el
+     * que Meta ve recibir la ráfaga, y dos usuarios podrían compartirlo.
+     *
+     * Se consume el intento solo cuando se va a mandar de verdad, para que un
+     * aviso descartado por otra razón no gaste cupo.
      */
-    private function configuracion(): array
+    private function dentroDelTope(string $destino): bool
     {
-        $destino = preg_replace('/\D+/', '', (string) config('services.whatsapp.ticket_alerts.to'));
+        $clave = 'aviso-ticket:' . $destino;
 
-        return [
-            $destino ?: null,
-            config('services.whatsapp.ticket_alerts.template') ?: null,
-        ];
+        if (RateLimiter::tooManyAttempts($clave, self::MAX_POR_HORA)) {
+            return false;
+        }
+
+        RateLimiter::hit($clave, 3600);
+
+        return true;
     }
 
     /**

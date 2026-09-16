@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 use Laragear\TwoFactor\Contracts\TwoFactorAuthenticatable as TwoFactorContract;
 use Laragear\TwoFactor\TwoFactorAuthentication;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class User extends Authenticatable implements TwoFactorContract
 {
@@ -23,6 +24,7 @@ class User extends Authenticatable implements TwoFactorContract
     protected $fillable = [
         'name',
         'email',
+        'whatsapp',
         'password',
         'profile_photo_path',
         'vault_credentials',
@@ -60,6 +62,23 @@ class User extends Authenticatable implements TwoFactorContract
      *
      * @return array<string, string>
      */
+    /**
+     * El WhatsApp se guarda siempre como wa_id, nunca como lo escribió quien
+     * llenó el formulario.
+     *
+     * Va en el modelo y no en los controladores porque hay tres sitios que
+     * escriben este campo —perfil propio, alta de usuario y edición— y basta
+     * con que uno se salte la normalización para que el aviso se mande a un
+     * destinatario inexistente sin dar error.
+     *
+     * Un valor que no puede ser un teléfono se guarda como null: el campo
+     * vuelve vacío al formulario, que es la señal de que no se aceptó.
+     */
+    protected function whatsapp(): Attribute
+    {
+        return Attribute::set(fn ($valor) => \App\Support\TelefonoWhatsApp::normalizar($valor));
+    }
+
     protected function casts(): array
     {
         return [

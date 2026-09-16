@@ -25,6 +25,9 @@ class ProfileUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
+            // Se guarda normalizado a wa_id por el mutator de User; aquí solo
+            // se acota el largo de lo que puede teclear alguien.
+            'whatsapp' => ['nullable', 'string', 'max:32'],
             'photo' => ['nullable', 'image', 'max:2048'],
         ];
     }

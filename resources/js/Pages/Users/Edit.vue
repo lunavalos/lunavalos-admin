@@ -17,6 +17,7 @@ const props = defineProps({
 const form = useForm({
     name:      props.user.name,
     email:     props.user.email,
+    whatsapp:  props.user.whatsapp ?? '',
     password:  '',
     roles:     props.user.roles.map(r => r.name),
     client_id: props.user.client_id ?? null,
@@ -122,6 +123,23 @@ onUnmounted(() => document.removeEventListener('mousedown', handleClickOutsideCl
                                     autocomplete="username"
                                 />
                                 <InputError class="mt-2" :message="form.errors.email" />
+                            </div>
+
+                            <div>
+                                <InputLabel for="whatsapp" value="WhatsApp" class="font-bold text-gray-700 dark:text-gray-300" />
+                                <TextInput
+                                    id="whatsapp"
+                                    type="text"
+                                    class="mt-1 block w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm"
+                                    v-model="form.whatsapp"
+                                    autocomplete="tel"
+                                    placeholder="528442751165"
+                                />
+                                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Con lada de país; 10 dígitos se completan con 52.
+                                    Aquí le llegan los avisos de los tickets que se le asignen.
+                                </p>
+                                <InputError class="mt-2" :message="form.errors.whatsapp" />
                             </div>
 
                             <div>

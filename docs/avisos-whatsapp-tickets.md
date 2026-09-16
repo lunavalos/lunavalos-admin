@@ -6,10 +6,19 @@
 
 ## En una frase
 
-Cuando un ticket cambia de **estado** o de **responsable**, sale un WhatsApp
-desde el número de LunAvalos hacia un teléfono configurado, usando una
-**plantilla aprobada**, y el aviso queda registrado en el módulo de
-Conversaciones como cualquier otro mensaje.
+Cuando **una persona** cambia el **estado** o el **responsable** de un ticket,
+le sale un WhatsApp **al responsable del ticket** —nunca a quien hizo el
+cambio— desde el número de LunAvalos, usando una **plantilla aprobada**. El
+aviso queda registrado en el módulo de Conversaciones como cualquier otro
+mensaje.
+
+Las tres condiciones de esa frase son el diseño entero:
+
+| Condición | Por qué |
+|---|---|
+| **Una persona** | Sin sesión el cambio lo hizo el scheduler. No tiene dueño ni urgencia, y cada aviso se factura |
+| **Al responsable** | Es quien no estaba mirando la pantalla. El aviso existe para él |
+| **Nunca a quien lo hizo** | Si arrastras una tarjeta tú misma, ya sabes que la arrastraste |
 
 ## Lo que NO usa, y por qué importa
 
@@ -35,6 +44,8 @@ de red que puede fallar y un punto más donde autenticarse, a cambio de nada.
 | `app/Jobs/NotifyTicketUpdate.php` | Decide **qué** se manda y **a quién** |
 | `app/Services/WhatsApp/ConversationSender.php` | Lo envía y lo deja en el hilo |
 | `config/services.php` → `whatsapp.ticket_alerts` | Lo enciende o lo apaga |
+| `users.whatsapp` | A dónde se manda. Sin esto no llega nada |
+| `app/Support/TelefonoWhatsApp.php` | Convierte lo que teclea una persona en un `wa_id` |
 | `tests/Feature/TicketWhatsAppAlertTest.php` | Lo que se espera de todo esto |
 
 El observer se registra en `AppServiceProvider::boot()`.
@@ -47,13 +58,17 @@ Alguien mueve una tarjeta del Kanban
        └─ $ticket->save()
             └─ TicketObserver::updated()
                  ├─ ¿está encendido? (si no, termina aquí y no encola nada)
-                 ├─ ¿cambió `status` o `assigned_id`? (si no, termina aquí)
+                 ├─ ¿hay sesión? (si no, es el scheduler: termina)
+                 ├─ ¿cambió `status` o `assigned_id`? (si no, termina)
+                 ├─ ¿hay responsable, y es distinto de quien lo movió? (si no, termina)
                  └─ NotifyTicketUpdate::dispatch()  ──► cola `database`
                                                           │
   El request ya respondió. El ticket está guardado.       │
                                                           ▼
                                             NotifyTicketUpdate::handle()
-                                              ├─ número propio  (client_id null, activo)
+                                              ├─ destino: users.whatsapp del responsable
+                                              ├─ ¿por debajo del tope horario?
+                                              ├─ número propio  (el declarado en config)
                                               ├─ plantilla por NOMBRE en esa WABA
                                               ├─ ConversationSender::resolverConversacion()
                                               └─ ConversationSender::enviarPlantilla()
@@ -75,6 +90,24 @@ aviso en ruido: cada guardado de título, cada recálculo de crédito, cada
 ruido no se ignora —se silencia el número entero, y entonces no llega tampoco
 lo que sí importaba—. Además cada aviso es una conversación de utilidad que se
 factura.
+
+**El destinatario es el responsable, no un número fijo.** La primera versión
+mandaba todo a `WHATSAPP_TICKET_ALERT_TO`. No servía: el aviso tiene que
+llegarle a quien le acaban de asignar algo, y eso cambia con cada ticket. Ese
+ajuste ya no existe; el número sale de `users.whatsapp`.
+
+**Nunca se avisa a quien hizo el cambio.** Es la regla que más mensajes ahorra
+—la mayoría de los movimientos los hace quien ya está mirando el tablero— y la
+que hace que el aviso signifique algo: si te llega, es porque alguien más tocó
+algo tuyo.
+
+**Sin sesión no se avisa.** Ahí está la ráfaga de las 6 de la tarde, que merece
+su propio apartado más abajo.
+
+**Hay un tope de 10 avisos por número y hora.** Una acción masiva en el Kanban
+dispararía una plantilla por ticket al mismo destinatario. Meta lo lee como
+ráfaga, y el `quality_rating` que se quema es el de la WABA entera — o sea el
+de todos los clientes, no solo el de quien provocó la ráfaga.
 
 **En cola, no en el request.** Un fallo al avisar no puede tumbar la petición
 que movió el ticket. Se arrastra una tarjeta y eso tiene que guardarse aunque
@@ -129,34 +162,50 @@ contra el código viejo: fallan con él.
 ## Configuración
 
 ```env
-# Apagado mientras falte cualquiera de los dos.
-WHATSAPP_TICKET_ALERT_TO=528442751165
+# El interruptor. Sin esto no se avisa nada.
 WHATSAPP_TICKET_ALERT_TEMPLATE=ticket_actualizado
-```
 
-Y hacen falta, además, las dos que ya deberían estar en producción — son las
-que dicen desde qué número sale el aviso:
-
-```env
+# Y las que dicen desde qué número sale el aviso.
 WHATSAPP_PHONE_NUMBER_ID=1230737580126123
 WHATSAPP_BUSINESS_ACCOUNT_ID=2436841820155807
 ```
 
-**`WHATSAPP_TICKET_ALERT_TO` va internacional y solo dígitos.** Con
-`8442751165` se abre una conversación con un wa_id roto y no sale nada. El
-código quita lo que no sea dígito, pero no puede adivinar el código de país.
+> **`WHATSAPP_TICKET_ALERT_TO` ya no existe.** Estuvo en el diseño original y se
+> quitó el 2026-09-16: el destinatario dejó de ser un número fijo. Si sigue en
+> algún `.env`, no hace nada.
 
-**`WHATSAPP_TICKET_ALERT_TEMPLATE` es el nombre en Meta**, y la plantilla tiene
-que cumplir cuatro cosas o el envío se rechaza:
+### El número de cada usuario
+
+El aviso va a `users.whatsapp` del responsable del ticket. Se edita en dos
+sitios, y **los dos guardan el valor ya normalizado**:
+
+- **Mi perfil** → campo WhatsApp. Cada quien pone el suyo.
+- **Usuarios → editar** → para cargárselo al equipo y a los usuarios de
+  cliente.
+
+`App\Support\TelefonoWhatsApp::normalizar()` convierte lo que se teclea en un
+`wa_id`: quita todo lo que no sea dígito y, si quedan 10, le antepone `52`. Un
+valor que no puede ser un teléfono se guarda como **null** — el campo vuelve
+vacío al formulario, que es la señal de que no se aceptó.
+
+Va en un mutator del modelo y no en los controladores porque hay tres sitios
+que escriben este campo, y basta con que uno se salte la normalización para que
+el aviso se mande a un destinatario inexistente **sin dar error**: Meta acepta
+el envío, se registra en el hilo, y nadie lo recibe.
+
+### La plantilla
+
+`WHATSAPP_TICKET_ALERT_TEMPLATE` es el nombre en Meta, y la plantilla tiene que
+cumplir cuatro cosas o el envío se rechaza:
 
 1. Estar **APPROVED** (no PENDING).
-2. Ser de la **WABA propia** (la que tiene el número con `client_id` null).
+2. Ser de la **WABA propia** (la que declara `WHATSAPP_BUSINESS_ACCOUNT_ID`).
 3. Tener **exactamente 4 variables**.
-4. Categoría **UTILITY** — no es un requisito del código, pero MARKETING se
+4. Categoría **UTILITY** — no es requisito del código, pero MARKETING se
    aprueba más lento, cuesta más y puede quedar bloqueada por las preferencias
    de marketing del destinatario.
 
-Cuerpo de la plantilla creada el 2026-09-14, con las variables en este orden:
+Cuerpo de la plantilla creada el 2026-09-14:
 
 ```
 Hola, hubo un cambio en el ticket {{1}} — {{2}}. {{3}}. Actualizado por {{4}} en el panel de LunAvalos.
@@ -173,13 +222,32 @@ Hola, hubo un cambio en el ticket {{1}} — {{2}}. {{3}}. Actualizado por {{4}} 
 |---|---|---|
 | `{{1}}` | Ticket | `#482` |
 | `{{2}}` | Título | `Banner de septiembre` |
-| `{{3}}` | Qué cambió | `Pasó de Nuevos a En progreso` |
-| `{{4}}` | Quién | `Luna Ávalos`, o `el sistema` sin sesión |
+| `{{3}}` | Qué cambió | `Te lo asignaron`, `Pasó de Nuevos a En progreso` |
+| `{{4}}` | Quién lo hizo | `Luna Ávalos` |
 
 Los cuatro valores se limpian antes de salir: `NotifyTicketUpdate::limpiar()`
 colapsa espacios, quita saltos de línea y trunca a 200 caracteres. **Meta
 rechaza con 132000 cualquier parámetro con salto de línea o con cuatro espacios
 seguidos**, y un título pegado desde un correo trae las dos cosas.
+
+## La ráfaga de las 6 de la tarde
+
+Merece su propio apartado porque va a volver a morder, y no por este módulo.
+
+`routes/console.php:13` programa `tickets:auto-close-in-review` con `->daily()`.
+`config/app.php:68` tiene `'timezone' => 'UTC'`. Y `->daily()` significa
+medianoche **en la zona de la app**, o sea las **18:00 en Saltillo**. Todos los
+`->daily()` de este repo corren a las 6 de la tarde sin que nadie lo decidiera.
+
+El comando cierra en un bucle todos los tickets con 5 días en «En Revisión»,
+con un `save()` por ticket. Cada `save()` es un `updated`, y antes del gate eso
+era un WhatsApp por ticket, todos a la misma hora.
+
+El comando hermano, `auto-archive-completed`, **no** dispara nada, y por una
+razón que conviene tener presente: usa `Ticket::where(...)->update([...])` sobre
+el query builder, y eso **se salta los eventos de Eloquent** por completo. Si
+alguien algún día lo "mejora" pasándolo a modelos, aparecería un pico nuevo sin
+que nadie entienda de dónde sale.
 
 ## Cuándo no llega, y dónde mirar
 
@@ -187,7 +255,10 @@ Ninguno de estos casos rompe el ticket. Todos quedan en el log.
 
 | Síntoma | Causa | Dónde se ve |
 |---|---|---|
-| No se encola nada | Falta `TO` o `TEMPLATE` | En ningún sitio: es el apagado normal |
+| No se encola nada | Falta `WHATSAPP_TICKET_ALERT_TEMPLATE` | En ningún sitio: es el apagado normal |
+| No se encola nada | El cambio lo hizo el scheduler, o el responsable es quien lo movió, o el ticket no tiene responsable | En ningún sitio: es el comportamiento correcto |
+| El job corre y no manda | El responsable no tiene número cargado | `aviso de ticket: el destinatario no tiene WhatsApp`, con su nombre |
+| El job corre y no manda | Se pasó del tope de 10 por hora | `aviso de ticket: destinatario por encima del tope horario` |
 | El job corre y no manda | No hay número propio activo, o `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_BUSINESS_ACCOUNT_ID` no están en el `.env` | `aviso de ticket: no hay número propio activo`, que ahora dice contra qué buscó |
 | El job corre y no manda | El nombre de la plantilla no existe en esa WABA | `aviso de ticket: la plantilla configurada no existe` |
 | El job corre y no manda | Plantilla PENDING, o no son 4 variables | `aviso de ticket: La plantilla «…» no está aprobada` |
