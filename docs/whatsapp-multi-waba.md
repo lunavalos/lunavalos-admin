@@ -154,6 +154,68 @@ Conviene tener los logs a mano ese día.
    o sin caducidad, que es lo que decide la urgencia de C2.
 4. Que entre un mensaje de vuelta por el webhook enrutado a la WABA nueva.
 
+### E. Embedded Signup NO sirve para nuestro portfolio — verificado el 2026-09-18
+
+Lo que `adoptarWabaPropia()` decía de forma especulativa quedó confirmado
+contra el panel real, y es más amplio de lo que el comentario sugería: **no es
+solo "nuestra WABA de configuración", son TODAS las WABA que vivan dentro de
+LunAvalos Manager.**
+
+Al lanzar el diálogo desde `/clients/45/whatsapp/conectar`, el selector de
+Business portfolio pinta `LunAvalos Manager` en gris con el motivo textual:
+
+> This Meta Business Account owns the app
+
+No hay ajuste que lo arregle: el portfolio dueño de la app no puede concederse
+acceso a sí mismo, así que no hay `code` que canjear. Lo mismo aparece —con
+otro motivo— en portfolios ajenos sin control total, y en `TrazaMapas`, que sale
+bloqueado por *WhatsApp's Commerce Policy*.
+
+**Consecuencia de producto.** El §12 daba por abierta la disyuntiva "número bajo
+nuestra WABA vs. WABA propia del cliente". Hay un tercer camino, y es el bueno:
+
+> **Una WABA por cliente, creada dentro de nuestro portfolio verificado.**
+
+Reúne lo mejor de los dos modelos y no exige nada del cliente:
+
+- Hereda **nuestra** business verification. El cliente no tramita documentos ni
+  espera días, y arranca sin los topes de una cuenta sin verificar. Era la
+  fricción que §11 daba por inevitable.
+- El cliente **no necesita Facebook ni portfolio propio**. Resuelve el caso
+  Kronos, que no tiene cuenta activa.
+- El **pago es por WABA**, así que cada cliente conserva su factura con Meta.
+- Las **plantillas son por WABA**, así que un cliente no ve ni usa las de otro
+  —cosa que el modelo de WABA compartida no puede dar—.
+
+El precio: el dueño administrativo somos nosotros, y una violación de política
+se sanciona a nivel WABA. Si un cliente se va, su WABA se transfiere entre
+portfolios, para lo cual él sí necesitará el suyo en ese momento.
+
+**Alta: `whatsapp:adoptar-waba`** (2026-09-18). Ni Embedded Signup ni
+`adoptar-waba-propia` —clavada a la WABA de configuración— podían con esto.
+
+```
+php artisan whatsapp:adoptar-waba <waba_id> --cliente=45 --numero=<phone_number_id>
+```
+
+Dos cosas que descubrió el alta de Macadam y que el comando tiene que manejar:
+
+1. **Meta regala un número de prueba (+1 555…) a cada WABA nueva**, y no
+   siempre deja borrarlo. Sin filtrar, entra como del cliente: aparece en su
+   pantalla, se intenta registrar, y lo deja con **dos números activos** —el
+   caso exacto en el que `ApiController::numeroDeEnvio()` falla en vez de
+   adivinar—. Por eso `--numero` es obligatorio cuando hay cliente: lo que no
+   se nombra se guarda sin dueño e inactivo. Es el mismo pisotón del
+   +1 555 628-6220 de §10, ahora multiplicado por cliente.
+2. **El system user necesita acceso explícito a cada WABA nueva.** Sin eso el
+   token no la ve y `GET /{waba_id}/phone_numbers` contesta error de permisos.
+   El comando traduce ese fallo en vez de repetir el mensaje de Meta.
+
+Al crear la WABA en el panel, el tipo de remitente **"Use a display name only"**
+no es el que queremos: crea un remitente sin número, con el que el contacto no
+puede escribir primero. Toda la ventana de 24 h (§8) y el módulo de
+Conversaciones asumen entrada. La opción correcta es **"Add a new number"**.
+
 ## 1. Qué cambia y por qué
 
 La decisión de producto es que **cada cliente sea dueño de su propia WABA** y nos
@@ -1193,9 +1255,10 @@ WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID=1006528675722697
 
 ## 12. Pendientes de decisión
 
-- **¿El número de Macadam va bajo la WABA de LunAvalos o Macadam tendrá la
-  suya?** Determina si el piloto sale con Standard Access esta semana o espera
-  a Advanced Access.
+- ~~**¿El número de Macadam va bajo la WABA de LunAvalos o Macadam tendrá la
+  suya?**~~ **Decidido el 2026-09-18**: ninguna de las dos. WABA propia de
+  Macadam *dentro* de nuestro portfolio, que hereda nuestra verificación y
+  mantiene pago y plantillas separados. Ver §E.
 - ¿El número actual `+52 1 844 341 0326` se queda como el de LunAvalos, o migra?
 - ¿Los clientes ven su conversación en el portal, o solo el staff?
   (El esquema lo soporta: `conversations.client_id` + permiso de Spatie.)

@@ -85,9 +85,59 @@ class WhatsAppOnboardingService
     public function adoptarWabaPropia(): WhatsAppAccount
     {
         $wabaId = (string) config('services.whatsapp.business_account_id');
-        $token  = (string) config('services.whatsapp.token');
 
-        if ($wabaId === '' || $token === '') {
+        if ($wabaId === '') {
+            throw new RuntimeException(
+                'Faltan WHATSAPP_BUSINESS_ACCOUNT_ID y/o WHATSAPP_TOKEN en la configuración.'
+            );
+        }
+
+        return $this->adoptarWaba($wabaId);
+    }
+
+    /**
+     * Adopta CUALQUIER WABA que viva en nuestro portfolio, y opcionalmente se
+     * la asigna a un cliente.
+     *
+     * Es el tercer camino de alta, y el que el plan no contemplaba. Los otros
+     * dos no cubren el caso:
+     *
+     *   - Embedded Signup exige un negocio ajeno que conceda acceso. Verificado
+     *     contra el panel el 2026-09-18: el diálogo pinta nuestro propio
+     *     portfolio en gris con el motivo «This Meta Business Account owns the
+     *     app». No hay nada que conceder, así que no hay `code` que canjear.
+     *   - `adoptarWabaPropia()` está clavada a la WABA de configuración, o sea
+     *     una sola.
+     *
+     * Lo que queda en medio es lo que de verdad usamos: una WABA por cliente,
+     * creada dentro de nuestro portfolio verificado. Hereda nuestra business
+     * verification —el cliente no tramita nada—, y como el método de pago y las
+     * plantillas son por WABA, cada cliente conserva su factura y no ve las
+     * plantillas de los demás.
+     *
+     * El token no se guarda en la fila: `tokenParaEnviar()` cae al del system
+     * user, que es quien tiene acceso a estas WABAs. Si Meta contesta que no
+     * hay permiso sobre la WABA, casi siempre es que falta darle acceso a ese
+     * system user en el panel.
+     *
+     * `$soloNumeros` existe porque Meta regala un número de prueba (+1 555…) a
+     * cada WABA nueva y no siempre deja borrarlo. Sin filtro, ese número entra
+     * como si fuera del cliente: aparece en su pantalla, `registrarNumero()`
+     * intenta activarlo, y —lo peor— el cliente queda con dos números activos,
+     * que es justo el caso en el que `ApiController::numeroDeEnvio()` falla en
+     * vez de adivinar. Ya nos pasó una vez con el +1 555 628-6220 (§10).
+     *
+     * Idempotente: correrlo de nuevo refresca los números y vuelve a suscribir.
+     *
+     * @param  string[]  $soloNumeros  phone_number_id a asignar. Vacío = todos.
+     *
+     * @throws RuntimeException si falta configuración o Meta rechaza algún paso.
+     */
+    public function adoptarWaba(string $wabaId, ?Client $client = null, array $soloNumeros = []): WhatsAppAccount
+    {
+        $token = (string) config('services.whatsapp.token');
+
+        if ($token === '') {
             throw new RuntimeException(
                 'Faltan WHATSAPP_BUSINESS_ACCOUNT_ID y/o WHATSAPP_TOKEN en la configuración.'
             );
@@ -98,14 +148,14 @@ class WhatsAppOnboardingService
         $cuenta = WhatsAppAccount::updateOrCreate(
             ['waba_id' => $wabaId],
             [
-                'name'          => $info['name'] ?? 'LunAvalos',
+                'name'          => $info['name'] ?? $client?->business_name ?? 'LunAvalos',
                 'status'        => WhatsAppAccount::STATUS_ACTIVE,
                 'last_error'    => null,
                 'last_error_at' => null,
             ],
         );
 
-        $this->sincronizarNumeros($cuenta, null, $token);
+        $this->sincronizarNumeros($cuenta, $client, $token, $soloNumeros);
         $this->suscribirApp($wabaId, $token);
 
         return $cuenta;
@@ -174,6 +224,36 @@ class WhatsAppOnboardingService
     }
 
     /**
+     * Los números que Meta reporta en una WABA, sin escribir nada.
+     *
+     * Existe para poder enseñarlos ANTES de adoptar. Con `adoptarWaba()` hay
+     * que decidir cuáles son del cliente, y esa decisión no se puede tomar a
+     * ciegas: toda WABA nueva trae el número de prueba que Meta regala, y
+     * distinguirlo del bueno exige verlos.
+     *
+     * @return array<int, array{id: string, display_phone_number: string, verified_name: ?string, status: ?string, quality_rating: ?string}>
+     *
+     * @throws RuntimeException si Meta rechaza la lectura.
+     */
+    public function numerosDe(string $wabaId): array
+    {
+        $token = (string) config('services.whatsapp.token');
+
+        $respuesta = $this->graph()->withToken($token)->get("/{$wabaId}/phone_numbers", [
+            'fields' => 'id,display_phone_number,verified_name,quality_rating,status',
+        ]);
+
+        if (!$respuesta->successful()) {
+            $this->reventar('no se pudieron leer los números', $respuesta->json('error', []));
+        }
+
+        return array_values(array_filter(
+            $respuesta->json('data', []),
+            fn ($n) => !empty($n['id']),
+        ));
+    }
+
+    /**
      * Los números que trae la WABA. Se hace upsert por phone_number_id para que
      * reconectar no duplique ni pierda las conversaciones ya asociadas.
      */
@@ -195,8 +275,12 @@ class WhatsAppOnboardingService
      * Por eso `client_id` va en los valores de CREACIÓN, no en los de
      * actualización, cuando no hay cliente que imponer.
      */
-    private function sincronizarNumeros(WhatsAppAccount $cuenta, ?Client $client, string $token): void
-    {
+    private function sincronizarNumeros(
+        WhatsAppAccount $cuenta,
+        ?Client $client,
+        string $token,
+        array $soloNumeros = [],
+    ): void {
         $respuesta = $this->graph()->withToken($token)->get("/{$cuenta->waba_id}/phone_numbers", [
             'fields' => 'id,display_phone_number,verified_name,quality_rating,status',
         ]);
@@ -215,7 +299,6 @@ class WhatsAppOnboardingService
                 'display_phone_number' => $numero['display_phone_number'] ?? $numero['id'],
                 'verified_name'        => $numero['verified_name']  ?? null,
                 'quality_rating'       => $numero['quality_rating'] ?? null,
-                'is_active'            => true,
             ];
 
             // Solo cuando Meta lo manda: escribir null encima borraría el
@@ -224,11 +307,16 @@ class WhatsAppOnboardingService
                 $siempre['status'] = $numero['status'];
             }
 
-            if ($client !== null) {
-                // Embedded Signup: la WABA es del cliente, mandamos siempre.
+            // Sin filtro manda el cliente sobre toda la WABA, como siempre.
+            // Con filtro solo son suyos los números que se nombraron: el resto
+            // —el de prueba que Meta regala— se guarda sin dueño.
+            $asignable = $client !== null
+                && ($soloNumeros === [] || in_array($numero['id'], $soloNumeros, true));
+
+            if ($asignable) {
                 $fila = WhatsAppNumber::updateOrCreate(
                     ['phone_number_id' => $numero['id']],
-                    $siempre + ['client_id' => $client->id],
+                    $siempre + ['client_id' => $client->id, 'is_active' => true],
                 );
             } else {
                 // WABA propia: se respeta la asignación que ya tuviera el número.
@@ -239,10 +327,26 @@ class WhatsAppOnboardingService
                     $fila->client_id = null;
                 }
 
+                if ($soloNumeros === []) {
+                    // Sin filtro no hay número ajeno que apagar: todos son
+                    // nuestros. Reactivar aquí es lo que permite volver de un
+                    // `desconectar()`.
+                    $fila->is_active = true;
+                } elseif (!$fila->exists) {
+                    // Con filtro, lo que nadie pidió adoptar nace apagado: la
+                    // fila existe para que el webhook sepa enrutarlo, pero no
+                    // se ofrece para enviar.
+                    //
+                    // Solo al crearlo. Apagar uno que YA estaba asignado le
+                    // tumbaría el canal a su cliente en silencio, que es el
+                    // mismo error que este método ya evita con `client_id`.
+                    $fila->is_active = false;
+                }
+
                 $fila->save();
             }
 
-            $this->registrarNumero($fila, $token, $client !== null);
+            $this->registrarNumero($fila, $token, $asignable);
         }
     }
 
