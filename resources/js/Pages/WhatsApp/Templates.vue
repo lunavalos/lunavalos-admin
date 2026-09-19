@@ -18,6 +18,30 @@ const props = defineProps({
 
 const mostrarForm = ref(false);
 
+// El id que acaba de copiarse, para confirmarlo sin un toast.
+const idCopiado = ref(null);
+
+/**
+ * El `template_id` que pide `POST /api/v1/mensajes/plantilla`.
+ *
+ * Se enseña aquí porque si no, la única forma de conocerlo es pegarle a
+ * `GET /plantillas` con un token en la mano. Quien integra suele no tener el
+ * token todavía —lo emite después—, así que el dato que necesita para el `.env`
+ * quedaba detrás de la credencial que aún no existe.
+ */
+const copiarId = async (p) => {
+    try {
+        await navigator.clipboard.writeText(String(p.id));
+        idCopiado.value = p.id;
+        setTimeout(() => {
+            if (idCopiado.value === p.id) idCopiado.value = null;
+        }, 1500);
+    } catch (e) {
+        // Sin permiso de portapapeles el número sigue a la vista para copiarlo
+        // a mano: no hay nada que avisar.
+    }
+};
+
 // Va como binding y no como atributo literal: Vue interpretaría las llaves
 // dobles de un placeholder estático.
 const ejemploCuerpo = 'Hola {{1}}, tu pedido {{2}} ya está listo.';
@@ -321,6 +345,13 @@ const estilosEstado = {
                                 <div class="min-w-0">
                                     <p class="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900 dark:text-zinc-100">
                                         {{ p.name }}
+                                        <button
+                                            @click="copiarId(p)"
+                                            :title="`ID ${p.id} — el template_id de la API. Clic para copiar.`"
+                                            class="text-[10px] font-mono font-normal px-1.5 py-0.5 rounded border border-gray-200 dark:border-zinc-700 text-gray-500 hover:border-[#264ab3] hover:text-[#264ab3]"
+                                        >
+                                            {{ idCopiado === p.id ? 'copiado' : `ID ${p.id}` }}
+                                        </button>
                                         <span class="text-xs font-normal text-gray-500">{{ p.language }} · {{ p.category }}</span>
                                         <span :class="['text-[10px] px-1.5 py-0.5 rounded-full', estilosEstado[p.status]]">
                                             {{ p.status }}
