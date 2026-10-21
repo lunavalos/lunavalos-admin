@@ -309,13 +309,28 @@ Route::middleware('auth')->group(function () {
 $firmaRoutes = function (bool $named) {
     $name = fn (\Illuminate\Routing\Route $route, string $as) => $named ? $route->name($as) : $route;
 
+    // Imágenes y link del banner: los piden los correos en cada apertura. Sin
+    // sesión ni cookies: con cookie Cloudflare no las cachea, y cada apertura
+    // crearía una fila en `sessions`.
+    $stateless = [
+        \Illuminate\Cookie\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        \App\Http\Middleware\ApplyRolePreview::class,
+        \App\Http\Middleware\HandleInertiaRequests::class,
+        \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+        \App\Http\Middleware\EnforceTwoFactorActivation::class,
+    ];
+
     $name(Route::get('firma/{token}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'show'])
         ->middleware('throttle:signature-page'), 'email-signatures.public');
     $name(Route::get('firma/{token}/img/{slot}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'image'])
         ->whereIn('slot', ['logo', 'photo', 'banner'])
-        ->middleware('throttle:signature-images'), 'email-signatures.image');
+        ->middleware('throttle:signature-images')->withoutMiddleware($stateless), 'email-signatures.image');
     $name(Route::get('firma/{token}/link', [\App\Http\Controllers\PublicEmailSignatureController::class, 'bannerLink'])
-        ->middleware('throttle:signature-page'), 'email-signatures.banner-link');
+        ->middleware('throttle:signature-page')->withoutMiddleware($stateless), 'email-signatures.banner-link');
 };
 
 if ($signatureHost = \App\Support\SignatureUrls::host()) {

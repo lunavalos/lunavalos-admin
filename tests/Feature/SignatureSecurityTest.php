@@ -125,4 +125,18 @@ class SignatureSecurityTest extends TestCase
         $this->get('https://firmas.example.test/dashboard')->assertNotFound();
         $this->get('http://localhost/login')->assertOk();
     }
+
+    public function test_las_imagenes_no_crean_sesion_ni_mandan_cookies(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('logo.png', 'LOGO');
+        $firma = $this->firma();
+        SignatureAsset::create(['client_id' => $firma->client_id, 'slot' => 'logo', 'file_path' => 'logo.png']);
+
+        $respuesta = $this->get(route('email-signatures.image', [$firma->token, 'logo']));
+
+        $respuesta->assertOk();
+        $this->assertSame([], $respuesta->headers->getCookies());
+        $this->assertStringContainsString('public', $respuesta->headers->get('Cache-Control'));
+    }
 }
