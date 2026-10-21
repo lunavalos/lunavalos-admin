@@ -293,7 +293,19 @@ Route::middleware('auth')->group(function () {
     // Signature Generator
     Route::resource('signature-templates', \App\Http\Controllers\SignatureTemplateController::class);
     Route::get('/client/signatures', [\App\Http\Controllers\SignatureGeneratorController::class, 'index'])->name('client.signatures');
+
+    // Firmas por empleado
+    Route::resource('email-signatures', \App\Http\Controllers\EmailSignatureController::class)->except(['show']);
+    Route::post('signature-assets', [\App\Http\Controllers\SignatureAssetController::class, 'store'])->name('signature-assets.store');
+    Route::delete('signature-assets/{signatureAsset}', [\App\Http\Controllers\SignatureAssetController::class, 'destroy'])->name('signature-assets.destroy');
 });
+
+// Firma pública del empleado — sin auth. Las imágenes se cargan desde los correos.
+Route::get('firma/{token}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'show'])->name('email-signatures.public');
+Route::get('firma/{token}/img/{slot}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'image'])
+    ->whereIn('slot', ['logo', 'photo', 'banner'])
+    ->name('email-signatures.image');
+Route::get('firma/{token}/link', [\App\Http\Controllers\PublicEmailSignatureController::class, 'bannerLink'])->name('email-signatures.banner-link');
 
 // Public ticket preview — no auth required
 Route::get('tickets/p/{token}', [\App\Http\Controllers\TicketController::class, 'publicShow'])->name('tickets.public');

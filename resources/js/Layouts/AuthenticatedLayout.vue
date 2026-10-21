@@ -921,6 +921,26 @@ onMounted(() => {
                                 </span>
                             </Link>
                         </li>
+
+                        <!-- Firmas por empleado -->
+                        <li v-if="$page.props.auth.user.is_admin || $page.props.auth.user.permissions.includes('Gestionar Firmas de Empleados')">
+                            <Link
+                                :href="route('email-signatures.index')"
+                                :class="[
+                                    route().current('email-signatures.*')
+                                        ? 'bg-blue-50 dark:bg-blue-900/20 text-[#264ab3] dark:text-blue-400 font-semibold shadow-sm'
+                                        : 'text-gray-600 dark:text-zinc-400 hover:bg-gray-50 dark:hover:bg-zinc-800/50 hover:text-[#264ab3] dark:hover:text-blue-400',
+                                    'group flex items-center rounded-md transition-colors duration-200 cursor-pointer',
+                                    isSidebarExpanded ? 'px-3 py-2.5' : 'justify-center py-3'
+                                ]"
+                                :title="!isSidebarExpanded ? 'Firmas de Empleados' : ''"
+                            >
+                                <IdentificationIcon class="h-6 w-6 flex-shrink-0" aria-hidden="true" />
+                                <span v-if="isSidebarExpanded" class="ml-4 uppercase text-sm tracking-wide truncate">
+                                    Firmas Empleados
+                                </span>
+                            </Link>
+                        </li>
                         </template>
                     </ul>
                 </nav>
