@@ -258,4 +258,21 @@ class EmailSignatureTest extends TestCase
         $this->assertSame(1, $usage[$otra->id]['signatures']);
         $this->assertFalse($usage[$otra->id]['is_default']);
     }
+
+    public function test_cambiar_de_plantilla_cambia_la_url_del_logo_en_la_vista_previa(): void
+    {
+        $firma = $this->firma();
+        $otra = SignatureTemplate::create(['name' => 'Marca B', 'slug' => 'marca-b', 'html_content' => '<img src="{{logo}}">', 'is_active' => true]);
+        $renderer = app(\App\Services\Signatures\SignatureRenderer::class);
+        $logoUrl = fn (string $html) => preg_match('#src="([^"]*/img/logo[^"]*)"#', $html, $m) ? $m[1] : null;
+
+        $antes = $logoUrl($renderer->render($firma->fresh()));
+
+        $firma->update(['signature_template_id' => $otra->id]);
+
+        $despues = $logoUrl($renderer->render($firma->fresh()));
+
+        $this->assertNotNull($antes);
+        $this->assertNotSame($antes, $despues);
+    }
 }

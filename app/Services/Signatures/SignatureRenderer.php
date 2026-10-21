@@ -119,6 +119,8 @@ class SignatureRenderer
 
         return substr(md5(implode('|', [
             $signature->photo_path,
+            // El logo depende de la plantilla: cambiarla debe cambiar la URL.
+            $signature->effectiveTemplate()?->id,
             $assets?->total,
             $assets?->last,
             now()->toDateString(), // los de temporada cambian por fecha
