@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
+import SignaturePreviewFrame from '@/Components/SignaturePreviewFrame.vue';
 import { ClipboardIcon, CheckIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -87,7 +88,7 @@ const TABS = [
             </div>
 
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div class="overflow-x-auto" v-html="html"></div>
+                <SignaturePreviewFrame :html="html" />
             </div>
 
             <div class="flex flex-col sm:flex-row gap-3">

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\SignatureAsset;
+use App\Support\ProfilePhoto;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +29,7 @@ class SignatureAssetController extends Controller implements HasMiddleware
 
         SignatureAsset::create([
             ...collect($data)->except('file')->all(),
-            'file_path'  => $file->store('email-signatures/assets/' . $data['client_id'], 'public'),
+            'file_path'  => $this->storeOptimized($file, $data['slot'], $data['client_id']),
             'mime'       => $file->getMimeType(),
             'created_by' => Auth::id(),
         ]);
@@ -49,7 +51,7 @@ class SignatureAssetController extends Controller implements HasMiddleware
             $file = $request->file('file');
             $old = $signatureAsset->file_path;
 
-            $data['file_path'] = $file->store('email-signatures/assets/' . $signatureAsset->client_id, 'public');
+            $data['file_path'] = $this->storeOptimized($file, $data['slot'], $signatureAsset->client_id);
             $data['mime'] = $file->getMimeType();
 
             Storage::disk('public')->delete($old);
@@ -66,6 +68,16 @@ class SignatureAssetController extends Controller implements HasMiddleware
         $signatureAsset->delete();
 
         return back()->with('success', 'Imagen eliminada.');
+    }
+
+    /**
+     * Cada apertura de un correo descarga esta imagen: se baja a un tamaño
+     * razonable para correo (2x para pantallas retina). Un logo se ve a
+     * ~150–200 px y un banner a ~600 px.
+     */
+    private function storeOptimized(UploadedFile $file, string $slot, int $clientId): string
+    {
+        return ProfilePhoto::store($file, 'email-signatures/assets/' . $clientId, $slot === 'banner' ? 1200 : 600);
     }
 
     private function validated(Request $request, bool $fileRequired): array

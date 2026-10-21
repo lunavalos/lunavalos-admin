@@ -26,12 +26,12 @@ class SignatureMedia extends Model
     }
 
     /**
-     * URL absoluta con el dominio de la petición: es la que se pega en el HTML
-     * y viaja dentro de los correos.
+     * URL absoluta que se pega en el HTML y viaja dentro de los correos: con
+     * el subdominio de firmas si está configurado.
      */
     public function url(): string
     {
-        return asset('storage/' . $this->file_path);
+        return \App\Support\SignatureUrls::storage($this->file_path);
     }
 
     public function toLibraryArray(): array

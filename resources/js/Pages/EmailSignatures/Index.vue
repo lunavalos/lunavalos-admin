@@ -188,7 +188,8 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                         Todas las firmas de esta empresa muestran la imagen vigente, incluso las que ya están instaladas.
                         Sin fechas = la de siempre; con fechas = de temporada (gana mientras esté vigente).
                         Si la cuenta maneja varias marcas, sube el logo de cada una a su plantilla; lo que subas para "Todas" se usa cuando una plantilla no tiene uno propio.
-                        Usa PNG o JPG con las mismas medidas que la anterior para que la firma no se descuadre.
+                        Usa PNG o JPG con las mismas proporciones que la anterior para que la firma no se descuadre.
+                        Al subirlas se reducen solas (logos a 600 px, banners a 1200 px); los GIF animados se guardan tal cual.
                     </p>
 
                     <div v-if="missingLogo.length" class="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
@@ -272,6 +273,9 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                                 <div class="text-xs text-gray-500 dark:text-zinc-400"><span class="capitalize">{{ asset.slot }}</span> · {{ asset.template || 'Todas las plantillas' }}</div>
                                 <div class="text-xs text-gray-500 dark:text-zinc-400">
                                     {{ vigencia(asset) }}
+                                </div>
+                                <div v-if="asset.size" class="text-xs" :class="asset.size > 200 * 1024 ? 'text-amber-700 font-semibold' : 'text-gray-500 dark:text-zinc-400'">
+                                    {{ Math.round(asset.size / 1024) }} KB<span v-if="asset.size > 200 * 1024"> · pesado para correo</span>
                                 </div>
                                 <span v-if="isCurrent(asset)" class="inline-block mt-1 px-2 py-0.5 text-xs rounded-full font-bold bg-green-100 text-green-800">Vigente hoy</span>
                             </div>

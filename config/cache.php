@@ -53,6 +53,15 @@ return [
             'lock_path' => storage_path('framework/cache/data'),
         ],
 
+        // Firmas de correo: imágenes resueltas por apertura de correo. Va en
+        // su propia carpeta para poder purgarla a diario (el driver `file` no
+        // borra lo vencido) sin tocar la caché del resto de la app.
+        'signatures' => [
+            'driver' => 'file',
+            'path' => storage_path('framework/cache/signatures'),
+            'lock_path' => storage_path('framework/cache/signatures'),
+        ],
+
         'memcached' => [
             'driver' => 'memcached',
             'persistent_id' => env('MEMCACHED_PERSISTENT_ID'),

@@ -8,6 +8,7 @@ import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import CodeEditor from '@/Components/CodeEditor.vue';
 import SignatureMediaLibrary from '@/Components/SignatureMediaLibrary.vue';
+import SignaturePreviewFrame from '@/Components/SignaturePreviewFrame.vue';
 import { SwatchIcon } from '@heroicons/vue/24/outline';
 
 const ALL_FIELDS = [
@@ -124,8 +125,8 @@ const parsedHtml = computed(() => {
                                         <span class="text-[10px] font-bold text-blue-500 uppercase tracking-widest animate-pulse">Live</span>
                                     </div>
                                     <div class="p-8 bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl min-h-[400px] shadow-inner overflow-auto bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
-                                        <div class="signature-preview-container bg-white shadow-lg p-1 mx-auto max-w-full overflow-x-auto inline-block border border-gray-100 rounded-sm">
-                                            <div v-html="parsedHtml"></div>
+                                        <div class="signature-preview-container bg-white shadow-lg p-1 w-full border border-gray-100 rounded-sm">
+                                            <SignaturePreviewFrame :html="parsedHtml" />
                                         </div>
                                     </div>
                                     <p class="text-[10px] text-gray-400 text-center italic">Visualización con datos de ejemplo para demostración.</p>

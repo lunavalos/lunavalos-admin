@@ -39,11 +39,16 @@ class ProfilePhoto
         IMAGETYPE_WEBP => 'webp',
     ];
 
-    /** Devuelve la ruta relativa dentro del disco `public`. */
-    public static function store(UploadedFile $photo, string $directory = 'profile-photos'): string
+    /**
+     * Devuelve la ruta relativa dentro del disco `public`.
+     *
+     * `$maxSide` permite reutilizarlo para otras imágenes (logos y banners de
+     * firma) con otro tamaño máximo.
+     */
+    public static function store(UploadedFile $photo, string $directory = 'profile-photos', int $maxSide = self::MAX_SIDE): string
     {
         try {
-            $reducida = self::resize($photo);
+            $reducida = self::resize($photo, $maxSide);
 
             if ($reducida !== null) {
                 [$binario, $extension] = $reducida;
@@ -67,7 +72,7 @@ class ProfilePhoto
      * —imagen ya pequeña, formato desconocido, GD ausente—, en cuyo caso el
      * llamador guarda el archivo original.
      */
-    private static function resize(UploadedFile $photo): ?array
+    private static function resize(UploadedFile $photo, int $maxSide): ?array
     {
         if (! function_exists('imagecreatetruecolor')) {
             return null;
@@ -86,7 +91,12 @@ class ProfilePhoto
         }
 
         // Ya cabe: reescribirla solo la re-comprimiría sin ganar nada.
-        if ($ancho <= self::MAX_SIDE && $alto <= self::MAX_SIDE) {
+        if ($ancho <= $maxSide && $alto <= $maxSide) {
+            return null;
+        }
+
+        // GD solo conserva el primer cuadro: un GIF animado se guarda tal cual.
+        if ($tipo === IMAGETYPE_GIF && self::isAnimatedGif($photo->getRealPath())) {
             return null;
         }
 
@@ -102,7 +112,7 @@ class ProfilePhoto
         }
 
         try {
-            $escala = self::MAX_SIDE / max($ancho, $alto);
+            $escala = $maxSide / max($ancho, $alto);
             $nuevoAncho = max(1, (int) round($ancho * $escala));
             $nuevoAlto  = max(1, (int) round($alto * $escala));
 
@@ -135,5 +145,14 @@ class ProfilePhoto
         } finally {
             imagedestroy($origen);
         }
+    }
+
+    /** Más de un bloque de control gráfico = más de un cuadro. */
+    private static function isAnimatedGif(string $path): bool
+    {
+        $contenido = @file_get_contents($path);
+
+        return $contenido !== false
+            && preg_match_all('#\x00\x21\xF9\x04.{4}\x00[\x2C\x21]#s', $contenido) > 1;
     }
 }

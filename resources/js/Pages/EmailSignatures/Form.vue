@@ -7,6 +7,7 @@ import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
+import SignaturePreviewFrame from '@/Components/SignaturePreviewFrame.vue';
 
 const props = defineProps({
     signature:       { type: Object, default: null },
@@ -209,7 +210,7 @@ const copyLink = async () => {
                             <Link :href="route('email-signatures.index', { client_id: signature.client_id })" class="font-bold underline">Súbelo en Logos y banners</Link>
                             y se mostrará solo, también en las firmas ya instaladas.
                         </div>
-                        <div v-if="signature.has_template" class="bg-white p-4 rounded border border-gray-100 overflow-x-auto" v-html="signature.preview_html"></div>
+                        <div v-if="signature.has_template" class="bg-white p-4 rounded border border-gray-100"><SignaturePreviewFrame :html="signature.preview_html" /></div>
                         <p v-else class="text-sm text-amber-700">
                             Esta firma no tiene plantilla: elige una aquí o asígnala a la empresa en su expediente.
                         </p>

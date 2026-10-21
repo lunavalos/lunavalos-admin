@@ -29,6 +29,13 @@ class SignatureAsset extends Model
         'repeats_yearly' => 'boolean',
     ];
 
+    // Cambia lo que muestran las firmas: invalida las imágenes ya resueltas.
+    protected static function booted(): void
+    {
+        static::saved(fn () => \App\Support\SignatureUrls::flushCache());
+        static::deleted(fn () => \App\Support\SignatureUrls::flushCache());
+    }
+
     public function client()
     {
         return $this->belongsTo(Client::class);

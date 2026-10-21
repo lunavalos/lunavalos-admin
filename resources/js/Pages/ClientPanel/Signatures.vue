@@ -16,6 +16,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import SignaturePreviewFrame from '@/Components/SignaturePreviewFrame.vue';
 
 const props = defineProps({
     templates: Array,
@@ -338,7 +339,7 @@ const handleFileUpload = (event, type) => {
                             </div>
 
                             <div class="bg-gray-50 rounded-xl p-8 border border-dashed border-gray-300 min-h-[300px] flex items-center justify-center relative overflow-auto">
-                                <div id="signature-preview-container" v-html="renderedSignature" class="bg-white p-4 shadow-sm inline-block"></div>
+                                <div id="signature-preview-container" class="bg-white p-4 shadow-sm w-full"><SignaturePreviewFrame :html="renderedSignature" /></div>
                             </div>
 
                             <div class="mt-6">
@@ -367,9 +368,3 @@ const handleFileUpload = (event, type) => {
         </div>
     </AuthenticatedLayout>
 </template>
-
-<style scoped>
-#signature-preview-container :deep(table) {
-    margin: 0 auto;
-}
-</style>

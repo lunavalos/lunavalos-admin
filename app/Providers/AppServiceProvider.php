@@ -65,6 +65,14 @@ class AppServiceProvider extends ServiceProvider
             );
         }
 
+        // Firmas de correo: cada apertura de un correo pide sus imágenes. El
+        // tope es alto a propósito: Gmail y Outlook las piden desde pocas IPs
+        // compartidas por miles de usuarios. Solo frena abusos.
+        \Illuminate\Support\Facades\RateLimiter::for('signature-images', fn (\Illuminate\Http\Request $request) =>
+            \Illuminate\Cache\RateLimiting\Limit::perMinute(1200)->by($request->ip()));
+        \Illuminate\Support\Facades\RateLimiter::for('signature-page', fn (\Illuminate\Http\Request $request) =>
+            \Illuminate\Cache\RateLimiting\Limit::perMinute(60)->by($request->ip()));
+
         \Illuminate\Validation\Rules\Password::defaults(function () {
             return \Illuminate\Validation\Rules\Password::min(6);
         });

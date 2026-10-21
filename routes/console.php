@@ -26,3 +26,27 @@ Schedule::command('social:refresh-avatars')->dailyAt('03:30');
 // y otra vez a las 07:00 del día siguiente como red de seguridad.
 Schedule::command('fx:fetch')->dailyAt('13:30')->timezone('America/Mexico_City');
 Schedule::command('fx:fetch')->dailyAt('07:00')->timezone('America/Mexico_City');
+
+// Firmas de correo: el driver `file` no borra la caché vencida y la de firmas
+// se renueva con cada cambio del admin. Lo vigente dura minutos, así que todo
+// lo de más de un día en su carpeta es basura (a lo sumo, una consulta extra).
+Artisan::command('signatures:prune-cache', function () {
+    $store = config('cache.stores.' . config('signatures.cache_store'));
+
+    if (($store['driver'] ?? null) !== 'file' || ! is_dir($store['path'])) {
+        return $this->info('La caché de firmas no usa archivos; no hay nada que purgar.');
+    }
+
+    $limite = now()->subDay()->getTimestamp();
+    $borrados = 0;
+
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($store['path'], FilesystemIterator::SKIP_DOTS)) as $archivo) {
+        if ($archivo->isFile() && $archivo->getMTime() < $limite && @unlink($archivo->getPathname())) {
+            $borrados++;
+        }
+    }
+
+    $this->info("Archivos de caché de firmas borrados: {$borrados}");
+})->purpose('Borra la caché vencida de las imágenes de firmas de correo');
+
+Schedule::command('signatures:prune-cache')->dailyAt('04:00');

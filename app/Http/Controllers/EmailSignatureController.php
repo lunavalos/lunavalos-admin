@@ -77,6 +77,7 @@ class EmailSignatureController extends Controller implements HasMiddleware
                     'template'   => $a->signatureTemplate?->name,
                     'signature_template_id' => $a->signature_template_id,
                     'url'        => Storage::disk('public')->url($a->file_path),
+                    'size'       => Storage::disk('public')->exists($a->file_path) ? Storage::disk('public')->size($a->file_path) : null,
                     'link_url'   => $a->link_url,
                     'starts_at'  => $a->starts_at?->toDateString(),
                     'ends_at'    => $a->ends_at?->toDateString(),

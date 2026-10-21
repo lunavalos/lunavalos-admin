@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\EmailSignature;
 use App\Models\SignatureAsset;
 use App\Services\Signatures\SignatureRenderer;
+use App\Support\SignatureUrls;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
@@ -19,8 +20,6 @@ use Inertia\Inertia;
  */
 class PublicEmailSignatureController extends Controller
 {
-    private const CACHE_SECONDS = 300;
-
     // PNG transparente de 1x1.
     private const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
@@ -40,37 +39,50 @@ class PublicEmailSignatureController extends Controller
 
     public function image(string $token, string $slot)
     {
+        // Lo que toca servir se guarda unos minutos: un envío masivo pide la
+        // misma imagen miles de veces y no hace falta ir a la base cada vez.
+        // Cualquier cambio del admin invalida esto (ver SignatureUrls::flushCache).
+        $resolved = SignatureUrls::cache()->remember(
+            SignatureUrls::cacheKey("img:{$token}:{$slot}:" . now()->toDateString()),
+            config('signatures.image_cache_seconds'),
+            fn () => $this->resolveImage($token, $slot)
+        );
+
+        return match ($resolved['type']) {
+            'file'     => Storage::disk('public')->exists($resolved['path']) ? $this->file($resolved['path']) : $this->pixel(),
+            'redirect' => redirect()->away($resolved['url']),
+            default    => $this->pixel(),
+        };
+    }
+
+    /** @return array{type: 'file'|'redirect'|'pixel', path?: string, url?: string} */
+    private function resolveImage(string $token, string $slot): array
+    {
         $signature = $this->activeSignature($token);
 
         // Una firma revocada deja de mostrar imágenes, pero sin ícono roto en
         // los correos que ya se enviaron.
         if (! $signature) {
-            return $this->pixel();
+            return ['type' => 'pixel'];
         }
 
         if ($slot === 'photo') {
-            if ($signature->photo_path && Storage::disk('public')->exists($signature->photo_path)) {
-                return $this->file($signature->photo_path);
-            }
-
-            // Se quitó la foto: las firmas ya pegadas dejan de mostrarla.
-            return $this->pixel();
+            // Sin foto (o se quitó): las firmas ya pegadas dejan de mostrarla.
+            return $signature->photo_path
+                ? ['type' => 'file', 'path' => $signature->photo_path]
+                : ['type' => 'pixel'];
         }
 
         $asset = SignatureAsset::current($signature->client_id, $slot, $signature->effectiveTemplate()?->id);
 
-        if ($asset && Storage::disk('public')->exists($asset->file_path)) {
-            return $this->file($asset->file_path);
+        if ($asset) {
+            return ['type' => 'file', 'path' => $asset->file_path];
         }
 
         // Sin logo subido todavía: el que se configuró en el expediente del cliente.
         $fallback = $slot === 'logo' ? SignatureAsset::fallbackLogoUrl($signature->client) : null;
 
-        if ($fallback) {
-            return redirect()->away($fallback);
-        }
-
-        return $this->pixel();
+        return $fallback ? ['type' => 'redirect', 'url' => $fallback] : ['type' => 'pixel'];
     }
 
     public function bannerLink(string $token)
@@ -113,6 +125,6 @@ class PublicEmailSignatureController extends Controller
 
     private function cacheHeaders(): array
     {
-        return ['Cache-Control' => 'public, max-age=' . self::CACHE_SECONDS];
+        return ['Cache-Control' => 'public, max-age=' . config('signatures.image_cache_seconds')];
     }
 }

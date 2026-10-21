@@ -37,6 +37,10 @@ class EmailSignature extends Model
         static::creating(function (EmailSignature $signature) {
             $signature->token ??= Str::random(40);
         });
+
+        // Foto, plantilla o estado cambian lo que sirve /firma/{token}/img/...
+        static::saved(fn () => \App\Support\SignatureUrls::flushCache());
+        static::deleted(fn () => \App\Support\SignatureUrls::flushCache());
     }
 
     public function client()
@@ -62,6 +66,6 @@ class EmailSignature extends Model
 
     public function publicUrl(): string
     {
-        return route('email-signatures.public', $this->token);
+        return \App\Support\SignatureUrls::route('email-signatures.public', [$this->token]);
     }
 }

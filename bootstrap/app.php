@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Global (web y api): el subdominio de firmas solo responde /firma/*.
+        $middleware->append(\App\Http\Middleware\SignatureHost::class);
+
         $middleware->web(append: [
             // Antes que Inertia: el modo "Ver como rol" debe estar aplicado
             // cuando se calculan las props de auth (permisos, is_admin).

@@ -306,11 +306,27 @@ Route::middleware('auth')->group(function () {
 });
 
 // Firma pública del empleado — sin auth. Las imágenes se cargan desde los correos.
-Route::get('firma/{token}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'show'])->name('email-signatures.public');
-Route::get('firma/{token}/img/{slot}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'image'])
-    ->whereIn('slot', ['logo', 'photo', 'banner'])
-    ->name('email-signatures.image');
-Route::get('firma/{token}/link', [\App\Http\Controllers\PublicEmailSignatureController::class, 'bannerLink'])->name('email-signatures.banner-link');
+$firmaRoutes = function (bool $named) {
+    $name = fn (\Illuminate\Routing\Route $route, string $as) => $named ? $route->name($as) : $route;
+
+    $name(Route::get('firma/{token}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'show'])
+        ->middleware('throttle:signature-page'), 'email-signatures.public');
+    $name(Route::get('firma/{token}/img/{slot}', [\App\Http\Controllers\PublicEmailSignatureController::class, 'image'])
+        ->whereIn('slot', ['logo', 'photo', 'banner'])
+        ->middleware('throttle:signature-images'), 'email-signatures.image');
+    $name(Route::get('firma/{token}/link', [\App\Http\Controllers\PublicEmailSignatureController::class, 'bannerLink'])
+        ->middleware('throttle:signature-page'), 'email-signatures.banner-link');
+};
+
+if ($signatureHost = \App\Support\SignatureUrls::host()) {
+    // Con subdominio, los links nuevos salen con él (las rutas con nombre)…
+    Route::domain($signatureHost)->middleware(\App\Http\Middleware\NoIndex::class)
+        ->group(fn () => $firmaRoutes(true));
+    // …y los ya pegados en correos con el dominio del admin siguen funcionando.
+    Route::middleware(\App\Http\Middleware\NoIndex::class)->group(fn () => $firmaRoutes(false));
+} else {
+    Route::middleware(\App\Http\Middleware\NoIndex::class)->group(fn () => $firmaRoutes(true));
+}
 
 // Public ticket preview — no auth required
 Route::get('tickets/p/{token}', [\App\Http\Controllers\TicketController::class, 'publicShow'])->name('tickets.public');

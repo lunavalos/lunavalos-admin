@@ -165,6 +165,16 @@ class Client extends Model
         return $this->hasMany(ClientAsset::class)->latest();
     }
 
+    protected static function booted(): void
+    {
+        // La plantilla y el logo por defecto de la empresa viven aquí.
+        static::saved(function (Client $client) {
+            if ($client->wasChanged(['signature_template_id', 'signature_defaults'])) {
+                \App\Support\SignatureUrls::flushCache();
+            }
+        });
+    }
+
     public function signatureTemplate()
     {
         return $this->belongsTo(SignatureTemplate::class);

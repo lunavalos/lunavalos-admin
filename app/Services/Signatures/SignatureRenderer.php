@@ -4,6 +4,7 @@ namespace App\Services\Signatures;
 
 use App\Models\EmailSignature;
 use App\Models\SignatureAsset;
+use App\Support\SignatureUrls;
 
 /**
  * Arma el HTML de la firma de un empleado.
@@ -40,8 +41,8 @@ class SignatureRenderer
             'email'           => e($signature->email ?? ''),
             'phone'           => e($signature->phone ?? ''),
             'website'         => e($defaults['website'] ?? ''),
-            'logo'            => route('email-signatures.image', [$token, 'logo', ...$v]),
-            'photo'           => route('email-signatures.image', [$token, 'photo', ...$v]),
+            'logo'            => SignatureUrls::route('email-signatures.image', [$token, 'logo', ...$v]),
+            'photo'           => SignatureUrls::route('email-signatures.image', [$token, 'photo', ...$v]),
             'primary_color'   => $this->color($defaults['primary_color'] ?? null, '#264ab3'),
             'secondary_color' => $this->color($defaults['secondary_color'] ?? null, '#666666'),
             'social_links'    => $this->socialLinks($signature->social_links ?? []),
@@ -129,8 +130,8 @@ class SignatureRenderer
 
     private function banner(string $token, array $v): string
     {
-        return '<div style="margin-top: 12px;"><a href="' . route('email-signatures.banner-link', $token) . '">'
-            . '<img src="' . route('email-signatures.image', [$token, 'banner', ...$v]) . '" alt="" style="display:block; border:0;">'
+        return '<div style="margin-top: 12px;"><a href="' . SignatureUrls::route('email-signatures.banner-link', [$token]) . '">'
+            . '<img src="' . SignatureUrls::route('email-signatures.image', [$token, 'banner', ...$v]) . '" alt="" style="display:block; border:0;">'
             . '</a></div>';
     }
 }
