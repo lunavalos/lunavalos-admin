@@ -260,8 +260,16 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                             <tbody class="bg-white dark:bg-zinc-900 divide-y divide-gray-200 dark:divide-zinc-800">
                                 <tr v-for="s in signatures" :key="s.id" class="hover:bg-gray-50 dark:hover:bg-zinc-800 transition">
                                     <td class="px-6 py-4 text-sm">
-                                        <div class="font-medium text-gray-900 dark:text-gray-100">{{ s.name }}</div>
-                                        <div class="text-gray-500 dark:text-zinc-400">{{ s.position }} <span v-if="s.email">· {{ s.email }}</span></div>
+                                        <div class="flex items-center gap-3">
+                                            <img v-if="s.photo_url" :src="s.photo_url" :alt="s.name" class="h-10 w-10 rounded-full object-cover flex-shrink-0" />
+                                            <div v-else class="h-10 w-10 rounded-full bg-gray-100 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 flex items-center justify-center font-bold flex-shrink-0">
+                                                {{ s.name.charAt(0).toUpperCase() }}
+                                            </div>
+                                            <div class="min-w-0">
+                                                <div class="font-medium text-gray-900 dark:text-gray-100">{{ s.name }}</div>
+                                                <div class="text-gray-500 dark:text-zinc-400">{{ s.position }} <span v-if="s.email">· {{ s.email }}</span></div>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">{{ s.client }}</td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm">

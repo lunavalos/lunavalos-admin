@@ -42,6 +42,7 @@ class EmailSignatureController extends Controller implements HasMiddleware
                 'name'           => $s->name,
                 'position'       => $s->position,
                 'email'          => $s->email,
+                'photo_url'      => $s->photo_path ? Storage::disk('public')->url($s->photo_path) : null,
                 'is_active'      => $s->is_active,
                 'last_viewed_at' => $s->last_viewed_at?->toDateTimeString(),
                 'client'         => $s->client?->business_name,
