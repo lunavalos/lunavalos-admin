@@ -11,6 +11,7 @@ class SignatureAsset extends Model
 
     protected $fillable = [
         'client_id',
+        'signature_template_id',
         'slot',
         'label',
         'file_path',
@@ -31,6 +32,11 @@ class SignatureAsset extends Model
         return $this->belongsTo(Client::class);
     }
 
+    public function signatureTemplate()
+    {
+        return $this->belongsTo(SignatureTemplate::class);
+    }
+
     public function scopeVigentes(Builder $query): Builder
     {
         $hoy = now()->toDateString();
@@ -41,17 +47,33 @@ class SignatureAsset extends Model
     }
 
     /**
-     * El que se sirve hoy para ese cliente y espacio.
+     * El que se sirve hoy para ese cliente, espacio y plantilla.
      *
-     * Uno de temporada (con fecha de inicio) le gana al de siempre; entre
-     * varios de temporada gana el que empezó más reciente, y a igualdad, el
-     * último subido.
+     * Primero los de la plantilla de la firma; si no hay, los que aplican a
+     * todas las plantillas del cliente. Dentro de cada grupo, uno de temporada
+     * (con fecha de inicio) le gana al de siempre.
      */
-    public static function current(int $clientId, string $slot): ?self
+    public static function current(int $clientId, string $slot, ?int $templateId = null): ?self
+    {
+        return ($templateId ? static::currentInScope($clientId, $slot, $templateId) : null)
+            ?? static::currentInScope($clientId, $slot, null);
+    }
+
+    /**
+     * El vigente dentro de un solo grupo: una plantilla, o `null` = el que
+     * aplica a todas. Entre varios de temporada gana el que empezó más
+     * reciente, y a igualdad, el último subido.
+     */
+    public static function currentInScope(int $clientId, string $slot, ?int $templateId): ?self
     {
         return static::query()
             ->where('client_id', $clientId)
             ->where('slot', $slot)
+            ->when(
+                $templateId,
+                fn ($q) => $q->where('signature_template_id', $templateId),
+                fn ($q) => $q->whereNull('signature_template_id')
+            )
             ->vigentes()
             ->orderByRaw('starts_at is null')
             ->orderByDesc('starts_at')
@@ -80,9 +102,9 @@ class SignatureAsset extends Model
         return preg_match('#^https?://#i', $logo) ? $logo : url($logo);
     }
 
-    /** ¿Las firmas de este cliente tienen algún logo que mostrar hoy? */
-    public static function clientHasLogo(Client $client): bool
+    /** ¿Una firma de este cliente con esa plantilla tiene logo que mostrar hoy? */
+    public static function hasLogo(Client $client, ?int $templateId = null): bool
     {
-        return static::current($client->id, 'logo') !== null || static::fallbackLogoUrl($client) !== null;
+        return static::current($client->id, 'logo', $templateId) !== null || static::fallbackLogoUrl($client) !== null;
     }
 }

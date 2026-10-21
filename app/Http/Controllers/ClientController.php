@@ -454,6 +454,7 @@ class ClientController extends Controller implements HasMiddleware
             'taxRegimes'         => config('sat.tax_regimes'),
             'cfdiUses'           => config('sat.cfdi_uses'),
             'signatureTemplates' => \App\Models\SignatureTemplate::where('is_active', true)->get(['id', 'name', 'fields', 'is_private']),
+            'signatureUsage'     => app(\App\Services\Signatures\SignatureUsage::class)->forClient($client),
         ]);
     }
 

@@ -14,7 +14,8 @@ const props = defineProps({
     clients:       Array,
     filters:       Object,
     assets:        Array,
-    currentAssets: { type: Object, default: null },
+    usage:         { type: Array, default: () => [] },
+    templates:     { type: Array, default: () => [] },
 });
 
 const clientId = ref(props.filters.client_id ?? '');
@@ -50,6 +51,7 @@ const deleteSignature = (id) => {
 // --- Logos y banners de la empresa seleccionada
 const assetForm = useForm({
     client_id: null,
+    signature_template_id: '',
     slot:      'logo',
     label:     '',
     file:      null,
@@ -77,7 +79,15 @@ const deleteAsset = (id) => {
     }
 };
 
-const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
+const isCurrent = (asset) => asset.is_current;
+
+// Plantillas que ya usa la empresa primero; el resto después.
+const templateOptions = computed(() => {
+    const used = new Set(props.usage.map(u => u.template_id).filter(Boolean));
+    return [...props.templates].sort((a, b) => used.has(b.id) - used.has(a.id));
+});
+
+const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.has_logo));
 </script>
 
 <template>
@@ -131,11 +141,12 @@ const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
                     <p class="text-sm text-gray-500 dark:text-zinc-400 mb-4">
                         Todas las firmas de esta empresa muestran la imagen vigente, incluso las que ya están instaladas.
                         Sin fechas = la de siempre; con fechas = de temporada (gana mientras esté vigente).
+                        Si la cuenta maneja varias marcas, sube el logo de cada una a su plantilla; lo que subas para "Todas" se usa cuando una plantilla no tiene uno propio.
                         Usa PNG o JPG con las mismas medidas que la anterior para que la firma no se descuadre.
                     </p>
 
-                    <div v-if="currentAssets && !currentAssets.has_logo" class="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
-                        Esta empresa no tiene logo vigente: sus firmas se ven sin logo. Sube uno aquí.
+                    <div v-if="missingLogo.length" class="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                        Sin logo vigente: <b>{{ missingLogo.map(u => u.name).join(', ') }}</b>. Sus firmas se ven sin logo; súbelo aquí.
                     </div>
 
                     <form @submit.prevent="uploadAsset" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end mb-6">
@@ -168,11 +179,19 @@ const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
                                 Subir
                             </button>
                         </div>
-                        <div class="md:col-span-3">
+                        <div class="md:col-span-2">
+                            <InputLabel value="Aplica a" />
+                            <select v-model="assetForm.signature_template_id" class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 text-sm">
+                                <option value="">Todas las plantillas</option>
+                                <option v-for="t in templateOptions" :key="t.id" :value="t.id">{{ t.name }}</option>
+                            </select>
+                            <InputError :message="assetForm.errors.signature_template_id" />
+                        </div>
+                        <div :class="assetForm.slot === 'banner' ? 'md:col-span-2' : 'md:col-span-4'">
                             <InputLabel value="Nombre (opcional)" />
                             <TextInput v-model="assetForm.label" placeholder="Ej. Logo Navidad 2026" class="mt-1 w-full" />
                         </div>
-                        <div v-if="assetForm.slot === 'banner'" class="md:col-span-3">
+                        <div v-if="assetForm.slot === 'banner'" class="md:col-span-2">
                             <InputLabel value="Link al hacer clic (opcional)" />
                             <TextInput v-model="assetForm.link_url" placeholder="https://…" class="mt-1 w-full" />
                             <InputError :message="assetForm.errors.link_url" />
@@ -188,7 +207,7 @@ const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
                                 <div class="font-semibold text-gray-800 dark:text-gray-100 truncate">
                                     {{ asset.label || (asset.slot === 'logo' ? 'Logo' : 'Banner') }}
                                 </div>
-                                <div class="text-xs text-gray-500 dark:text-zinc-400 capitalize">{{ asset.slot }}</div>
+                                <div class="text-xs text-gray-500 dark:text-zinc-400"><span class="capitalize">{{ asset.slot }}</span> · {{ asset.template || 'Todas las plantillas' }}</div>
                                 <div class="text-xs text-gray-500 dark:text-zinc-400">
                                     {{ asset.starts_at || asset.ends_at ? `${asset.starts_at || '…'} → ${asset.ends_at || '…'}` : 'Siempre' }}
                                 </div>
@@ -212,6 +231,7 @@ const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
                                 <tr>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Empleado</th>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Empresa</th>
+                                    <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Plantilla</th>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Estado</th>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950 text-left text-xs font-bold text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Último acceso al link</th>
                                     <th class="px-6 py-3 bg-gray-50 dark:bg-zinc-950"></th>
@@ -224,6 +244,11 @@ const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
                                         <div class="text-gray-500 dark:text-zinc-400">{{ s.position }} <span v-if="s.email">· {{ s.email }}</span></div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">{{ s.client }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                        <span v-if="s.template" class="text-gray-800 dark:text-gray-100">{{ s.template }}</span>
+                                        <span v-else class="text-amber-700">Sin plantilla</span>
+                                        <div class="text-xs text-gray-500 dark:text-zinc-400">{{ s.template_own ? 'Asignada a este empleado' : 'La de la empresa' }}</div>
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <span :class="s.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'" class="px-2 py-1 text-xs rounded-full font-bold">
                                             {{ s.is_active ? 'Activa' : 'Revocada' }}
@@ -244,7 +269,7 @@ const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
                                     </td>
                                 </tr>
                                 <tr v-if="signatures.length === 0">
-                                    <td colspan="5" class="px-6 py-10 text-center text-gray-500">No hay firmas registradas.</td>
+                                    <td colspan="6" class="px-6 py-10 text-center text-gray-500">No hay firmas registradas.</td>
                                 </tr>
                             </tbody>
                         </table>

@@ -57,7 +57,7 @@ class PublicEmailSignatureController extends Controller
             return $this->pixel();
         }
 
-        $asset = SignatureAsset::current($signature->client_id, $slot);
+        $asset = SignatureAsset::current($signature->client_id, $slot, $signature->effectiveTemplate()?->id);
 
         if ($asset && Storage::disk('public')->exists($asset->file_path)) {
             return $this->file($asset->file_path);
@@ -78,7 +78,7 @@ class PublicEmailSignatureController extends Controller
         $signature = $this->activeSignature($token);
         abort_unless($signature, 404);
 
-        $url = SignatureAsset::current($signature->client_id, 'banner')?->link_url
+        $url = SignatureAsset::current($signature->client_id, 'banner', $signature->effectiveTemplate()?->id)?->link_url
             ?? $signature->client?->signature_defaults['website'] ?? null;
 
         abort_unless($url, 404);

@@ -213,4 +213,49 @@ class EmailSignatureTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'image/png');
     }
+
+    public function test_cada_plantilla_de_la_cuenta_muestra_su_propio_logo(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('marca-a.png', 'MARCA A');
+        Storage::disk('public')->put('marca-b.png', 'MARCA B');
+        Storage::disk('public')->put('general.png', 'GENERAL');
+
+        $firmaA = $this->firma();
+        $templateA = $firmaA->client->signatureTemplate;
+        $templateB = SignatureTemplate::create(['name' => 'Marca B', 'slug' => 'marca-b', 'html_content' => '<img src="{{logo}}">', 'is_active' => true]);
+        $templateC = SignatureTemplate::create(['name' => 'Marca C', 'slug' => 'marca-c', 'html_content' => '<img src="{{logo}}">', 'is_active' => true]);
+
+        $firmaB = EmailSignature::create(['client_id' => $firmaA->client_id, 'signature_template_id' => $templateB->id, 'name' => 'Beto']);
+        $firmaC = EmailSignature::create(['client_id' => $firmaA->client_id, 'signature_template_id' => $templateC->id, 'name' => 'Ceci']);
+
+        SignatureAsset::create(['client_id' => $firmaA->client_id, 'signature_template_id' => $templateA->id, 'slot' => 'logo', 'file_path' => 'marca-a.png']);
+        SignatureAsset::create(['client_id' => $firmaA->client_id, 'signature_template_id' => $templateB->id, 'slot' => 'logo', 'file_path' => 'marca-b.png']);
+        SignatureAsset::create(['client_id' => $firmaA->client_id, 'slot' => 'logo', 'file_path' => 'general.png']);
+
+        $logo = fn (EmailSignature $f) => $this->get(route('email-signatures.image', [$f->token, 'logo']))->streamedContent();
+
+        $this->assertSame('MARCA A', $logo($firmaA));
+        $this->assertSame('MARCA B', $logo($firmaB));
+        // Sin logo propio: el que aplica a todas las plantillas.
+        $this->assertSame('GENERAL', $logo($firmaC));
+    }
+
+    public function test_resumen_de_plantillas_en_uso_por_cliente(): void
+    {
+        $firma = $this->firma();
+        $client = $firma->client;
+        $otra = SignatureTemplate::create(['name' => 'Marca B', 'slug' => 'marca-b', 'html_content' => 'x', 'is_active' => true]);
+
+        EmailSignature::create(['client_id' => $client->id, 'name' => 'Dos']);
+        EmailSignature::create(['client_id' => $client->id, 'signature_template_id' => $otra->id, 'name' => 'Tres']);
+        EmailSignature::create(['client_id' => $client->id, 'signature_template_id' => $otra->id, 'name' => 'Revocada', 'is_active' => false]);
+
+        $usage = collect(app(\App\Services\Signatures\SignatureUsage::class)->forClient($client))->keyBy('template_id');
+
+        $this->assertSame(2, $usage[$client->signature_template_id]['signatures']);
+        $this->assertTrue($usage[$client->signature_template_id]['is_default']);
+        $this->assertSame(1, $usage[$otra->id]['signatures']);
+        $this->assertFalse($usage[$otra->id]['is_default']);
+    }
 }

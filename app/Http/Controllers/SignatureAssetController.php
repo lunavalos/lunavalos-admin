@@ -22,6 +22,8 @@ class SignatureAssetController extends Controller implements HasMiddleware
     {
         $data = $request->validate([
             'client_id' => 'required|exists:clients,id',
+            // Vacío = aplica a todas las plantillas del cliente.
+            'signature_template_id' => 'nullable|exists:signature_templates,id',
             'slot'      => 'required|in:' . implode(',', SignatureAsset::SLOTS),
             'label'     => 'nullable|string|max:255',
             // Sin SVG: Outlook y Gmail no lo pintan.

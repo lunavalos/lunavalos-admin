@@ -36,6 +36,10 @@ const props = defineProps({
         type: Array,
         default: () => []
     },
+    signatureUsage: {
+        type: Array,
+        default: () => []
+    },
 });
 
 const selectedTemplateFields = computed(() => {
@@ -1133,6 +1137,30 @@ const monthlyNetMargin = computed(() => totalMonthlyIncome.value - totalMonthlyC
                                 </select>
                                 <p class="text-xs text-gray-400 dark:text-zinc-500 mt-1">La plantilla seleccionada aparecerá pre-cargada en el módulo de firmas del cliente.</p>
                                 <InputError :message="form.errors.signature_template_id" class="mt-1" />
+                            </div>
+
+                            <!-- Plantillas que usan las firmas de sus empleados -->
+                            <div class="pt-4 border-t border-gray-100 dark:border-zinc-800">
+                                <div class="flex items-center justify-between mb-2">
+                                    <InputLabel value="Plantillas en uso por sus empleados" class="!mb-0 dark:text-gray-300" />
+                                    <Link :href="route('email-signatures.index', { client_id: client.id })" class="text-xs font-bold text-[#264ab3] dark:text-blue-400 hover:underline">
+                                        Ver firmas de {{ client.business_name }} →
+                                    </Link>
+                                </div>
+                                <ul v-if="signatureUsage.length" class="divide-y divide-gray-100 dark:divide-zinc-800 text-sm">
+                                    <li v-for="u in signatureUsage" :key="u.template_id ?? 'none'" class="py-2 flex items-center justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <span class="font-medium text-gray-800 dark:text-gray-100">{{ u.name || 'Sin plantilla' }}</span>
+                                            <span v-if="u.is_default" class="ml-2 px-2 py-0.5 text-[10px] rounded-full font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">De la empresa</span>
+                                            <span v-if="u.template_id && !u.has_logo" class="ml-2 px-2 py-0.5 text-[10px] rounded-full font-bold bg-amber-100 text-amber-800">Sin logo</span>
+                                        </div>
+                                        <span class="text-gray-500 dark:text-zinc-400 whitespace-nowrap">{{ u.signatures }} {{ u.signatures === 1 ? 'firma' : 'firmas' }}</span>
+                                    </li>
+                                </ul>
+                                <p v-else class="text-xs text-gray-400 dark:text-zinc-500">Todavía no hay firmas de empleados para este cliente.</p>
+                                <p class="text-xs text-gray-400 dark:text-zinc-500 mt-1">
+                                    Para que un empleado use otra plantilla, elígela en su firma desde Firmas Empleados. El logo de cada plantilla se sube en Logos y banners.
+                                </p>
                             </div>
 
                             <template v-if="form.signature_template_id">

@@ -7,6 +7,7 @@ use App\Models\EmailSignature;
 use App\Models\SignatureAsset;
 use App\Models\SignatureTemplate;
 use App\Services\Signatures\SignatureRenderer;
+use App\Services\Signatures\SignatureUsage;
 use App\Support\ProfilePhoto;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -24,11 +25,11 @@ class EmailSignatureController extends Controller implements HasMiddleware
         ];
     }
 
-    public function index(Request $request)
+    public function index(Request $request, SignatureUsage $usage)
     {
         $clientId = $request->integer('client_id') ?: null;
 
-        $signatures = EmailSignature::with(['client:id,business_name', 'signatureTemplate:id,name'])
+        $signatures = EmailSignature::with(['client:id,business_name,signature_template_id', 'client.signatureTemplate:id,name', 'signatureTemplate:id,name'])
             ->when($clientId, fn ($q) => $q->where('client_id', $clientId))
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = '%' . $request->string('search') . '%';
@@ -44,7 +45,9 @@ class EmailSignatureController extends Controller implements HasMiddleware
                 'is_active'      => $s->is_active,
                 'last_viewed_at' => $s->last_viewed_at?->toDateTimeString(),
                 'client'         => $s->client?->business_name,
-                'template'       => $s->signatureTemplate?->name,
+                'template'       => $s->signatureTemplate?->name ?? $s->client?->signatureTemplate?->name,
+                // Propia = se eligió para este empleado; si no, hereda la de la empresa.
+                'template_own'   => (bool) $s->signatureTemplate,
                 'public_url'     => $s->publicUrl(),
             ]);
 
@@ -62,30 +65,31 @@ class EmailSignatureController extends Controller implements HasMiddleware
                 'signatures'    => (int) ($counts[$c->id] ?? 0),
             ]);
 
-        $assets = $clientId
-            ? SignatureAsset::where('client_id', $clientId)->latest('id')->get()->map(fn (SignatureAsset $a) => [
-                'id'        => $a->id,
-                'slot'      => $a->slot,
-                'label'     => $a->label,
-                'url'       => Storage::disk('public')->url($a->file_path),
-                'link_url'  => $a->link_url,
-                'starts_at' => $a->starts_at?->toDateString(),
-                'ends_at'   => $a->ends_at?->toDateString(),
-            ])
-            : [];
+        $client = $clientId ? Client::find($clientId) : null;
 
-        $current = $clientId ? [
-            'logo'     => SignatureAsset::current($clientId, 'logo')?->id,
-            'banner'   => SignatureAsset::current($clientId, 'banner')?->id,
-            'has_logo' => ($client = Client::find($clientId)) ? SignatureAsset::clientHasLogo($client) : false,
-        ] : null;
+        $assets = $client
+            ? SignatureAsset::with('signatureTemplate:id,name')->where('client_id', $client->id)->latest('id')->get()
+                ->map(fn (SignatureAsset $a) => [
+                    'id'         => $a->id,
+                    'slot'       => $a->slot,
+                    'label'      => $a->label,
+                    'template'   => $a->signatureTemplate?->name,
+                    'url'        => Storage::disk('public')->url($a->file_path),
+                    'link_url'   => $a->link_url,
+                    'starts_at'  => $a->starts_at?->toDateString(),
+                    'ends_at'    => $a->ends_at?->toDateString(),
+                    // Vigente dentro de su grupo (su plantilla, o "todas").
+                    'is_current' => SignatureAsset::currentInScope($client->id, $a->slot, $a->signature_template_id)?->id === $a->id,
+                ])
+            : [];
 
         return Inertia::render('EmailSignatures/Index', [
             'signatures'    => $signatures,
             'clients'       => $clients,
             'filters'       => ['client_id' => $clientId, 'search' => $request->input('search')],
             'assets'        => $assets,
-            'currentAssets' => $current,
+            'usage'         => $client ? $usage->forClient($client) : [],
+            'templates'     => SignatureTemplate::where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -136,7 +140,7 @@ class EmailSignatureController extends Controller implements HasMiddleware
                 'last_viewed_at'        => $emailSignature->last_viewed_at?->toDateTimeString(),
                 'preview_html'          => $renderer->render($emailSignature),
                 'has_template'          => (bool) $emailSignature->effectiveTemplate(),
-                'has_logo'              => SignatureAsset::clientHasLogo($emailSignature->client),
+                'has_logo'              => SignatureAsset::hasLogo($emailSignature->client, $emailSignature->effectiveTemplate()?->id),
             ],
             'clients'   => $this->clientOptions(),
             'templates' => SignatureTemplate::where('is_active', true)->orderBy('name')->get(['id', 'name']),
