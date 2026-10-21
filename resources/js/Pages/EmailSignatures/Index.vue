@@ -58,8 +58,21 @@ const assetForm = useForm({
     link_url:  '',
     starts_at: '',
     ends_at:   '',
+    repeats_yearly: false,
 });
 const fileInput = ref(null);
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const diaMes = (date) => {
+    const [, m, d] = date.split('-');
+    return `${Number(d)} ${MESES[Number(m) - 1]}`;
+};
+
+const vigencia = (asset) => {
+    if (!asset.starts_at && !asset.ends_at) return 'Siempre';
+    if (asset.repeats_yearly) return `Cada año: ${diaMes(asset.starts_at)} → ${diaMes(asset.ends_at)}`;
+    return `${asset.starts_at || '…'} → ${asset.ends_at || '…'}`;
+};
 
 const uploadAsset = () => {
     assetForm.client_id = Number(clientId.value);
@@ -67,7 +80,7 @@ const uploadAsset = () => {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
-            assetForm.reset('label', 'file', 'link_url', 'starts_at', 'ends_at');
+            assetForm.reset('label', 'file', 'link_url', 'starts_at', 'ends_at', 'repeats_yearly');
             if (fileInput.value) fileInput.value.value = '';
         },
     });
@@ -167,6 +180,7 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                         <div>
                             <InputLabel value="Desde" />
                             <TextInput v-model="assetForm.starts_at" type="date" class="mt-1 w-full" />
+                            <InputError :message="assetForm.errors.starts_at" />
                         </div>
                         <div>
                             <InputLabel value="Hasta" />
@@ -179,6 +193,12 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                                 Subir
                             </button>
                         </div>
+                        <label class="md:col-span-6 flex items-start gap-2 text-sm text-gray-700 dark:text-zinc-300">
+                            <input type="checkbox" v-model="assetForm.repeats_yearly" class="mt-0.5 rounded border-gray-300 text-[#264ab3]" />
+                            <span>
+                                <b>Repetir cada año</b> en estas fechas (ej. Halloween del 1 al 31 de octubre). Solo cuentan el día y el mes; puede cruzar de año, como del 15 de diciembre al 6 de enero.
+                            </span>
+                        </label>
                         <div class="md:col-span-2">
                             <InputLabel value="Aplica a" />
                             <select v-model="assetForm.signature_template_id" class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 text-sm">
@@ -209,7 +229,7 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                                 </div>
                                 <div class="text-xs text-gray-500 dark:text-zinc-400"><span class="capitalize">{{ asset.slot }}</span> · {{ asset.template || 'Todas las plantillas' }}</div>
                                 <div class="text-xs text-gray-500 dark:text-zinc-400">
-                                    {{ asset.starts_at || asset.ends_at ? `${asset.starts_at || '…'} → ${asset.ends_at || '…'}` : 'Siempre' }}
+                                    {{ vigencia(asset) }}
                                 </div>
                                 <span v-if="isCurrent(asset)" class="inline-block mt-1 px-2 py-0.5 text-xs rounded-full font-bold bg-green-100 text-green-800">Vigente hoy</span>
                             </div>

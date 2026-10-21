@@ -29,9 +29,20 @@ class SignatureAssetController extends Controller implements HasMiddleware
             // Sin SVG: Outlook y Gmail no lo pintan.
             'file'      => 'required|file|mimes:png,jpg,jpeg,gif|max:2048',
             'link_url'  => 'nullable|url|max:2048',
-            'starts_at' => 'nullable|date',
-            'ends_at'   => 'nullable|date|after_or_equal:starts_at',
+            'starts_at' => 'nullable|date|required_if_accepted:repeats_yearly',
+            'ends_at'   => 'nullable|date|after_or_equal:starts_at|required_if_accepted:repeats_yearly',
+            'repeats_yearly' => 'boolean',
+        ], [
+            'starts_at.required_if_accepted' => 'Para repetir cada año indica desde cuándo.',
+            'ends_at.required_if_accepted'   => 'Para repetir cada año indica hasta cuándo.',
         ]);
+
+        // Una temporada que se repite no puede durar un año o más: estaría
+        // vigente siempre y taparía al logo de siempre.
+        if (($data['repeats_yearly'] ?? false)
+            && \Carbon\Carbon::parse($data['ends_at'])->gte(\Carbon\Carbon::parse($data['starts_at'])->addYear())) {
+            return back()->withErrors(['ends_at' => 'Una temporada que se repite cada año debe durar menos de un año.']);
+        }
 
         $file = $request->file('file');
 

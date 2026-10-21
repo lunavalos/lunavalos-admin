@@ -275,4 +275,53 @@ class EmailSignatureTest extends TestCase
         $this->assertNotNull($antes);
         $this->assertNotSame($antes, $despues);
     }
+
+    public function test_logo_que_se_repite_cada_anio_vuelve_solo(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('siempre.png', 'SIEMPRE');
+        Storage::disk('public')->put('halloween.png', 'HALLOWEEN');
+        Storage::disk('public')->put('navidad.png', 'NAVIDAD');
+
+        $firma = $this->firma();
+        $base = ['client_id' => $firma->client_id, 'slot' => 'logo'];
+
+        SignatureAsset::create($base + ['file_path' => 'siempre.png']);
+        // Subido en 2026: debe volver en 2027 y 2028 sin tocar nada.
+        SignatureAsset::create($base + ['file_path' => 'halloween.png', 'starts_at' => '2026-10-01', 'ends_at' => '2026-10-31', 'repeats_yearly' => true]);
+        // Cruza de año.
+        SignatureAsset::create($base + ['file_path' => 'navidad.png', 'starts_at' => '2026-12-15', 'ends_at' => '2027-01-06', 'repeats_yearly' => true]);
+
+        $url = route('email-signatures.image', [$firma->token, 'logo']);
+        $logoEl = function (string $fecha) use ($url) {
+            $this->travelTo(\Carbon\Carbon::parse($fecha . ' 12:00'));
+            return $this->get($url)->streamedContent();
+        };
+
+        $this->assertSame('HALLOWEEN', $logoEl('2027-10-15'));
+        $this->assertSame('HALLOWEEN', $logoEl('2028-10-31'));
+        $this->assertSame('SIEMPRE', $logoEl('2028-11-01'));
+        $this->assertSame('NAVIDAD', $logoEl('2028-12-20'));
+        $this->assertSame('NAVIDAD', $logoEl('2029-01-03'));
+        $this->assertSame('SIEMPRE', $logoEl('2029-01-07'));
+    }
+
+    public function test_repetir_cada_anio_exige_fechas_y_menos_de_un_anio(): void
+    {
+        Storage::fake('public');
+        $firma = $this->firma();
+        $admin = $this->admin();
+        $subir = fn (array $extra) => $this->actingAs($admin)->post(route('signature-assets.store'), $extra + [
+            'client_id'      => $firma->client_id,
+            'slot'           => 'logo',
+            'file'           => UploadedFile::fake()->image('logo.png'),
+            'repeats_yearly' => true,
+        ]);
+
+        $subir([])->assertSessionHasErrors(['starts_at', 'ends_at']);
+        $subir(['starts_at' => '2026-10-01', 'ends_at' => '2027-10-01'])->assertSessionHasErrors('ends_at');
+        $subir(['starts_at' => '2026-10-01', 'ends_at' => '2026-10-31'])->assertSessionHasNoErrors();
+
+        $this->assertTrue(SignatureAsset::firstOrFail()->repeats_yearly);
+    }
 }

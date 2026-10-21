@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 
 class SignatureAsset extends Model
@@ -19,12 +19,14 @@ class SignatureAsset extends Model
         'link_url',
         'starts_at',
         'ends_at',
+        'repeats_yearly',
         'created_by',
     ];
 
     protected $casts = [
         'starts_at' => 'date',
         'ends_at'   => 'date',
+        'repeats_yearly' => 'boolean',
     ];
 
     public function client()
@@ -37,13 +39,47 @@ class SignatureAsset extends Model
         return $this->belongsTo(SignatureTemplate::class);
     }
 
-    public function scopeVigentes(Builder $query): Builder
+    /**
+     * ¿Se muestra ese día?
+     *
+     * Sin fechas: siempre. Con `repeats_yearly` solo cuentan día y mes, y el
+     * rango puede cruzar de año (15 dic → 6 ene).
+     */
+    public function isActiveOn(CarbonInterface $day): bool
     {
-        $hoy = now()->toDateString();
+        if ($this->repeats_yearly && $this->starts_at && $this->ends_at) {
+            $hoy = $day->format('m-d');
+            $desde = $this->starts_at->format('m-d');
+            $hasta = $this->ends_at->format('m-d');
 
-        return $query
-            ->where(fn ($q) => $q->whereNull('starts_at')->orWhereDate('starts_at', '<=', $hoy))
-            ->where(fn ($q) => $q->whereNull('ends_at')->orWhereDate('ends_at', '>=', $hoy));
+            return $desde <= $hasta
+                ? $hoy >= $desde && $hoy <= $hasta
+                : $hoy >= $desde || $hoy <= $hasta;
+        }
+
+        $fecha = $day->toDateString();
+
+        return (! $this->starts_at || $this->starts_at->toDateString() <= $fecha)
+            && (! $this->ends_at || $this->ends_at->toDateString() >= $fecha);
+    }
+
+    /**
+     * Cuándo empezó la vigencia actual; para los que se repiten, el inicio de
+     * la temporada de este ciclo. `null` = sin fecha de inicio (el de siempre).
+     */
+    public function currentStart(CarbonInterface $day): ?CarbonInterface
+    {
+        if (! $this->starts_at) {
+            return null;
+        }
+
+        if (! $this->repeats_yearly) {
+            return $this->starts_at;
+        }
+
+        $inicio = $this->starts_at->copy()->setYear($day->year);
+
+        return $inicio->greaterThan($day) ? $inicio->subYear() : $inicio;
     }
 
     /**
@@ -63,9 +99,14 @@ class SignatureAsset extends Model
      * El vigente dentro de un solo grupo: una plantilla, o `null` = el que
      * aplica a todas. Entre varios de temporada gana el que empezó más
      * reciente, y a igualdad, el último subido.
+     *
+     * Se filtra en PHP y no en SQL porque la regla de los que se repiten cada
+     * año compara día y mes; son pocos registros por cliente.
      */
     public static function currentInScope(int $clientId, string $slot, ?int $templateId): ?self
     {
+        $hoy = now()->startOfDay();
+
         return static::query()
             ->where('client_id', $clientId)
             ->where('slot', $slot)
@@ -74,10 +115,16 @@ class SignatureAsset extends Model
                 fn ($q) => $q->where('signature_template_id', $templateId),
                 fn ($q) => $q->whereNull('signature_template_id')
             )
-            ->vigentes()
-            ->orderByRaw('starts_at is null')
-            ->orderByDesc('starts_at')
-            ->orderByDesc('id')
+            ->get()
+            ->filter(fn (self $a) => $a->isActiveOn($hoy))
+            ->sort(function (self $a, self $b) use ($hoy) {
+                $inicioA = $a->currentStart($hoy);
+                $inicioB = $b->currentStart($hoy);
+
+                // Los de temporada primero, luego el más reciente, luego el último subido.
+                return [$inicioB !== null, $inicioB?->timestamp, $b->id]
+                    <=> [$inicioA !== null, $inicioA?->timestamp, $a->id];
+            })
             ->first();
     }
 

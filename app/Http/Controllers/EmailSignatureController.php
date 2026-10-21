@@ -78,6 +78,7 @@ class EmailSignatureController extends Controller implements HasMiddleware
                     'link_url'   => $a->link_url,
                     'starts_at'  => $a->starts_at?->toDateString(),
                     'ends_at'    => $a->ends_at?->toDateString(),
+                    'repeats_yearly' => $a->repeats_yearly,
                     // Vigente dentro de su grupo (su plantilla, o "todas").
                     'is_current' => SignatureAsset::currentInScope($client->id, $a->slot, $a->signature_template_id)?->id === $a->id,
                 ])
