@@ -87,6 +87,16 @@ watch(() => props.modelValue, (newVal) => {
     }
 });
 
+// Inserta en la posición del cursor (p. ej. un <img> desde la biblioteca de medios).
+const insert = (text) => {
+    if (!editor) return false;
+    editor.insert(text);
+    editor.focus();
+    return true;
+};
+
+defineExpose({ insert });
+
 onBeforeUnmount(() => {
     if (editor) {
         editor.destroy();

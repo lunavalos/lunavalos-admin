@@ -7,6 +7,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import CodeEditor from '@/Components/CodeEditor.vue';
+import SignatureMediaLibrary from '@/Components/SignatureMediaLibrary.vue';
 import { SwatchIcon, ClipboardIcon, CheckIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -35,6 +36,15 @@ const form = useForm({
     is_active: !!props.template.is_active,
     is_private: !!props.template.is_private,
 });
+
+const editorRef = ref(null);
+
+// Inserta en el cursor del editor; si Ace no cargó, al final del HTML.
+const insertIntoHtml = (snippet) => {
+    if (!editorRef.value?.insert(snippet)) {
+        form.html_content = (form.html_content || '') + snippet;
+    }
+};
 
 const submit = () => {
     form.put(route('signature-templates.update', props.template.id));
@@ -165,8 +175,9 @@ const downloadOutlookFile = () => {
                                         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">HTML / TEXT</span>
                                     </div>
                                     <p class="text-xs text-gray-500 dark:text-zinc-400">Usa variables como: {{name}}, {{position}}, {{email}}, {{phone}}, ...</p>
-                                    <CodeEditor id="html_content" v-model="form.html_content" :rows="22" />
+                                    <CodeEditor ref="editorRef" id="html_content" v-model="form.html_content" :rows="22" />
                                     <InputError class="mt-2" :message="form.errors.html_content" />
+                                    <SignatureMediaLibrary :template-id="template.id" @insert="insertIntoHtml" />
                                 </div>
 
                                 <div class="col-span-12 lg:col-span-5 space-y-4">

@@ -54,7 +54,14 @@ class SignatureTemplateController extends Controller implements HasMiddleware
             'is_private' => 'boolean',
         ]);
 
-        SignatureTemplate::create($validated);
+        $template = SignatureTemplate::create($validated);
+
+        // Las imágenes subidas mientras se creaba la plantilla quedan ligadas a ella.
+        if ($request->filled('media_draft_key')) {
+            \App\Models\SignatureMedia::whereNull('signature_template_id')
+                ->where('draft_key', $request->string('media_draft_key'))
+                ->update(['signature_template_id' => $template->id, 'draft_key' => null]);
+        }
 
         return redirect()->route('signature-templates.index')
             ->with('success', 'Plantilla de firma creada correctamente.');

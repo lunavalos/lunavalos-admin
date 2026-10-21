@@ -292,6 +292,10 @@ Route::middleware('auth')->group(function () {
 
     // Signature Generator
     Route::resource('signature-templates', \App\Http\Controllers\SignatureTemplateController::class);
+    Route::get('signature-media', [\App\Http\Controllers\SignatureMediaController::class, 'index'])->name('signature-media.index');
+    Route::post('signature-media', [\App\Http\Controllers\SignatureMediaController::class, 'store'])->name('signature-media.store');
+    Route::post('signature-media/{signatureMedia}/replace', [\App\Http\Controllers\SignatureMediaController::class, 'replace'])->name('signature-media.replace');
+    Route::delete('signature-media/{signatureMedia}', [\App\Http\Controllers\SignatureMediaController::class, 'destroy'])->name('signature-media.destroy');
     Route::get('/client/signatures', [\App\Http\Controllers\SignatureGeneratorController::class, 'index'])->name('client.signatures');
 
     // Firmas por empleado

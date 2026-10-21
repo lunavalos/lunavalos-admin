@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm, Link } from '@inertiajs/vue3';
 import TextInput from '@/Components/TextInput.vue';
@@ -7,6 +7,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import CodeEditor from '@/Components/CodeEditor.vue';
+import SignatureMediaLibrary from '@/Components/SignatureMediaLibrary.vue';
 import { SwatchIcon } from '@heroicons/vue/24/outline';
 
 const ALL_FIELDS = [
@@ -22,6 +23,9 @@ const ALL_FIELDS = [
     { key: 'social_links',    label: 'Redes sociales' },
 ];
 
+// Las imágenes que se suban antes de guardar se ligan a la plantilla con esta llave.
+const mediaDraftKey = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 const form = useForm({
     name: '',
     slug: '',
@@ -30,7 +34,17 @@ const form = useForm({
     fields: ['name', 'position', 'email', 'phone', 'website', 'logo', 'photo', 'primary_color', 'secondary_color', 'social_links'],
     is_active: true,
     is_private: false,
+    media_draft_key: mediaDraftKey,
 });
+
+const editorRef = ref(null);
+
+// Inserta en el cursor del editor; si Ace no cargó, al final del HTML.
+const insertIntoHtml = (snippet) => {
+    if (!editorRef.value?.insert(snippet)) {
+        form.html_content = (form.html_content || '') + snippet;
+    }
+};
 
 const submit = () => {
     form.post(route('signature-templates.store'));
@@ -99,8 +113,9 @@ const parsedHtml = computed(() => {
                                         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">HTML / TEXT</span>
                                     </div>
                                     <p class="text-xs text-gray-500 dark:text-zinc-400">Usa variables como: {{name}}, {{position}}, {{email}}, {{phone}}, ...</p>
-                                    <CodeEditor id="html_content" v-model="form.html_content" :rows="22" />
+                                    <CodeEditor ref="editorRef" id="html_content" v-model="form.html_content" :rows="22" />
                                     <InputError class="mt-2" :message="form.errors.html_content" />
+                                    <SignatureMediaLibrary :draft-key="mediaDraftKey" @insert="insertIntoHtml" />
                                 </div>
 
                                 <div class="col-span-12 lg:col-span-5 space-y-4">

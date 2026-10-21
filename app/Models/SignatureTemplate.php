@@ -26,4 +26,9 @@ class SignatureTemplate extends Model
     {
         return $this->hasMany(Client::class);
     }
+
+    public function media()
+    {
+        return $this->hasMany(SignatureMedia::class);
+    }
 }
