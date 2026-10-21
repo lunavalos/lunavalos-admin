@@ -25,7 +25,6 @@ const SOCIALS = [
 ];
 
 const form = useForm({
-    _method:               isEdit.value ? 'put' : 'post',
     client_id:             props.signature?.client_id ?? props.defaultClientId ?? '',
     signature_template_id: props.signature?.signature_template_id ?? '',
     name:                  props.signature?.name ?? '',
@@ -61,10 +60,24 @@ const submit = () => {
         : route('email-signatures.store');
 
     // POST + _method: los archivos solo viajan en multipart, y PUT no lo soporta.
+    // El _method se decide al enviar y no en el estado del form: tras crear, el
+    // redirect a edit reutiliza este mismo componente (Inertia preserva estado
+    // en POST) y el form se quedaría con 'post'.
     form.transform(data => ({
         ...data,
+        _method: isEdit.value ? 'put' : 'post',
         signature_template_id: data.signature_template_id || null,
-    })).post(url, { forceFormData: true, preserveScroll: true });
+    })).post(url, {
+        forceFormData: true,
+        preserveScroll: true,
+        // Al crear, montar la pantalla de edición desde cero.
+        preserveState: isEdit.value,
+        onSuccess: () => {
+            form.photo = null;
+            form.remove_photo = false;
+            photoPreview.value = props.signature?.photo_url ?? null;
+        },
+    });
 };
 
 const copied = ref(false);
@@ -190,6 +203,11 @@ const copyLink = async () => {
 
                     <div v-if="isEdit" class="bg-white dark:bg-zinc-900 shadow-sm sm:rounded-lg border border-gray-200 dark:border-zinc-800 p-6">
                         <h3 class="font-bold text-gray-800 dark:text-gray-100 mb-4">Vista previa</h3>
+                        <div v-if="!signature.has_logo" class="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                            Esta empresa no tiene logo, por eso no aparece en la firma.
+                            <Link :href="route('email-signatures.index', { client_id: signature.client_id })" class="font-bold underline">Súbelo en Logos y banners</Link>
+                            y se mostrará solo, también en las firmas ya instaladas.
+                        </div>
                         <div v-if="signature.has_template" class="bg-white p-4 rounded border border-gray-100 overflow-x-auto" v-html="signature.preview_html"></div>
                         <p v-else class="text-sm text-amber-700">
                             Esta firma no tiene plantilla: elige una aquí o asígnala a la empresa en su expediente.

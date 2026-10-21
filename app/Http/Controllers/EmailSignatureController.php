@@ -75,8 +75,9 @@ class EmailSignatureController extends Controller implements HasMiddleware
             : [];
 
         $current = $clientId ? [
-            'logo'   => SignatureAsset::current($clientId, 'logo')?->id,
-            'banner' => SignatureAsset::current($clientId, 'banner')?->id,
+            'logo'     => SignatureAsset::current($clientId, 'logo')?->id,
+            'banner'   => SignatureAsset::current($clientId, 'banner')?->id,
+            'has_logo' => ($client = Client::find($clientId)) ? SignatureAsset::clientHasLogo($client) : false,
         ] : null;
 
         return Inertia::render('EmailSignatures/Index', [
@@ -135,6 +136,7 @@ class EmailSignatureController extends Controller implements HasMiddleware
                 'last_viewed_at'        => $emailSignature->last_viewed_at?->toDateTimeString(),
                 'preview_html'          => $renderer->render($emailSignature),
                 'has_template'          => (bool) $emailSignature->effectiveTemplate(),
+                'has_logo'              => SignatureAsset::clientHasLogo($emailSignature->client),
             ],
             'clients'   => $this->clientOptions(),
             'templates' => SignatureTemplate::where('is_active', true)->orderBy('name')->get(['id', 'name']),

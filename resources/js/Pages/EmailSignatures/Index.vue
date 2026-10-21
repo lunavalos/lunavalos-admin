@@ -134,6 +134,10 @@ const isCurrent = (asset) => props.currentAssets?.[asset.slot] === asset.id;
                         Usa PNG o JPG con las mismas medidas que la anterior para que la firma no se descuadre.
                     </p>
 
+                    <div v-if="currentAssets && !currentAssets.has_logo" class="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                        Esta empresa no tiene logo vigente: sus firmas se ven sin logo. Sube uno aquí.
+                    </div>
+
                     <form @submit.prevent="uploadAsset" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end mb-6">
                         <div>
                             <InputLabel value="Tipo" />

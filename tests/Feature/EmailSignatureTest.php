@@ -110,7 +110,8 @@ class EmailSignatureTest extends TestCase
 
         $this->get(route('email-signatures.image', [$firma->token, 'logo']))
             ->assertOk()
-            ->assertHeader('Content-Type', 'image/png');
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertHeader('Cache-Control', 'must-revalidate, no-cache, no-store, private');
     }
 
     public function test_logo_de_temporada_le_gana_al_de_siempre_mientras_esta_vigente(): void
@@ -163,5 +164,19 @@ class EmailSignatureTest extends TestCase
         $asset = SignatureAsset::firstOrFail();
         Storage::disk('public')->assertExists($asset->file_path);
         $this->assertSame($asset->id, SignatureAsset::current($firma->client_id, 'logo')->id);
+    }
+
+    public function test_logo_relativo_del_expediente_y_rutas_relativas_de_la_plantilla_se_vuelven_absolutas(): void
+    {
+        $firma = $this->firma();
+        $firma->client->update(['signature_defaults' => ['logo' => '/storage/logo-kronos.png']]);
+        $firma->client->signatureTemplate->update(['html_content' => '<img src="{{logo}}"><img src="/img/tel.png">']);
+
+        $this->get(route('email-signatures.image', [$firma->token, 'logo']))
+            ->assertRedirect(url('/storage/logo-kronos.png'));
+
+        $html = app(\App\Services\Signatures\SignatureRenderer::class)->render($firma->fresh());
+
+        $this->assertStringContainsString('src="' . url('/img/tel.png') . '"', $html);
     }
 }

@@ -59,7 +59,20 @@ class SignatureRenderer
             $html = str_replace('{{' . $key . '}}', $value, $html);
         }
 
-        return $html;
+        return $this->absolutizeUrls($html);
+    }
+
+    /**
+     * `src="/img/tel.png"` carga en el admin pero no en Outlook/Gmail, que no
+     * saben de qué dominio viene la firma pegada.
+     */
+    private function absolutizeUrls(string $html): string
+    {
+        return preg_replace_callback(
+            '#\b(src|href)=(["\'])(/(?!/)[^"\']*)\2#i',
+            fn ($m) => $m[1] . '=' . $m[2] . url($m[3]) . $m[2],
+            $html
+        );
     }
 
     private function color(?string $value, string $fallback): string

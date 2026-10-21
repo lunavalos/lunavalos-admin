@@ -13,11 +13,13 @@ use Inertia\Inertia;
  *
  * Las imágenes se sirven directo —sin redirección cuando el archivo es
  * nuestro— y con caché corta: algunos clientes de correo y proxies (Gmail)
- * guardan copia, y una caché larga retrasaría el cambio de logo.
+ * guardan copia, y una caché larga retrasaría el cambio de logo. El pixel de
+ * "no hay imagen" no se cachea nunca: si se guardara, el logo recién subido
+ * seguiría sin verse hasta que venciera.
  */
 class PublicEmailSignatureController extends Controller
 {
-    private const CACHE_SECONDS = 3600;
+    private const CACHE_SECONDS = 300;
 
     // PNG transparente de 1x1.
     private const PIXEL = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
@@ -60,10 +62,10 @@ class PublicEmailSignatureController extends Controller
             return $this->file($asset->file_path);
         }
 
-        // Sin logo subido todavía: el que se configuró como URL en el cliente.
-        $fallback = $slot === 'logo' ? ($signature->client?->signature_defaults['logo'] ?? null) : null;
+        // Sin logo subido todavía: el que se configuró en el expediente del cliente.
+        $fallback = $slot === 'logo' ? SignatureAsset::fallbackLogoUrl($signature->client) : null;
 
-        if ($fallback && filter_var($fallback, FILTER_VALIDATE_URL)) {
+        if ($fallback) {
             return redirect()->away($fallback);
         }
 
@@ -102,7 +104,10 @@ class PublicEmailSignatureController extends Controller
 
     private function pixel()
     {
-        return response(base64_decode(self::PIXEL), 200, ['Content-Type' => 'image/png'] + $this->cacheHeaders());
+        return response(base64_decode(self::PIXEL), 200, [
+            'Content-Type'  => 'image/png',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
     }
 
     private function cacheHeaders(): array

@@ -58,4 +58,31 @@ class SignatureAsset extends Model
             ->orderByDesc('id')
             ->first();
     }
+
+    /**
+     * El logo configurado como URL en el expediente del cliente, ya absoluto.
+     *
+     * Se acepta relativo (`/storage/...`) porque así lo guardan a veces; en un
+     * correo una ruta relativa no carga, por eso se completa con el dominio.
+     */
+    public static function fallbackLogoUrl(?Client $client): ?string
+    {
+        $logo = trim((string) ($client?->signature_defaults['logo'] ?? ''));
+
+        if ($logo === '') {
+            return null;
+        }
+
+        if (str_starts_with($logo, '//')) {
+            return 'https:' . $logo;
+        }
+
+        return preg_match('#^https?://#i', $logo) ? $logo : url($logo);
+    }
+
+    /** ¿Las firmas de este cliente tienen algún logo que mostrar hoy? */
+    public static function clientHasLogo(Client $client): bool
+    {
+        return static::current($client->id, 'logo') !== null || static::fallbackLogoUrl($client) !== null;
+    }
 }
