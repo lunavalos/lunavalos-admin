@@ -301,6 +301,7 @@ Route::middleware('auth')->group(function () {
     // Firmas por empleado
     Route::resource('email-signatures', \App\Http\Controllers\EmailSignatureController::class)->except(['show']);
     Route::post('signature-assets', [\App\Http\Controllers\SignatureAssetController::class, 'store'])->name('signature-assets.store');
+    Route::put('signature-assets/{signatureAsset}', [\App\Http\Controllers\SignatureAssetController::class, 'update'])->name('signature-assets.update');
     Route::delete('signature-assets/{signatureAsset}', [\App\Http\Controllers\SignatureAssetController::class, 'destroy'])->name('signature-assets.destroy');
 });
 

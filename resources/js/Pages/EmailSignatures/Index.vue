@@ -74,16 +74,49 @@ const vigencia = (asset) => {
     return `${asset.starts_at || '…'} → ${asset.ends_at || '…'}`;
 };
 
+// null = subiendo una nueva; si no, la que se está editando.
+const editingAsset = ref(null);
+const assetFormEl = ref(null);
+
+const resetAssetForm = () => {
+    editingAsset.value = null;
+    assetForm.reset();
+    assetForm.clearErrors();
+    if (fileInput.value) fileInput.value.value = '';
+};
+
+const editAsset = (asset) => {
+    editingAsset.value = asset;
+    assetForm.clearErrors();
+    Object.assign(assetForm, {
+        signature_template_id: asset.signature_template_id ?? '',
+        slot:           asset.slot,
+        label:          asset.label ?? '',
+        file:           null,
+        link_url:       asset.link_url ?? '',
+        starts_at:      asset.starts_at ?? '',
+        ends_at:        asset.ends_at ?? '',
+        repeats_yearly: !!asset.repeats_yearly,
+    });
+    if (fileInput.value) fileInput.value.value = '';
+    assetFormEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
 const uploadAsset = () => {
     assetForm.client_id = Number(clientId.value);
-    assetForm.post(route('signature-assets.store'), {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            assetForm.reset('label', 'file', 'link_url', 'starts_at', 'ends_at', 'repeats_yearly');
-            if (fileInput.value) fileInput.value.value = '';
-        },
-    });
+
+    const url = editingAsset.value
+        ? route('signature-assets.update', editingAsset.value.id)
+        : route('signature-assets.store');
+
+    // POST + _method para que la imagen (opcional al editar) viaje en multipart.
+    assetForm
+        .transform(data => (editingAsset.value ? { ...data, _method: 'put' } : data))
+        .post(url, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: resetAssetForm,
+        });
 };
 
 const deleteAsset = (id) => {
@@ -162,7 +195,13 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                         Sin logo vigente: <b>{{ missingLogo.map(u => u.name).join(', ') }}</b>. Sus firmas se ven sin logo; súbelo aquí.
                     </div>
 
-                    <form @submit.prevent="uploadAsset" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end mb-6">
+                    <div v-if="editingAsset" class="mb-3 p-3 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 text-sm text-blue-800 dark:text-blue-300 flex items-center gap-3">
+                        <img :src="editingAsset.url" class="h-8 w-14 object-contain bg-white rounded" />
+                        <span class="flex-1">Editando <b>{{ editingAsset.label || (editingAsset.slot === 'logo' ? 'Logo' : 'Banner') }}</b>. Sube una imagen solo si quieres reemplazarla.</span>
+                        <button type="button" @click="resetAssetForm" class="font-bold underline">Cancelar</button>
+                    </div>
+
+                    <form ref="assetFormEl" @submit.prevent="uploadAsset" class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end mb-6">
                         <div>
                             <InputLabel value="Tipo" />
                             <select v-model="assetForm.slot" class="mt-1 w-full rounded-md border-gray-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-gray-100 text-sm">
@@ -171,7 +210,7 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                             </select>
                         </div>
                         <div class="md:col-span-2">
-                            <InputLabel value="Imagen (PNG/JPG)" />
+                            <InputLabel :value="editingAsset ? 'Reemplazar imagen (opcional)' : 'Imagen (PNG/JPG)'" />
                             <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/gif"
                                 @change="assetForm.file = $event.target.files[0]"
                                 class="mt-1 block w-full text-sm text-gray-700 dark:text-zinc-300" />
@@ -188,9 +227,9 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                             <InputError :message="assetForm.errors.ends_at" />
                         </div>
                         <div class="md:col-span-1">
-                            <button type="submit" :disabled="assetForm.processing || !assetForm.file"
+                            <button type="submit" :disabled="assetForm.processing || (!editingAsset && !assetForm.file)"
                                 class="w-full bg-[#264ab3] text-white px-4 py-2 rounded-md font-bold text-sm disabled:opacity-50">
-                                Subir
+                                {{ editingAsset ? 'Guardar' : 'Subir' }}
                             </button>
                         </div>
                         <label class="md:col-span-6 flex items-start gap-2 text-sm text-gray-700 dark:text-zinc-300">
@@ -221,7 +260,10 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                     <div v-if="assets.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div v-for="asset in assets" :key="asset.id"
                             class="border rounded-lg p-3 flex gap-3 items-start"
-                            :class="isCurrent(asset) ? 'border-green-400 dark:border-green-600' : 'border-gray-200 dark:border-zinc-700'">
+                            :class="[
+                                isCurrent(asset) ? 'border-green-400 dark:border-green-600' : 'border-gray-200 dark:border-zinc-700',
+                                editingAsset?.id === asset.id ? 'ring-2 ring-[#264ab3]' : '',
+                            ]">
                             <img :src="asset.url" class="h-14 w-24 object-contain bg-gray-50 dark:bg-zinc-800 rounded" />
                             <div class="flex-1 min-w-0 text-sm">
                                 <div class="font-semibold text-gray-800 dark:text-gray-100 truncate">
@@ -233,9 +275,14 @@ const missingLogo = computed(() => props.usage.filter(u => u.template_id && !u.h
                                 </div>
                                 <span v-if="isCurrent(asset)" class="inline-block mt-1 px-2 py-0.5 text-xs rounded-full font-bold bg-green-100 text-green-800">Vigente hoy</span>
                             </div>
-                            <button @click="deleteAsset(asset.id)" class="text-red-600 dark:text-rose-400 hover:text-red-900">
-                                <TrashIcon class="h-5 w-5" />
-                            </button>
+                            <div class="flex flex-col gap-2">
+                                <button type="button" @click="editAsset(asset)" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900" title="Editar fechas y datos">
+                                    <PencilIcon class="h-5 w-5" />
+                                </button>
+                                <button type="button" @click="deleteAsset(asset.id)" class="text-red-600 dark:text-rose-400 hover:text-red-900" title="Eliminar">
+                                    <TrashIcon class="h-5 w-5" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <p v-else class="text-sm text-gray-500 dark:text-zinc-400">

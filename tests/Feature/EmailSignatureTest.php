@@ -324,4 +324,52 @@ class EmailSignatureTest extends TestCase
 
         $this->assertTrue(SignatureAsset::firstOrFail()->repeats_yearly);
     }
+
+    public function test_editar_fechas_de_un_logo_ya_subido(): void
+    {
+        Storage::fake('public');
+        $firma = $this->firma();
+        $admin = $this->admin();
+        Storage::disk('public')->put('halloween.png', 'HALLOWEEN');
+
+        $asset = SignatureAsset::create([
+            'client_id' => $firma->client_id,
+            'slot'      => 'logo',
+            'file_path' => 'halloween.png',
+            'starts_at' => '2026-10-01',
+            'ends_at'   => '2026-10-15',
+        ]);
+
+        // Solo datos: la imagen se conserva.
+        $this->actingAs($admin)->put(route('signature-assets.update', $asset), [
+            'slot'           => 'logo',
+            'label'          => 'Halloween',
+            'starts_at'      => '2026-10-01',
+            'ends_at'        => '2026-10-31',
+            'repeats_yearly' => true,
+        ])->assertSessionHasNoErrors();
+
+        $asset->refresh();
+        $this->assertSame('2026-10-31', $asset->ends_at->toDateString());
+        $this->assertTrue($asset->repeats_yearly);
+        $this->assertSame('halloween.png', $asset->file_path);
+
+        // Con imagen nueva: se reemplaza y se borra la anterior.
+        $this->actingAs($admin)->put(route('signature-assets.update', $asset), [
+            'slot' => 'logo',
+            'file' => UploadedFile::fake()->image('nuevo.png'),
+        ])->assertSessionHasNoErrors();
+
+        $asset->refresh();
+        $this->assertNotSame('halloween.png', $asset->file_path);
+        $this->assertFalse($asset->repeats_yearly);
+        Storage::disk('public')->assertMissing('halloween.png');
+        Storage::disk('public')->assertExists($asset->file_path);
+
+        // La misma validación que al subir.
+        $this->actingAs($admin)->put(route('signature-assets.update', $asset), [
+            'slot'           => 'logo',
+            'repeats_yearly' => true,
+        ])->assertSessionHasErrors(['starts_at', 'ends_at']);
+    }
 }
