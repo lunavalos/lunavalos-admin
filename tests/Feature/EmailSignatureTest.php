@@ -179,4 +179,38 @@ class EmailSignatureTest extends TestCase
 
         $this->assertStringContainsString('src="' . url('/img/tel.png') . '"', $html);
     }
+
+    public function test_quitar_la_foto_la_saca_de_la_firma_y_cambia_la_url_de_la_vista_previa(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('email-signatures/photos/ana.jpg', 'FOTO');
+
+        $firma = $this->firma(['photo_path' => 'email-signatures/photos/ana.jpg']);
+        $firma->client->signatureTemplate->update(['html_content' => '<img src="{{photo}}" width="60"><img src="{{logo}}"><b>{{name}}</b>']);
+
+        $renderer = app(\App\Services\Signatures\SignatureRenderer::class);
+        $antes = $renderer->render($firma->fresh());
+        $this->assertStringContainsString('/img/photo', $antes);
+
+        $this->actingAs($this->admin())
+            ->put(route('email-signatures.update', $firma), [
+                'client_id'    => $firma->client_id,
+                'name'         => $firma->name,
+                'remove_photo' => true,
+            ])
+            ->assertRedirect();
+
+        $firma->refresh();
+        $this->assertNull($firma->photo_path);
+        Storage::disk('public')->assertMissing('email-signatures/photos/ana.jpg');
+
+        $despues = $renderer->render($firma);
+        $this->assertStringNotContainsString('/img/photo', $despues);
+        $this->assertStringContainsString('/img/logo', $despues);
+
+        // Las firmas ya pegadas piden la foto y reciben el pixel transparente.
+        $this->get(route('email-signatures.image', [$firma->token, 'photo']))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
+    }
 }

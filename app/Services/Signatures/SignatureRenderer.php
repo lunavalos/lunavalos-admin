@@ -3,6 +3,7 @@
 namespace App\Services\Signatures;
 
 use App\Models\EmailSignature;
+use App\Models\SignatureAsset;
 
 /**
  * Arma el HTML de la firma de un empleado.
@@ -31,6 +32,7 @@ class SignatureRenderer
 
         $defaults = $signature->client?->signature_defaults ?? [];
         $token = $signature->token;
+        $v = ['v' => $this->imageVersion($signature)];
 
         $values = [
             'name'            => e($signature->name),
@@ -38,15 +40,21 @@ class SignatureRenderer
             'email'           => e($signature->email ?? ''),
             'phone'           => e($signature->phone ?? ''),
             'website'         => e($defaults['website'] ?? ''),
-            'logo'            => route('email-signatures.image', [$token, 'logo']),
-            'photo'           => route('email-signatures.image', [$token, 'photo']),
+            'logo'            => route('email-signatures.image', [$token, 'logo', ...$v]),
+            'photo'           => route('email-signatures.image', [$token, 'photo', ...$v]),
             'primary_color'   => $this->color($defaults['primary_color'] ?? null, '#264ab3'),
             'secondary_color' => $this->color($defaults['secondary_color'] ?? null, '#666666'),
             'social_links'    => $this->socialLinks($signature->social_links ?? []),
-            'banner'          => $this->banner($token),
+            'banner'          => $this->banner($token, $v),
         ];
 
         $html = $template->html_content;
+
+        // Sin foto se quita la etiqueta completa: un hueco en blanco o un
+        // avatar genérico se ven peor que no tener foto.
+        if (! $signature->photo_path) {
+            $html = preg_replace('/<img\b[^>]*\{\{photo\}\}[^>]*>/i', '', $html);
+        }
 
         // El banner va siempre, aunque hoy no haya ninguno: si se sube uno
         // después, aparece en las firmas ya instaladas. Mientras no hay, la URL
@@ -97,10 +105,30 @@ class SignatureRenderer
         return $html === '' ? '' : '<div style="margin-top: 10px;">' . $html . '</div>';
     }
 
-    private function banner(string $token): string
+    /**
+     * Cambia cuando cambia alguna imagen de la firma (foto o logos/banners de
+     * la empresa). El servidor la ignora; solo sirve para que el navegador no
+     * muestre la imagen anterior desde su caché en la vista previa. Las firmas
+     * ya pegadas conservan su `v` viejo y siguen recibiendo la imagen vigente.
+     */
+    private function imageVersion(EmailSignature $signature): string
+    {
+        $assets = SignatureAsset::where('client_id', $signature->client_id)
+            ->selectRaw('count(*) as total, max(updated_at) as last')
+            ->first();
+
+        return substr(md5(implode('|', [
+            $signature->photo_path,
+            $assets?->total,
+            $assets?->last,
+            now()->toDateString(), // los de temporada cambian por fecha
+        ])), 0, 8);
+    }
+
+    private function banner(string $token, array $v): string
     {
         return '<div style="margin-top: 12px;"><a href="' . route('email-signatures.banner-link', $token) . '">'
-            . '<img src="' . route('email-signatures.image', [$token, 'banner']) . '" alt="" style="display:block; border:0;">'
+            . '<img src="' . route('email-signatures.image', [$token, 'banner', ...$v]) . '" alt="" style="display:block; border:0;">'
             . '</a></div>';
     }
 }

@@ -53,7 +53,8 @@ class PublicEmailSignatureController extends Controller
                 return $this->file($signature->photo_path);
             }
 
-            return redirect()->away('https://ui-avatars.com/api/?size=120&background=264ab3&color=fff&name=' . urlencode($signature->name));
+            // Se quitó la foto: las firmas ya pegadas dejan de mostrarla.
+            return $this->pixel();
         }
 
         $asset = SignatureAsset::current($signature->client_id, $slot);

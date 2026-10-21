@@ -157,6 +157,7 @@ const copyLink = async () => {
                                 class="block text-sm text-gray-700 dark:text-zinc-300" />
                             <button v-if="photoPreview" type="button" @click="removePhoto" class="text-sm text-red-600 dark:text-rose-400">Quitar</button>
                         </div>
+                        <p v-if="isEdit && (form.photo || form.remove_photo)" class="text-xs text-amber-700 mt-1">La vista previa se actualiza al guardar.</p>
                         <InputError :message="form.errors.photo" />
                     </div>
 
